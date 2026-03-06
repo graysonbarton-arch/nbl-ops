@@ -1,9 +1,8 @@
 {
   "name": "nbl-ops",
   "version": "1.0.0",
-  "description": "Nappy Boy Live Internal Operations",
+  "private": true,
   "dependencies": {
-    "resend": "^3.2.0",
-    "@vercel/kv": "^2.0.0"
+    "@supabase/supabase-js": "^2.39.0"
   }
 }
