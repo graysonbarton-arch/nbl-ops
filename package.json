@@ -1,0 +1,9 @@
+{
+  "name": "nbl-ops",
+  "version": "1.0.0",
+  "description": "Nappy Boy Live Internal Operations",
+  "dependencies": {
+    "resend": "^3.2.0",
+    "@vercel/kv": "^2.0.0"
+  }
+}
