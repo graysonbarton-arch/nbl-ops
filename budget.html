@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nappy Boy Live — Budget Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0a; --surface: #1a1a1a; --surface-2: #222222;
+    --border: #333333; --border-light: #444444; --muted: #666666;
+    --text: #f5f5f0; --text-dim: #999999; --accent: #c8b88a;
+    --red: #d32f2f; --red-dim: #4a1a1a; --green: #4caf50; --green-dim: #1a3a1a;
+    --blue: #42a5f5; --blue-dim: #1a2a3a; --orange: #ff9800; --orange-dim: #3a2a0a;
+    --yellow: #fdd835; --purple: #ce93d8;
+    --font-display: 'Bebas Neue', sans-serif; --font-body: 'DM Mono', monospace;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:12px; line-height:1.5; min-height:100vh; }
+
+  /* Ticker */
+  .ticker { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 0; overflow:hidden; white-space:nowrap; }
+  .ticker-inner { display:inline-block; animation:marquee 30s linear infinite; color:var(--muted); font-size:10px; letter-spacing:2px; text-transform:uppercase; }
+  @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+  /* Nav */
+  .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 40px; border-bottom:1px solid var(--border); }
+  .nav-logo { width:40px; height:40px; border:2px solid var(--text); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:14px; letter-spacing:1px; }
+  .nav-links { display:flex; gap:24px; }
+  .nav-links a { color:var(--muted); text-decoration:none; font-size:10px; letter-spacing:2px; text-transform:uppercase; transition:color .2s; cursor:pointer; }
+  .nav-links a:hover, .nav-links a.active { color:var(--text); text-decoration:underline; text-underline-offset:6px; }
+
+  /* Hero */
+  .hero { padding:60px 40px 40px; background:linear-gradient(180deg,var(--surface) 0%,var(--bg) 100%); }
+  .hero-subtitle { font-family:var(--font-display); font-size:42px; color:var(--muted); letter-spacing:2px; line-height:1; }
+  .hero-title { font-family:var(--font-display); font-size:80px; letter-spacing:2px; line-height:.95; margin-bottom:20px; }
+  .hero-meta { display:flex; gap:40px; padding-top:20px; border-top:1px solid var(--border); flex-wrap:wrap; }
+  .meta-item { display:flex; flex-direction:column; gap:2px; }
+  .meta-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .meta-value { font-size:13px; color:var(--text); font-weight:500; }
+
+  /* Editable field */
+  .editable {
+    background: transparent; border: none; border-bottom: 1px dashed var(--border-light);
+    color: var(--blue); font-family: var(--font-body); font-size: inherit;
+    padding: 2px 4px; width: 100%; outline: none; transition: all .2s;
+  }
+  .editable:hover { border-bottom-color: var(--blue); }
+  .editable:focus { border-bottom-color: var(--accent); background: rgba(200,184,138,0.05); color: var(--text); }
+  .editable-lg { font-family: var(--font-display); font-size: 80px; letter-spacing: 2px; line-height: .95; color: var(--text); border-bottom: 2px dashed var(--border); padding: 4px 0; }
+  .editable-lg:focus { border-bottom-color: var(--accent); }
+  .editable-md { font-family: var(--font-display); font-size: 42px; color: var(--muted); letter-spacing: 2px; border-bottom: 1px dashed var(--border); }
+  .editable-meta { font-size: 13px; font-weight: 500; }
+  .editable-num { text-align: right; width: 100px; }
+  .editable-wide { width: 200px; }
+  .calc-field { color: var(--accent); font-weight: 500; cursor: default; }
+
+  /* Tabs */
+  .tabs { display:flex; gap:0; padding:0 40px; border-bottom:1px solid var(--border); overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .tabs::-webkit-scrollbar { height:2px; }
+  .tabs::-webkit-scrollbar-thumb { background:var(--border); }
+  .tab { padding:12px 18px; font-family:var(--font-body); font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; white-space:nowrap; flex-shrink:0; }
+  .tab:hover { color:var(--text-dim); }
+  .tab.active { color:var(--text); border-bottom-color:var(--text); }
+
+  .content { padding:30px 40px; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* KPI Cards */
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px; }
+  .kpi-card { background:var(--surface); border:1px solid var(--border); padding:20px; position:relative; overflow:hidden; }
+  .kpi-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; }
+  .kpi-card.red::before { background:var(--red); } .kpi-card.green::before { background:var(--green); }
+  .kpi-card.blue::before { background:var(--blue); } .kpi-card.orange::before { background:var(--orange); }
+  .kpi-card.accent::before { background:var(--accent); }
+  .kpi-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  .kpi-value { font-family:var(--font-display); font-size:36px; letter-spacing:1px; line-height:1; }
+  .kpi-sub { font-size:10px; color:var(--muted); margin-top:6px; }
+
+  /* Section headers */
+  .section-header { display:flex; align-items:center; gap:12px; margin:32px 0 16px; }
+  .section-number { font-family:var(--font-display); font-size:36px; color:var(--border); line-height:1; }
+  .section-title { font-family:var(--font-display); font-size:24px; letter-spacing:2px; }
+  .section-line { flex:1; height:1px; background:var(--border); }
+  .sub-header { font-family:var(--font-display); font-size:18px; letter-spacing:2px; color:var(--accent); margin:24px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+  /* Tables */
+  .budget-table { width:100%; border-collapse:collapse; margin-bottom:24px; }
+  .budget-table th { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); }
+  .budget-table th.r { text-align:right; }
+  .budget-table td { padding:8px 12px; border-bottom:1px solid #1f1f1f; font-size:11px; vertical-align:middle; }
+  .budget-table td.r { text-align:right; font-variant-numeric:tabular-nums; }
+  .budget-table tr:hover { background:var(--surface); }
+  .budget-table .subtotal-row { background:var(--surface); border-top:1px solid var(--border); }
+  .budget-table .subtotal-row td { font-weight:500; color:var(--text); }
+  .budget-table .grand-total-row { background:var(--surface-2); border-top:2px solid var(--accent); }
+  .budget-table .grand-total-row td { font-weight:500; color:var(--accent); font-size:12px; }
+
+  /* Progress bars */
+  .progress-bar { width:100%; height:4px; background:var(--surface-2); border-radius:2px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:2px; transition:width .6s ease; }
+
+  /* Category grid */
+  .category-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:32px; }
+  .category-card { background:var(--surface); border:1px solid var(--border); padding:16px; }
+  .category-name { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px; }
+  .category-amount { font-family:var(--font-display); font-size:28px; letter-spacing:1px; }
+  .category-pct { font-size:10px; color:var(--muted); margin-top:4px; }
+
+  /* Donut */
+  .chart-container { display:flex; align-items:center; gap:32px; margin:24px 0 32px; }
+  .donut-wrap { position:relative; }
+  .donut-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+  .donut-center-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .donut-center-value { font-family:var(--font-display); font-size:28px; }
+  .chart-legend { display:flex; flex-direction:column; gap:10px; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:11px; }
+  .legend-dot { width:10px; height:10px; border-radius:50%; }
+
+  /* Schedule */
+  .schedule-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+  .schedule-card { background:var(--surface); border:1px solid var(--border); padding:14px; }
+  .schedule-date { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  .schedule-city { font-family:var(--font-display); font-size:20px; letter-spacing:1px; }
+  .schedule-venue { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .badge { display:inline-block; padding:2px 8px; font-size:9px; letter-spacing:1px; text-transform:uppercase; margin-top:8px; border:1px solid; }
+  .badge-show { color:var(--green); border-color:var(--green); background:var(--green-dim); }
+  .badge-rehearsal { color:var(--blue); border-color:var(--blue); background:var(--blue-dim); }
+  .badge-travel { color:var(--orange); border-color:var(--orange); background:var(--orange-dim); }
+  .badge-off { color:var(--muted); border-color:var(--border); }
+  .badge-tech { color:var(--yellow); border-color:var(--yellow); background:#3a3a0a; }
+  .badge-build { color:var(--purple); border-color:var(--purple); background:#2a1a2a; }
+
+  /* Guest card */
+  .guest-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:24px; }
+  .guest-card { background:var(--surface); border:1px solid var(--border); padding:20px; }
+  .guest-title { font-family:var(--font-display); font-size:22px; letter-spacing:2px; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); color:var(--accent); }
+
+  /* Add row button */
+  .add-row-btn {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 16px;
+    background:var(--surface); border:1px dashed var(--border-light);
+    color:var(--muted); font-family:var(--font-body); font-size:10px;
+    letter-spacing:1px; text-transform:uppercase; cursor:pointer;
+    transition:all .2s; margin:8px 0 20px;
+  }
+  .add-row-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* Savings card */
+  .savings-card { background:var(--surface); border:1px solid var(--border); padding:24px; margin-bottom:16px; }
+
+  /* Footer */
+  .footer { padding:32px 40px; border-top:1px solid var(--border); font-size:10px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+
+  /* Export banner */
+  .export-bar { display:flex; gap:12px; padding:12px 40px; background:var(--surface); border-bottom:1px solid var(--border); align-items:center; }
+  .export-btn {
+    padding:6px 16px; background:var(--accent); color:#000; font-family:var(--font-body);
+    font-size:10px; letter-spacing:1px; text-transform:uppercase; border:none; cursor:pointer;
+    font-weight:500; transition:opacity .2s;
+  }
+  .export-btn:hover { opacity:.85; }
+  .export-btn.secondary { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .export-label { font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+
+  @media(max-width:900px) {
+    .kpi-grid { grid-template-columns:repeat(2,1fr); }
+    .category-grid { grid-template-columns:1fr 1fr; }
+    .hero-title,.editable-lg { font-size:48px!important; }
+    .guest-grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner" id="tickerText">
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; PROJECT BUDGET TEMPLATE &nbsp;&bull;&nbsp; LIVE CALCULATOR &nbsp;&bull;&nbsp; ALL FIELDS EDITABLE &nbsp;&bull;&nbsp; TOTALS AUTO-UPDATE &nbsp;&bull;&nbsp;
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; PROJECT BUDGET TEMPLATE &nbsp;&bull;&nbsp; LIVE CALCULATOR &nbsp;&bull;&nbsp; ALL FIELDS EDITABLE &nbsp;&bull;&nbsp; TOTALS AUTO-UPDATE &nbsp;&bull;&nbsp;
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="/" class="nav-logo" style="text-decoration:none; color:var(--text)">NBL</a>
+  <div class="nav-links">
+    <a href="/">PROJECT INTAKE</a>
+    <a href="/">POST-EVENT REVIEW</a>
+    <a href="/budget.html" class="active">BUDGET TRACKER</a>
+  </div>
+</nav>
+
+<!-- EXPORT BAR -->
+<div class="export-bar">
+  <span class="export-label">Template Tools:</span>
+  <button class="export-btn" onclick="saveToJSON()">EXPORT DATA (JSON)</button>
+  <button class="export-btn secondary" onclick="loadFromJSON()">IMPORT DATA</button>
+  <button class="export-btn secondary" onclick="resetAll()">RESET ALL</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+</div>
+
+<!-- HERO (editable) -->
+<div class="hero">
+  <input class="editable editable-md" id="heroSubtitle" value="ARTIST / CLIENT NAME" style="width:100%; display:block; margin-bottom:4px;">
+  <input class="editable editable-lg" id="heroTitle" value="PROJECT TITLE" style="width:100%; display:block;">
+  <div class="hero-meta" style="margin-top:20px">
+    <div class="meta-item"><span class="meta-label">PROJECT TYPE</span><input class="editable editable-meta" id="metaType" value="Tour / Live Event" style="width:160px"></div>
+    <div class="meta-item"><span class="meta-label">DATES</span><input class="editable editable-meta" id="metaDates" value="TBD" style="width:200px"></div>
+    <div class="meta-item"><span class="meta-label">LOCATION</span><input class="editable editable-meta" id="metaLocation" value="TBD" style="width:160px"></div>
+    <div class="meta-item"><span class="meta-label">DURATION</span><input class="editable editable-meta" id="metaDuration" value="— DAYS" style="width:100px"></div>
+    <div class="meta-item"><span class="meta-label">CREW SIZE</span><input class="editable editable-meta" id="metaCrew" value="— MEMBERS" style="width:120px"></div>
+    <div class="meta-item"><span class="meta-label">STATUS</span><input class="editable editable-meta" id="metaStatus" value="PRE-PRODUCTION" style="width:140px; color:var(--orange)"></div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="showTab('overview',this)">OVERVIEW</button>
+  <button class="tab" onclick="showTab('payroll',this)">PAYROLL</button>
+  <button class="tab" onclick="showTab('perdiems',this)">PER DIEMS</button>
+  <button class="tab" onclick="showTab('hotel',this)">HOTEL</button>
+  <button class="tab" onclick="showTab('airfares',this)">AIRFARES</button>
+  <button class="tab" onclick="showTab('ground',this)">GROUND TRANSPORT</button>
+  <button class="tab" onclick="showTab('production',this)">PRODUCTION</button>
+  <button class="tab" onclick="showTab('startup',this)">START UP & MISC</button>
+  <button class="tab" onclick="showTab('trucking',this)">TRUCKING</button>
+  <button class="tab" onclick="showTab('insurance',this)">INSURANCE</button>
+  <button class="tab" onclick="showTab('guests',this)">SPECIAL GUESTS</button>
+  <button class="tab" onclick="showTab('schedule',this)">SCHEDULE</button>
+  <button class="tab" onclick="showTab('crew',this)">CREW</button>
+  <button class="tab" onclick="showTab('savings',this)">SAVINGS</button>
+</div>
+
+<div class="content">
+
+<!-- ==================== OVERVIEW ==================== -->
+<div id="overview" class="tab-panel active">
+  <div class="kpi-grid">
+    <div class="kpi-card red"><div class="kpi-label">TOTAL EXPENSES</div><div class="kpi-value" id="kpiTotal">$0</div><div class="kpi-sub">Including contingency &amp; commissions</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">EXPENSES SUBTOTAL</div><div class="kpi-value" id="kpiSubtotal">$0</div><div class="kpi-sub">Before contingency</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">GROSS INCOME</div><div class="kpi-value" id="kpiIncome">$0</div><div class="kpi-sub">Revenue / deal value</div></div>
+    <div class="kpi-card green"><div class="kpi-label">NET PROFIT / (LOSS)</div><div class="kpi-value" id="kpiNet">$0</div><div class="kpi-sub" id="kpiMargin">0% margin</div></div>
+  </div>
+
+  <div class="section-header"><span class="section-number">01</span><span class="section-title">INCOME</span><span class="section-line"></span></div>
+  <div style="margin-bottom:8px"><span class="meta-label">GROSS INCOME / DEAL VALUE: </span><input class="editable editable-num" data-field="income" type="number" value="0" style="width:200px; font-size:16px; font-family:var(--font-display);" oninput="recalcAll()"></div>
+
+  <div class="section-header"><span class="section-number">02</span><span class="section-title">EXPENSE CATEGORIES</span><span class="section-line"></span></div>
+  <table class="budget-table">
+    <thead><tr><th>#</th><th>CATEGORY</th><th class="r">BUDGET</th><th class="r">% OF TOTAL</th></tr></thead>
+    <tbody id="overviewTable"></tbody>
+  </table>
+
+  <div style="margin-top:16px">
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+      <div><span class="meta-label">CONTINGENCY %: </span><input class="editable editable-num" id="contingencyPct" type="number" value="5" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
+      <div><span class="meta-label">MGMT COMMISSION %: </span><input class="editable editable-num" id="mgmtPct" type="number" value="10" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
+      <div><span class="meta-label">AGENT COMMISSION %: </span><input class="editable editable-num" id="agentPct" type="number" value="10" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
+      <div><span class="meta-label">BIZ MGR %: </span><input class="editable editable-num" id="bizPct" type="number" value="5" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
+      <div><span class="meta-label">LAWYER %: </span><input class="editable editable-num" id="lawyerPct" type="number" value="5" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
+    </div>
+    <div style="margin-top:12px; padding:12px; background:var(--surface); border:1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Contingency</span><span id="ovContingency" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Management Commission</span><span id="ovMgmt" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Agent Commission</span><span id="ovAgent" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Business Mgr Commission</span><span id="ovBiz" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px"><span>Lawyer</span><span id="ovLawyer" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; padding-top:8px; border-top:2px solid var(--accent); font-weight:500; font-size:13px"><span style="color:var(--accent)">GRAND TOTAL</span><span id="ovGrandTotal" style="color:var(--accent)">$0</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAYROLL ==================== -->
+<div id="payroll" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card blue"><div class="kpi-label">SHOW DAYS PAYROLL</div><div class="kpi-value" id="kpiPayShow">$0</div></div>
+    <div class="kpi-card accent"><div class="kpi-label">REHEARSAL BLOCK 1</div><div class="kpi-value" id="kpiPayReh1">$0</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">REHEARSAL BLOCK 2</div><div class="kpi-value" id="kpiPayReh2">$0</div></div>
+  </div>
+
+  <div class="sub-header">SHOW DAYS</div>
+  <table class="budget-table"><thead><tr><th>#</th><th>POSITION</th><th>NAME</th><th class="r">DAYS</th><th class="r">DAY RATE</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="payShowBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addPayRow('payShowBody')">+ ADD ROW</button>
+
+  <div class="sub-header">REHEARSAL BLOCK 1</div>
+  <table class="budget-table"><thead><tr><th>#</th><th>POSITION</th><th>NAME</th><th class="r">DAYS</th><th class="r">DAY RATE</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="payReh1Body"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addPayRow('payReh1Body')">+ ADD ROW</button>
+
+  <div class="sub-header">REHEARSAL BLOCK 2</div>
+  <table class="budget-table"><thead><tr><th>#</th><th>POSITION</th><th>NAME</th><th class="r">DAYS</th><th class="r">DAY RATE</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="payReh2Body"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addPayRow('payReh2Body')">+ ADD ROW</button>
+
+  <div style="padding:12px; background:var(--surface-2); border-top:2px solid var(--accent); text-align:right; font-size:13px">
+    <span style="color:var(--accent); font-weight:500">PAYROLL GRAND TOTAL: </span><span id="payGrandTotal" style="color:var(--accent); font-weight:500">$0</span>
+  </div>
+</div>
+
+<!-- ==================== PER DIEMS ==================== -->
+<div id="perdiems" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card green"><div class="kpi-label">PER DIEMS TOTAL</div><div class="kpi-value" id="kpiPD">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">DEFAULT DAILY RATE</div><div class="kpi-value">$<input class="editable" id="pdDefaultRate" type="number" value="50" style="width:60px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()"></div></div>
+    <div class="kpi-card accent"><div class="kpi-label">CREW ON PD</div><div class="kpi-value" id="kpiPDCount">0</div></div>
+  </div>
+  <table class="budget-table"><thead><tr><th>#</th><th>POSITION</th><th>NAME</th><th class="r">DAYS</th><th class="r">PD RATE</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="pdBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addPDRow()">+ ADD ROW</button>
+</div>
+
+<!-- ==================== HOTEL ==================== -->
+<div id="hotel" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card green"><div class="kpi-label">HOTELS TOTAL</div><div class="kpi-value" id="kpiHotel">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">TAX RATE</div><div class="kpi-value"><input class="editable" id="hotelTax" type="number" value="10" style="width:50px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()">%</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">DEFAULT ROOMS/NIGHT</div><div class="kpi-value"><input class="editable" id="hotelDefaultRooms" type="number" value="14" style="width:50px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()"></div></div>
+  </div>
+  <table class="budget-table"><thead><tr><th>DATE</th><th>CITY</th><th>NOTE</th><th class="r">ROOMS</th><th class="r">NIGHTS</th><th class="r">RATE</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="hotelBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addHotelRow()">+ ADD ROW</button>
+</div>
+
+<!-- ==================== AIRFARES ==================== -->
+<div id="airfares" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card blue"><div class="kpi-label">FLIGHTS TOTAL</div><div class="kpi-value" id="kpiFlights">$0</div></div>
+    <div class="kpi-card accent"><div class="kpi-label">BOOKED FLIGHTS</div><div class="kpi-value" id="kpiFlightCount">0</div></div>
+  </div>
+  <table class="budget-table"><thead><tr><th>#</th><th>DATE</th><th>FLIGHT</th><th>NAME</th><th>CLASS</th><th class="r">PRICE</th><th class="r">QTY</th><th class="r">BAGS</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="flightBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addFlightRow()">+ ADD ROW</button>
+</div>
+
+<!-- ==================== GROUND TRANSPORT ==================== -->
+<div id="ground" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card accent"><div class="kpi-label">GROUND TOTAL</div><div class="kpi-value" id="kpiGround">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">BUSSING</div><div class="kpi-value" id="kpiBus">$0</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">LOCAL</div><div class="kpi-value" id="kpiLocal">$0</div></div>
+  </div>
+  <div class="sub-header">BUSSES / SPRINTERS</div>
+  <table class="budget-table"><thead><tr><th>EQUIPMENT</th><th>VENDOR</th><th class="r">DAILY RATE</th><th class="r"># DAYS</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="busBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('busBody',['text','text','num','num'])">+ ADD ROW</button>
+  <div class="sub-header">LOCAL GROUND</div>
+  <table class="budget-table"><thead><tr><th>ITEM</th><th>VENDOR</th><th class="r">COST</th><th class="r">QTY</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="localBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('localBody',['text','text','num','num'])">+ ADD ROW</button>
+</div>
+
+<!-- ==================== PRODUCTION ==================== -->
+<div id="production" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card red"><div class="kpi-label">PRODUCTION TOTAL</div><div class="kpi-value" id="kpiProd">$0</div></div>
+    <div class="kpi-card accent"><div class="kpi-label">SECTIONS</div><div class="kpi-value">7</div></div>
+  </div>
+  <div id="prodSections"></div>
+</div>
+
+<!-- ==================== START UP & MISC ==================== -->
+<div id="startup" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card orange"><div class="kpi-label">START UP TOTAL</div><div class="kpi-value" id="kpiStartup">$0</div></div>
+    <div class="kpi-card accent"><div class="kpi-label">SECTIONS</div><div class="kpi-value">5</div></div>
+  </div>
+  <div id="startupSections"></div>
+</div>
+
+<!-- ==================== TRUCKING ==================== -->
+<div id="trucking" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card accent"><div class="kpi-label">TRUCKING TOTAL</div><div class="kpi-value" id="kpiTruck">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">TRUCKING</div><div class="kpi-value" id="kpiTruckA">$0</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">FREIGHT</div><div class="kpi-value" id="kpiTruckB">$0</div></div>
+  </div>
+  <div class="sub-header">TRUCKING</div>
+  <table class="budget-table"><thead><tr><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="truckABody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('truckABody',['text','num','num'])">+ ADD ROW</button>
+  <div class="sub-header">INTERNAL MOVEMENTS</div>
+  <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th class="r">COST/MOVE</th><th class="r"># MOVES</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="truckBBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('truckBBody',['text','num','num'])">+ ADD ROW</button>
+</div>
+
+<!-- ==================== INSURANCE ==================== -->
+<div id="insurance" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card orange"><div class="kpi-label">INSURANCE TOTAL</div><div class="kpi-value" id="kpiInsurance">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">STATUS</div><div class="kpi-value" style="font-size:24px">AWAITING QUOTES</div></div>
+  </div>
+  <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th></tr></thead>
+    <tbody id="insurBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('insurBody',['text','text','num','num'])">+ ADD ROW</button>
+</div>
+
+<!-- ==================== SPECIAL GUESTS ==================== -->
+<div id="guests" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card accent"><div class="kpi-label">GUESTS TOTAL</div><div class="kpi-value" id="kpiGuests">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">GUEST SLOTS</div><div class="kpi-value" id="kpiGuestCount">4</div></div>
+  </div>
+  <div id="guestCards" class="guest-grid"></div>
+  <button class="add-row-btn" onclick="addGuestCard()">+ ADD GUEST SLOT</button>
+</div>
+
+<!-- ==================== SCHEDULE ==================== -->
+<div id="schedule" class="tab-panel">
+  <div class="section-header"><span class="section-number">01</span><span class="section-title">ITINERARY</span><span class="section-line"></span></div>
+  <div class="schedule-grid" id="scheduleGrid"></div>
+  <button class="add-row-btn" onclick="addScheduleDay()" style="margin-top:12px">+ ADD DAY</button>
+</div>
+
+<!-- ==================== CREW ==================== -->
+<div id="crew" class="tab-panel">
+  <div class="section-header"><span class="section-number">01</span><span class="section-title">CREW ROSTER</span><span class="section-line"></span></div>
+  <table class="budget-table"><thead><tr><th>#</th><th>POSITION</th><th>NAME</th><th>PHONE</th><th>EMAIL</th><th>STATUS</th></tr></thead>
+    <tbody id="crewBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addCrewRow()">+ ADD CREW MEMBER</button>
+</div>
+
+<!-- ==================== SAVINGS ==================== -->
+<div id="savings" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card green"><div class="kpi-label">POTENTIAL SAVINGS</div><div class="kpi-value" id="kpiSavings">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">CURRENT BUDGET</div><div class="kpi-value" id="kpiSavBudget">$0</div></div>
+  </div>
+  <div class="section-header"><span class="section-number">01</span><span class="section-title">IDEAS TO SAVE MONEY</span><span class="section-line"></span></div>
+  <table class="budget-table"><thead><tr><th>#</th><th>IDEA</th><th class="r">EST. SAVINGS</th><th>STATUS</th></tr></thead>
+    <tbody id="savingsBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addSavingsRow()">+ ADD IDEA</button>
+</div>
+
+</div><!-- end .content -->
+
+<div class="footer">
+  <span>NAPPY BOY LIVE &mdash; BUDGET TEMPLATE</span>
+  <span>ALL FIELDS EDITABLE &bull; TOTALS AUTO-CALCULATE</span>
+  <span id="footerDate"></span>
+</div>
+
+<!-- ==================== JAVASCRIPT ENGINE ==================== -->
+<script>
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+const fmt = n => {
+  if (n < 0) return '($' + Math.abs(n).toLocaleString('en-US', {maximumFractionDigits:0}) + ')';
+  return '$' + n.toLocaleString('en-US', {maximumFractionDigits:0});
+};
+const pct = n => (n*100).toFixed(1) + '%';
+
+// Tab switching
+function showTab(id, el) {
+  $$('.tab-panel').forEach(p => p.classList.remove('active'));
+  $$('.tab').forEach(t => t.classList.remove('active'));
+  $(id).classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+// ============ GENERIC TABLE HELPERS ============
+function makeInput(type, val, cls, extra) {
+  const inp = document.createElement('input');
+  inp.className = 'editable' + (cls ? ' ' + cls : '');
+  inp.type = type === 'num' ? 'number' : 'text';
+  inp.value = val || '';
+  inp.step = type === 'num' ? 'any' : undefined;
+  inp.addEventListener('input', recalcAll);
+  if (extra) Object.assign(inp, extra);
+  return inp;
+}
+
+function addPayRow(bodyId) {
+  const tb = $(bodyId); const n = tb.rows.length + 1;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
+  tr.cells[1].appendChild(makeInput('text','','editable-wide'));
+  tr.cells[2].appendChild(makeInput('text',''));
+  tr.cells[3].appendChild(makeInput('num','0','editable-num'));
+  tr.cells[4].appendChild(makeInput('num','0','editable-num'));
+  recalcAll();
+}
+
+function addPDRow() {
+  const tb = $('pdBody'); const n = tb.rows.length + 1;
+  const defRate = $('pdDefaultRate').value || 50;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
+  tr.cells[1].appendChild(makeInput('text',''));
+  tr.cells[2].appendChild(makeInput('text',''));
+  tr.cells[3].appendChild(makeInput('num','0','editable-num'));
+  tr.cells[4].appendChild(makeInput('num', defRate,'editable-num'));
+  recalcAll();
+}
+
+function addHotelRow() {
+  const tb = $('hotelBody'); const defRooms = $('hotelDefaultRooms').value || 14;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td></td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
+  tr.cells[0].appendChild(makeInput('text',''));
+  tr.cells[1].appendChild(makeInput('text',''));
+  tr.cells[2].appendChild(makeInput('text',''));
+  tr.cells[3].appendChild(makeInput('num', defRooms,'editable-num'));
+  tr.cells[4].appendChild(makeInput('num','1','editable-num'));
+  tr.cells[5].appendChild(makeInput('num','0','editable-num'));
+  recalcAll();
+}
+
+function addFlightRow() {
+  const tb = $('flightBody'); const n = tb.rows.length + 1;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td></td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
+  tr.cells[1].appendChild(makeInput('text',''));
+  tr.cells[2].appendChild(makeInput('text',''));
+  tr.cells[3].appendChild(makeInput('text',''));
+  tr.cells[4].appendChild(makeInput('text','Economy'));
+  tr.cells[5].appendChild(makeInput('num','0','editable-num'));
+  tr.cells[6].appendChild(makeInput('num','1','editable-num'));
+  tr.cells[7].appendChild(makeInput('num','0','editable-num'));
+  recalcAll();
+}
+
+function addLineRow(bodyId, types) {
+  const tb = $(bodyId);
+  const tr = tb.insertRow();
+  types.forEach(t => {
+    const td = tr.insertCell(); td.appendChild(makeInput(t, t==='num'?'0':'', t==='num'?'editable-num':''));
+    if (t === 'num') td.className = 'r';
+  });
+  const td = tr.insertCell(); td.className = 'r calc-field'; td.textContent = '$0';
+  recalcAll();
+}
+
+function addCrewRow() {
+  const tb = $('crewBody'); const n = tb.rows.length + 1;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td></td><td></td><td></td><td></td>`;
+  for (let i = 1; i <= 5; i++) tr.cells[i].appendChild(makeInput('text',''));
+  recalcAll();
+}
+
+function addSavingsRow() {
+  const tb = $('savingsBody'); const n = tb.rows.length + 1;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td class="r"></td><td></td>`;
+  tr.cells[1].appendChild(makeInput('text','','editable-wide'));
+  tr.cells[2].appendChild(makeInput('num','0','editable-num'));
+  tr.cells[3].appendChild(makeInput('text','Pending'));
+  recalcAll();
+}
+
+let guestCount = 0;
+function addGuestCard() {
+  guestCount++;
+  const div = document.createElement('div'); div.className = 'guest-card';
+  const expenses = ['Appearance Fee','Airfare','Hotel','Ground','Glam','Misc Exp'];
+  let html = `<div class="guest-title"><input class="editable" value="SPECIAL GUEST ${guestCount}" style="font-family:var(--font-display); font-size:22px; letter-spacing:2px; color:var(--accent); width:100%"></div>`;
+  expenses.forEach(e => {
+    html += `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #1f1f1f; font-size:11px">
+      <span style="color:var(--text-dim)">${e}</span>
+      <input class="editable editable-num guest-expense" type="number" value="0" style="width:80px; text-align:right" oninput="recalcAll()">
+    </div>`;
+  });
+  html += `<div style="display:flex; justify-content:space-between; padding:8px 0; margin-top:4px; font-weight:500"><span>Total</span><span class="guest-card-total">$0</span></div>`;
+  div.innerHTML = html;
+  $('guestCards').appendChild(div);
+  $('kpiGuestCount').textContent = guestCount;
+  recalcAll();
+}
+
+let schedDayCount = 0;
+function addScheduleDay() {
+  schedDayCount++;
+  const card = document.createElement('div'); card.className = 'schedule-card';
+  card.innerHTML = `
+    <div style="margin-bottom:4px"><input class="editable" placeholder="DATE" style="font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); width:100%"></div>
+    <div><input class="editable" placeholder="CITY" style="font-family:var(--font-display); font-size:20px; letter-spacing:1px; color:var(--text); width:100%"></div>
+    <div style="margin-top:2px"><input class="editable" placeholder="Venue / Note" style="font-size:11px; color:var(--text-dim); width:100%"></div>
+    <div style="margin-top:8px">
+      <select style="background:var(--surface); color:var(--text); border:1px solid var(--border); padding:4px 8px; font-family:var(--font-body); font-size:9px; letter-spacing:1px; text-transform:uppercase;">
+        <option>SHOW</option><option>REHEARSAL</option><option>TRAVEL</option><option>OFF</option><option>TECH</option><option>BUILD</option><option>LOAD IN</option><option>WRAP</option>
+      </select>
+    </div>`;
+  $('scheduleGrid').appendChild(card);
+}
+
+// Production sections builder
+function buildProdSections() {
+  const sections = ['SOUND','LIGHTS','BACKLINE RENTAL','RADIOS','VIDEO','STAGING & SCENIC','SFX'];
+  const container = $('prodSections');
+  sections.forEach((sec, i) => {
+    const id = 'prod_' + i;
+    let html = `<div class="sub-header">${sec}</div>
+      <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th></tr></thead>
+      <tbody id="${id}"></tbody></table>
+      <button class="add-row-btn" onclick="addLineRow('${id}',['text','text','num','num'])">+ ADD ROW</button>`;
+    container.innerHTML += html;
+  });
+}
+
+// Startup sections builder
+function buildStartupSections() {
+  const sections = ['LIGHTING / PRODUCTION DESIGN','REHEARSAL COSTS','EQUIPMENT PURCHASES','PRODUCTION REHEARSALS','MISC COSTS'];
+  const container = $('startupSections');
+  sections.forEach((sec, i) => {
+    const id = 'startup_' + i;
+    let html = `<div class="sub-header">${sec}</div>
+      <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th></tr></thead>
+      <tbody id="${id}"></tbody></table>
+      <button class="add-row-btn" onclick="addLineRow('${id}',['text','text','num','num'])">+ ADD ROW</button>`;
+    container.innerHTML += html;
+  });
+}
+
+// ============ CALCULATION ENGINE ============
+function sumTableCalc(bodyId, rateCol, qtyCol, totalCol) {
+  const tb = $(bodyId); if (!tb) return 0;
+  let sum = 0;
+  for (let r = 0; r < tb.rows.length; r++) {
+    const row = tb.rows[r];
+    const rate = parseFloat(row.cells[rateCol]?.querySelector('input')?.value) || 0;
+    const qty = parseFloat(row.cells[qtyCol]?.querySelector('input')?.value) || 0;
+    const total = rate * qty;
+    if (row.cells[totalCol]) row.cells[totalCol].textContent = fmt(total);
+    sum += total;
+  }
+  return sum;
+}
+
+function sumFlights() {
+  const tb = $('flightBody'); if (!tb) return 0;
+  let sum = 0;
+  for (let r = 0; r < tb.rows.length; r++) {
+    const row = tb.rows[r];
+    const price = parseFloat(row.cells[5]?.querySelector('input')?.value) || 0;
+    const qty = parseFloat(row.cells[6]?.querySelector('input')?.value) || 0;
+    const bags = parseFloat(row.cells[7]?.querySelector('input')?.value) || 0;
+    const total = price * qty + bags;
+    if (row.cells[8]) row.cells[8].textContent = fmt(total);
+    sum += total;
+  }
+  return sum;
+}
+
+function sumHotel() {
+  const tb = $('hotelBody'); if (!tb) return 0;
+  const taxRate = (parseFloat($('hotelTax').value) || 0) / 100;
+  let sum = 0;
+  for (let r = 0; r < tb.rows.length; r++) {
+    const row = tb.rows[r];
+    const rooms = parseFloat(row.cells[3]?.querySelector('input')?.value) || 0;
+    const nights = parseFloat(row.cells[4]?.querySelector('input')?.value) || 0;
+    const rate = parseFloat(row.cells[5]?.querySelector('input')?.value) || 0;
+    const total = rooms * nights * rate * (1 + taxRate);
+    if (row.cells[6]) row.cells[6].textContent = fmt(total);
+    sum += total;
+  }
+  return sum;
+}
+
+function sumGuests() {
+  let total = 0;
+  $$('.guest-card').forEach(card => {
+    let cardTotal = 0;
+    card.querySelectorAll('.guest-expense').forEach(inp => cardTotal += parseFloat(inp.value) || 0);
+    card.querySelector('.guest-card-total').textContent = fmt(cardTotal);
+    total += cardTotal;
+  });
+  return total;
+}
+
+function sumSavings() {
+  const tb = $('savingsBody'); if (!tb) return 0;
+  let sum = 0;
+  for (let r = 0; r < tb.rows.length; r++) {
+    const v = parseFloat(tb.rows[r].cells[2]?.querySelector('input')?.value) || 0;
+    sum += v;
+  }
+  return sum;
+}
+
+function sumGenericSection(prefix, count) {
+  let total = 0;
+  for (let i = 0; i < count; i++) {
+    total += sumTableCalc(prefix + '_' + i, 2, 3, 4);
+  }
+  return total;
+}
+
+function recalcAll() {
+  // Payroll
+  const payShow = sumTableCalc('payShowBody', 3, 4, 5);
+  const payReh1 = sumTableCalc('payReh1Body', 3, 4, 5);
+  const payReh2 = sumTableCalc('payReh2Body', 3, 4, 5);
+  const payTotal = payShow + payReh1 + payReh2;
+  $('kpiPayShow').textContent = fmt(payShow);
+  $('kpiPayReh1').textContent = fmt(payReh1);
+  $('kpiPayReh2').textContent = fmt(payReh2);
+  $('payGrandTotal').textContent = fmt(payTotal);
+
+  // Per Diems
+  const pdTotal = sumTableCalc('pdBody', 3, 4, 5);
+  $('kpiPD').textContent = fmt(pdTotal);
+  let pdCount = 0;
+  const pdTb = $('pdBody');
+  for (let r = 0; r < pdTb.rows.length; r++) {
+    if ((parseFloat(pdTb.rows[r].cells[3]?.querySelector('input')?.value) || 0) > 0) pdCount++;
+  }
+  $('kpiPDCount').textContent = pdCount;
+
+  // Hotel
+  const hotelTotal = sumHotel();
+  $('kpiHotel').textContent = fmt(hotelTotal);
+
+  // Flights
+  const flightTotal = sumFlights();
+  let flightCount = 0;
+  const fTb = $('flightBody');
+  for (let r = 0; r < fTb.rows.length; r++) {
+    if ((parseFloat(fTb.rows[r].cells[5]?.querySelector('input')?.value) || 0) > 0) flightCount++;
+  }
+  $('kpiFlights').textContent = fmt(flightTotal);
+  $('kpiFlightCount').textContent = flightCount;
+
+  // Ground
+  const busTotal = sumTableCalc('busBody', 2, 3, 4);
+  const localTotal = sumTableCalc('localBody', 2, 3, 4);
+  $('kpiBus').textContent = fmt(busTotal);
+  $('kpiLocal').textContent = fmt(localTotal);
+  $('kpiGround').textContent = fmt(busTotal + localTotal);
+
+  // Production
+  const prodTotal = sumGenericSection('prod', 7);
+  $('kpiProd').textContent = fmt(prodTotal);
+
+  // Startup
+  const startupTotal = sumGenericSection('startup', 5);
+  $('kpiStartup').textContent = fmt(startupTotal);
+
+  // Trucking
+  const truckA = sumTableCalc('truckABody', 1, 2, 3);
+  const truckB = sumTableCalc('truckBBody', 1, 2, 3);
+  $('kpiTruckA').textContent = fmt(truckA);
+  $('kpiTruckB').textContent = fmt(truckB);
+  $('kpiTruck').textContent = fmt(truckA + truckB);
+
+  // Insurance
+  const insurTotal = sumTableCalc('insurBody', 2, 3, 4);
+  $('kpiInsurance').textContent = fmt(insurTotal);
+
+  // Guests
+  const guestTotal = sumGuests();
+  $('kpiGuests').textContent = fmt(guestTotal);
+
+  // Savings
+  const savingsTotal = sumSavings();
+  $('kpiSavings').textContent = fmt(savingsTotal);
+
+  // === OVERVIEW ===
+  const categories = [
+    { name: 'Payroll', val: payTotal },
+    { name: 'Per Diems', val: pdTotal },
+    { name: 'Start Up & Misc.', val: startupTotal },
+    { name: 'Airfares', val: flightTotal },
+    { name: 'Ground Transport', val: busTotal + localTotal },
+    { name: 'Hotel', val: hotelTotal },
+    { name: 'Production', val: prodTotal },
+    { name: 'Special Guests', val: guestTotal },
+    { name: 'Trucking & Freight', val: truckA + truckB },
+    { name: 'Insurance', val: insurTotal },
+  ];
+
+  const subtotal = categories.reduce((s, c) => s + c.val, 0);
+  const income = parseFloat(document.querySelector('[data-field="income"]')?.value) || 0;
+  const contPct = (parseFloat($('contingencyPct').value) || 0) / 100;
+  const mgmtPct = (parseFloat($('mgmtPct').value) || 0) / 100;
+  const agentPctV = (parseFloat($('agentPct').value) || 0) / 100;
+  const bizPctV = (parseFloat($('bizPct').value) || 0) / 100;
+  const lawyerPctV = (parseFloat($('lawyerPct').value) || 0) / 100;
+
+  const contingency = subtotal * contPct;
+  const mgmt = income * mgmtPct;
+  const agent = income * agentPctV;
+  const biz = income * bizPctV;
+  const lawyer = income * lawyerPctV;
+  const grandTotal = subtotal + contingency + mgmt + agent + biz + lawyer;
+  const net = income - grandTotal;
+  const margin = income > 0 ? net / income : 0;
+
+  $('kpiSubtotal').textContent = fmt(subtotal);
+  $('kpiTotal').textContent = fmt(grandTotal);
+  $('kpiIncome').textContent = fmt(income);
+  $('kpiNet').textContent = fmt(net);
+  $('kpiNet').style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+  $('kpiMargin').textContent = (margin * 100).toFixed(1) + '% margin';
+
+  $('ovContingency').textContent = fmt(contingency);
+  $('ovMgmt').textContent = fmt(mgmt);
+  $('ovAgent').textContent = fmt(agent);
+  $('ovBiz').textContent = fmt(biz);
+  $('ovLawyer').textContent = fmt(lawyer);
+  $('ovGrandTotal').textContent = fmt(grandTotal);
+
+  // Overview table
+  const ovTb = $('overviewTable');
+  ovTb.innerHTML = '';
+  categories.forEach((c, i) => {
+    const p = subtotal > 0 ? (c.val / subtotal * 100).toFixed(1) + '%' : '—';
+    ovTb.innerHTML += `<tr><td>${i+1}</td><td>${c.name}</td><td class="r">${fmt(c.val)}</td><td class="r">${p}</td></tr>`;
+  });
+  ovTb.innerHTML += `<tr class="subtotal-row"><td></td><td>EXPENSES SUBTOTAL</td><td class="r">${fmt(subtotal)}</td><td class="r">100%</td></tr>`;
+
+  $('kpiSavBudget').textContent = fmt(grandTotal);
+}
+
+// ============ SAVE / LOAD ============
+function getAllData() {
+  const data = { meta: {}, tables: {}, settings: {} };
+  // Meta fields
+  ['heroSubtitle','heroTitle','metaType','metaDates','metaLocation','metaDuration','metaCrew','metaStatus'].forEach(id => {
+    data.meta[id] = $(id).value;
+  });
+  data.settings.income = document.querySelector('[data-field="income"]').value;
+  ['contingencyPct','mgmtPct','agentPct','bizPct','lawyerPct','pdDefaultRate','hotelTax','hotelDefaultRooms'].forEach(id => {
+    data.settings[id] = $(id).value;
+  });
+  // All table bodies
+  const bodyIds = ['payShowBody','payReh1Body','payReh2Body','pdBody','hotelBody','flightBody','busBody','localBody',
+    'truckABody','truckBBody','insurBody','savingsBody','crewBody'];
+  for (let i = 0; i < 7; i++) bodyIds.push('prod_' + i);
+  for (let i = 0; i < 5; i++) bodyIds.push('startup_' + i);
+  bodyIds.forEach(id => {
+    const tb = $(id); if (!tb) return;
+    const rows = [];
+    for (let r = 0; r < tb.rows.length; r++) {
+      const cells = [];
+      tb.rows[r].querySelectorAll('input').forEach(inp => cells.push(inp.value));
+      rows.push(cells);
+    }
+    data.tables[id] = rows;
+  });
+  // Guests
+  data.guests = [];
+  $$('.guest-card').forEach(card => {
+    const title = card.querySelector('.editable')?.value || '';
+    const expenses = [];
+    card.querySelectorAll('.guest-expense').forEach(inp => expenses.push(inp.value));
+    data.guests.push({ title, expenses });
+  });
+  // Schedule
+  data.schedule = [];
+  $$('.schedule-card').forEach(card => {
+    const inputs = card.querySelectorAll('input');
+    const sel = card.querySelector('select');
+    data.schedule.push({ date: inputs[0]?.value, city: inputs[1]?.value, venue: inputs[2]?.value, type: sel?.value });
+  });
+  return data;
+}
+
+function saveToJSON() {
+  const data = getAllData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = ($('heroTitle').value || 'budget').replace(/\s+/g, '-').toLowerCase() + '-budget.json';
+  a.click();
+}
+
+function loadFromJSON() { $('importFile').click(); }
+
+function handleImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      // Restore meta
+      Object.keys(data.meta || {}).forEach(id => { if ($(id)) $(id).value = data.meta[id]; });
+      Object.keys(data.settings || {}).forEach(id => {
+        if (id === 'income') { document.querySelector('[data-field="income"]').value = data.settings[id]; }
+        else if ($(id)) $(id).value = data.settings[id];
+      });
+      // Restore tables
+      Object.keys(data.tables || {}).forEach(id => {
+        const tb = $(id); if (!tb) return;
+        tb.innerHTML = '';
+        data.tables[id].forEach(cells => {
+          // Determine type from id
+          if (id.startsWith('payShow') || id.startsWith('payReh')) { addPayRow(id); }
+          else if (id === 'pdBody') { addPDRow(); }
+          else if (id === 'hotelBody') { addHotelRow(); }
+          else if (id === 'flightBody') { addFlightRow(); }
+          else if (id === 'crewBody') { addCrewRow(); }
+          else if (id === 'savingsBody') { addSavingsRow(); }
+          else if (id.startsWith('bus') || id.startsWith('local') || id.startsWith('insur')) { addLineRow(id, ['text','text','num','num']); }
+          else if (id.startsWith('truckA') || id.startsWith('truckB')) { addLineRow(id, ['text','num','num']); }
+          else if (id.startsWith('prod_') || id.startsWith('startup_')) { addLineRow(id, ['text','text','num','num']); }
+          const lastRow = tb.rows[tb.rows.length - 1];
+          const inputs = lastRow.querySelectorAll('input');
+          cells.forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
+        });
+      });
+      // Restore guests
+      $('guestCards').innerHTML = ''; guestCount = 0;
+      (data.guests || []).forEach(g => {
+        addGuestCard();
+        const card = $$('.guest-card')[$$('.guest-card').length - 1];
+        card.querySelector('.editable').value = g.title;
+        const exps = card.querySelectorAll('.guest-expense');
+        g.expenses.forEach((v, i) => { if (exps[i]) exps[i].value = v; });
+      });
+      // Restore schedule
+      $('scheduleGrid').innerHTML = ''; schedDayCount = 0;
+      (data.schedule || []).forEach(s => {
+        addScheduleDay();
+        const card = $$('.schedule-card')[$$('.schedule-card').length - 1];
+        const inputs = card.querySelectorAll('input');
+        if (inputs[0]) inputs[0].value = s.date || '';
+        if (inputs[1]) inputs[1].value = s.city || '';
+        if (inputs[2]) inputs[2].value = s.venue || '';
+        const sel = card.querySelector('select');
+        if (sel) sel.value = s.type || 'SHOW';
+      });
+      recalcAll();
+    } catch (err) { alert('Error loading file: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function resetAll() {
+  if (!confirm('Reset all data? This cannot be undone.')) return;
+  location.reload();
+}
+
+// ============ INIT ============
+function init() {
+  buildProdSections();
+  buildStartupSections();
+  // Add starter rows
+  for (let i = 0; i < 5; i++) addPayRow('payShowBody');
+  for (let i = 0; i < 3; i++) addPayRow('payReh1Body');
+  for (let i = 0; i < 3; i++) addPayRow('payReh2Body');
+  for (let i = 0; i < 5; i++) addPDRow();
+  for (let i = 0; i < 5; i++) addHotelRow();
+  for (let i = 0; i < 3; i++) addFlightRow();
+  for (let i = 0; i < 3; i++) addLineRow('busBody', ['text','text','num','num']);
+  for (let i = 0; i < 2; i++) addLineRow('localBody', ['text','text','num','num']);
+  for (let j = 0; j < 7; j++) for (let i = 0; i < 2; i++) addLineRow('prod_' + j, ['text','text','num','num']);
+  for (let j = 0; j < 5; j++) for (let i = 0; i < 2; i++) addLineRow('startup_' + j, ['text','text','num','num']);
+  for (let i = 0; i < 2; i++) addLineRow('truckABody', ['text','num','num']);
+  for (let i = 0; i < 1; i++) addLineRow('truckBBody', ['text','num','num']);
+  for (let i = 0; i < 2; i++) addLineRow('insurBody', ['text','text','num','num']);
+  for (let i = 0; i < 5; i++) addCrewRow();
+  for (let i = 0; i < 2; i++) addSavingsRow();
+  for (let i = 0; i < 4; i++) addGuestCard();
+  for (let i = 0; i < 3; i++) addScheduleDay();
+  $('footerDate').textContent = 'GENERATED ' + new Date().toLocaleDateString('en-US', {month:'short', year:'numeric'}).toUpperCase();
+  recalcAll();
+}
+
+init();
+</script>
+</body>
+</html>
