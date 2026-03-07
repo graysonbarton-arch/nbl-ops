@@ -13,7 +13,7 @@ export default async function handler(req, res) {
               const updates = {
                         data,
                         updated_at: new Date().toISOString(),
-                        updated_by: 'anonymous'
+                        updated_by: null
               };
               if (title !== undefined) updates.title = title;
               if (subtitle !== undefined) updates.subtitle = subtitle;
@@ -36,8 +36,8 @@ export default async function handler(req, res) {
                             subtitle: subtitle || '',
                             status: status || 'draft',
                             data,
-                            created_by: 'anonymous',
-                            updated_by: 'anonymous'
+                            created_by: null,
+                            updated_by: null
                 })
                 .select()
                 .single();
