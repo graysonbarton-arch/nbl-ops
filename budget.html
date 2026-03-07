@@ -292,8 +292,8 @@ NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS 
 
     <!-- Budget View Tabs -->
     <div class="budget-tabs">
-      <button class="budget-tab active" onclick="switchBudgetTab('overview')">Overview</button>
-      <button class="budget-tab" onclick="switchBudgetTab('detail')">Detail</button>
+      <button class="budget-tab active" onclick="switchBudgetTab('overview', this)">Overview</button>
+      <button class="budget-tab" onclick="switchBudgetTab('detail', this)">Detail</button>
     </div>
 
     <!-- Overview View -->
@@ -455,7 +455,15 @@ function updateNavUser() {
 // ============================================================
 // DASHBOARD
 // ============================================================
-async function loadDashboard() {
+async 
+    function calcBudgetTotal(data) {
+      if (!data || !data.sections) return 0;
+      let t = 0;
+      data.sections.forEach(s => (s.rows || []).forEach(r => t += (parseFloat(r.qty)||0) * (parseFloat(r.rate)||0)));
+      return t;
+    }
+
+    function loadDashboard() {
   showScreen('dashboardScreen');
   currentBudgetId = null;
   window.location.hash = '';
@@ -846,9 +854,9 @@ function downloadFile(content, filename, type) {
       renderOverview();
     }
 
-    function switchBudgetTab(tab) {
+    function switchBudgetTab(tab, btn) {
       document.querySelectorAll('.budget-tab').forEach(t => t.classList.remove('active'));
-      event.target.classList.add('active');
+      if (btn) btn.classList.add('active');
       const ov = document.getElementById('overviewView');
       const dt = document.getElementById('detailView');
       if (tab === 'overview') { ov.style.display = 'block'; dt.style.display = 'none'; renderOverview(); }
