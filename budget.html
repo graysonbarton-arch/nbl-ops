@@ -58,7 +58,8 @@
     .budget-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; cursor:pointer; transition:border-color 0.2s, transform 0.1s; }
     .budget-card:hover { border-color:var(--accent); transform:translateY(-2px); }
     .budget-card h3 { font-family:var(--font-display); font-size:22px; letter-spacing:2px; margin-bottom:4px; }
-    .budget-card .card-subtitle { color:var(--text-dim); font-size:11px; margin-bottom:12px; }
+    .budget-card .card-total { font-family:var(--font-display); font-size:20px; color:var(--accent); margin:4px 0 2px; }
+    .card-subtitle { color:var(--text-dim); font-size:11px; margin-bottom:12px; }
     .budget-card .card-meta { display:flex; justify-content:space-between; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:1px; }
     .budget-card .card-status { display:inline-block; padding:2px 8px; border-radius:3px; font-size:10px; text-transform:uppercase; letter-spacing:1px; }
     .budget-card .card-status.draft { background:var(--blue-dim); color:var(--blue); }
@@ -453,15 +454,17 @@ function updateNavUser() {
 }
 
 // ============================================================
-// DASHBOARD
-// ============================================================
-async 
+
     function calcBudgetTotal(data) {
       if (!data || !data.sections) return 0;
       let t = 0;
       data.sections.forEach(s => (s.rows || []).forEach(r => t += (parseFloat(r.qty)||0) * (parseFloat(r.rate)||0)));
       return t;
     }
+
+    // DASHBOARD
+// ============================================================
+async 
 
     function loadDashboard() {
   showScreen('dashboardScreen');
@@ -482,7 +485,8 @@ async
       const statusClass = (b.status||'draft').toLowerCase();
       return '<div class="budget-card" onclick="openBudget(\'' + b.id + '\')">' +
         '<h3>' + (b.title||'Untitled') + '</h3>' +
-        '<div class="card-subtitle">' + (b.subtitle||'') + '</div>' +
+        '<div class="card-total">' + fmt(calcBudgetTotal(b.data)) + '</div>' +
+      '<div class="card-subtitle">' + (b.subtitle||'') + '</div>' +
         '<div class="card-meta"><span class="card-status ' + statusClass + '">' + (b.status||'draft').toUpperCase() + '</span><span>Updated ' + shortDate(b.updated_at) + '</span></div>' +
         '<div class="card-actions"><button onclick="event.stopPropagation();duplicateBudgetById(\'' + b.id + '\')">DUPLICATE</button><button class="delete-btn" onclick="event.stopPropagation();archiveBudget(\'' + b.id + '\',\'' + (b.title||'Untitled').replace(/'/g,"\\'") + '\')">ARCHIVE</button></div>' +
         '</div>';
