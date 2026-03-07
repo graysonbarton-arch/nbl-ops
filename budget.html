@@ -202,7 +202,7 @@ NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS 
 <div id="saveIndicator" class="save-indicator"></div>
 
 <!-- ============ LOGIN SCREEN ============ -->
-<div id="loginScreen" class="screen active">
+<div id="loginScreen" class="screen" style="display:none;">
   <div class="login-card">
     <h2>BUDGET ACCESS</h2>
     <p>Enter your email to receive a magic sign-in link</p>
@@ -213,7 +213,7 @@ NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS 
 </div>
 
 <!-- ============ DASHBOARD SCREEN ============ -->
-<div id="dashboardScreen" class="screen">
+<div id="dashboardScreen" class="screen active">
   <div class="dashboard">
     <div class="dashboard-header">
       <h2>YOUR BUDGETS</h2>
@@ -383,8 +383,7 @@ async function loadDashboard() {
   const grid = $('budgetGrid');
   grid.innerHTML = '<p style="color:var(--muted);padding:20px;">Loading budgets...</p>';
   try {
-    const token = (await sb.auth.getSession()).data.session?.access_token;
-    const res = await fetch('/api/budgets/list', { headers: { 'Authorization': 'Bearer ' + token } });
+    const res = await fetch('/api/budgets/list', { headers: {} });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error);
     const budgets = json.budgets || [];
@@ -413,10 +412,9 @@ function showDashboard() { loadDashboard(); }
 // ============================================================
 async function createNewBudget() {
   try {
-    const token = (await sb.auth.getSession()).data.session?.access_token;
     const res = await fetch('/api/budgets/save', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Untitled Budget', subtitle: '', status: 'draft', data: getBlankData() })
     });
     const json = await res.json();
@@ -430,8 +428,7 @@ async function openBudget(id) {
   currentBudgetId = id;
   window.location.hash = '/budget/' + id;
   try {
-    const token = (await sb.auth.getSession()).data.session?.access_token;
-    const res = await fetch('/api/budgets/get?id=' + id, { headers: { 'Authorization': 'Bearer ' + token } });
+    const res = await fetch('/api/budgets/get?id=' + id, { headers: {} });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error);
     const b = json.budget;
@@ -469,10 +466,9 @@ async function saveToSupabase() {
   if (!currentBudgetId) return;
   showSaveStatus('saving');
   try {
-    const token = (await sb.auth.getSession()).data.session?.access_token;
     const res = await fetch('/api/budgets/save', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: currentBudgetId,
         title: $('budgetTitle').textContent.trim() || 'Untitled Budget',
@@ -495,10 +491,9 @@ async function saveToSupabase() {
 async function duplicateBudget() {
   if (!currentBudgetId) return;
   try {
-    const token = (await sb.auth.getSession()).data.session?.access_token;
     const res = await fetch('/api/budgets/save', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title: ($('budgetTitle').textContent.trim() || 'Untitled') + ' (Copy)',
         subtitle: $('budgetSubtitle').textContent.trim(),
@@ -515,14 +510,13 @@ async function duplicateBudget() {
 
 async function duplicateBudgetById(id) {
   try {
-    const token = (await sb.auth.getSession()).data.session?.access_token;
-    const getRes = await fetch('/api/budgets/get?id=' + id, { headers: { 'Authorization': 'Bearer ' + token } });
+    const getRes = await fetch('/api/budgets/get?id=' + id, { headers: {} });
     const getJson = await getRes.json();
     if (!getRes.ok) throw new Error(getJson.error);
     const b = getJson.budget;
     const saveRes = await fetch('/api/budgets/save', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: (b.title||'Untitled') + ' (Copy)', subtitle: b.subtitle, status: 'draft', data: b.data })
     });
     const saveJson = await saveRes.json();
@@ -536,10 +530,9 @@ async function duplicateBudgetById(id) {
 function archiveBudget(id, title) {
   pendingAction = async () => {
     try {
-      const token = (await sb.auth.getSession()).data.session?.access_token;
       const res = await fetch('/api/budgets/delete', {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
       });
       const json = await res.json();
@@ -778,32 +771,7 @@ function initTracker() {
 // APP INIT
 // ============================================================
 async function appInit() {
-  // Listen for auth state changes
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      currentUser = session.user;
-      updateNavUser();
-      // Check for hash route
-      const hash = window.location.hash;
-      if (hash.startsWith('#/budget/')) {
-        const id = hash.replace('#/budget/', '');
-        openBudget(id);
-      } else {
-        loadDashboard();
-      }
-    } else if (event === 'SIGNED_OUT') {
-      currentUser = null;
-      currentBudgetId = null;
-      updateNavUser();
-      showScreen('loginScreen');
-    }
-  });
-
-  // Check existing session
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    updateNavUser();
+    // No auth required - public access
     const hash = window.location.hash;
     if (hash.startsWith('#/budget/')) {
       const id = hash.replace('#/budget/', '');
@@ -811,11 +779,8 @@ async function appInit() {
     } else {
       loadDashboard();
     }
-  } else {
-    showScreen('loginScreen');
-  }
 
-  // Handle hash changes
+    // Handle hash changes
   window.addEventListener('hashchange', () => {
     const hash = window.location.hash;
     if (hash.startsWith('#/budget/') && currentUser) {
