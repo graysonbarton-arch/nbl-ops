@@ -179,13 +179,49 @@
     }
 
     /* Overview Tabs */
-    .budget-tabs { display:flex; gap:0; margin:24px 0 0; border-bottom:2px solid var(--border); }
+    .budget-tabs { display:flex; gap:0; margin:24px 0 0; border-bottom:2px solid var(--border); overflow-x:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+    .budget-tabs::-webkit-scrollbar { height:4px; }
+    .budget-tabs::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+    .budget-tab { white-space:nowrap; flex-shrink:0; }
     .budget-tab { padding:10px 24px; cursor:pointer; font-family:var(--font-display); font-size:13px; 
       letter-spacing:2px; text-transform:uppercase; color:var(--muted); background:none; border:none;
       border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.2s; }
     .budget-tab:hover { color:var(--text); }
     .budget-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
     
+    /* Cost Breakdown */
+    .cb-container { padding:24px 0; }
+    .cb-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:24px; }
+    .cb-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; cursor:pointer; transition:all 0.2s; }
+    .cb-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+    .cb-card .cb-name { font-family:var(--font-display); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+    .cb-card .cb-amount { font-family:var(--font-display); font-size:28px; color:var(--text); margin-bottom:4px; }
+    .cb-card .cb-pct { font-size:12px; color:var(--text-dim); margin-bottom:12px; }
+    .cb-card .cb-bar { height:4px; border-radius:2px; }
+    .cb-section-header { font-family:var(--font-display); font-size:14px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:16px; display:flex; align-items:center; gap:12px; }
+    .cb-section-header .cb-num { font-size:32px; color:var(--border); font-weight:300; }
+    .cb-section-header span:last-child { border-bottom:1px solid var(--border); flex:1; padding-bottom:4px; }
+    .cb-total-row { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-top:16px; }
+    .cb-total-label { font-family:var(--font-display); font-size:14px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); }
+    .cb-total-amount { font-family:var(--font-display); font-size:24px; color:var(--accent); }
+    .section-view-container { padding:24px 0; }
+    .section-view-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .section-view-title { font-family:var(--font-display); font-size:24px; letter-spacing:2px; text-transform:uppercase; }
+    .section-view-total { font-family:var(--font-display); font-size:24px; color:var(--accent); }
+    .fin-summary { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:24px; }
+    .fin-card { background:var(--surface); border-radius:8px; padding:20px; border-top:3px solid var(--border); }
+    .fin-card.red { border-top-color:var(--red); } .fin-card.blue { border-top-color:var(--blue); }
+    .fin-card.green { border-top-color:var(--green); } .fin-card.accent { border-top-color:var(--accent); }
+    .fin-card .fin-label { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+    .fin-card .fin-value { font-family:var(--font-display); font-size:28px; color:var(--text); }
+    .fin-card .fin-sub { font-size:11px; color:var(--text-dim); margin-top:4px; }
+    .donut-center { font-family:var(--font-display); fill:var(--text); }
+    .sv-table { width:100%; border-collapse:collapse; }
+    .sv-table th { text-align:left; padding:8px; font-family:var(--font-display); font-size:11px; letter-spacing:2px; color:var(--muted); border-bottom:1px solid var(--border); }
+    .sv-table td { padding:6px 8px; border-bottom:1px solid var(--border); }
+    .sv-inp { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:6px 8px; color:var(--text); font-size:13px; }
+    .sv-inp-sm { width:70px; text-align:center; } .sv-inp-rate { width:100px; text-align:right; }
+    @media(max-width:768px) { .cb-grid{grid-template-columns:1fr;} .fin-summary{grid-template-columns:1fr 1fr;} }
     /* Overview Screen */
     .overview-container { padding:24px 0; }
     .overview-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
@@ -292,14 +328,17 @@ NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS 
   </div>
 
     <!-- Budget View Tabs -->
-    <div class="budget-tabs">
-      <button class="budget-tab active" onclick="switchBudgetTab('overview', this)">Overview</button>
-      <button class="budget-tab" onclick="switchBudgetTab('detail', this)">Detail</button>
-    </div>
+    <div class="budget-tabs" id="budgetTabs"></div>
 
-    <!-- Overview View -->
+      <!-- Overview View -->
     <div id="overviewView" style="display:block;">
       <div class="overview-container">
+        <div class="fin-summary">
+          <div class="fin-card accent"><div class="fin-label">TOTAL EXPENSES</div><div class="fin-value" id="finTotal"></div><div class="fin-sub">All sections combined</div></div>
+          <div class="fin-card blue"><div class="fin-label">SECTIONS</div><div class="fin-value" id="finSections"></div><div class="fin-sub">Budget categories</div></div>
+          <div class="fin-card green"><div class="fin-label">LINE ITEMS</div><div class="fin-value" id="finItems"></div><div class="fin-sub">Individual expenses</div></div>
+          <div class="fin-card red"><div class="fin-label">LARGEST SECTION</div><div class="fin-value" id="finLargest"></div><div class="fin-sub" id="finLargestName"></div></div>
+        </div>
         <div class="overview-summary">
           <div class="summary-card"><div class="big-num" id="ovTotal">$0</div><div class="big-label">Total Budget</div></div>
           <div class="summary-card"><div class="big-num" id="ovSections">0</div><div class="big-label">Sections</div></div>
@@ -331,7 +370,25 @@ NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS 
       </div>
     </div>
 
-    <!-- Detail View (wraps existing sections/notes) -->
+    <!-- Cost Breakdown View -->
+      <div id="costBreakdownView" style="display:none;">
+        <div class="cb-container">
+          <div class="cb-section-header"><span class="cb-num">01</span><span>EXPENSE CATEGORIES</span></div>
+          <div class="cb-grid" id="cbGrid"></div>
+          <div class="cb-total-row"><div class="cb-total-label">TOTAL BUDGET</div><div class="cb-total-amount" id="cbTotal"></div></div>
+        </div>
+      </div>
+
+      <!-- Section Detail View -->
+      <div id="sectionDetailView" style="display:none;">
+        <div class="section-view-container">
+          <div class="section-view-header"><div class="section-view-title" id="sectionViewTitle"></div><div class="section-view-total" id="sectionViewTotal"></div></div>
+          <div id="sectionViewContent"></div>
+          <button id="sectionAddRow" onclick="addRowToCurrentSection()" style="margin-top:12px;padding:8px 16px;background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer;font-family:var(--font-display);font-size:11px;letter-spacing:2px;">+ ADD ROW</button>
+        </div>
+      </div>
+
+      <!-- Detail View (wraps existing sections/notes) -->
     <div id="detailView" style="display:none;">
 
 
@@ -526,7 +583,7 @@ async function openBudget(id) {
     $('statusSelect').value = b.status || 'draft';
     updateStatusBadge(b.status || 'draft');
     restoreData(b.data || {});
-          switchBudgetTab_init();
+          buildBudgetTabs(); switchTab('overview', document.querySelector('.budget-tab'));
     $('statSaved').textContent = shortDate(b.updated_at);
   } catch(e) {
     showToast('Error loading budget: ' + e.message, 'error');
@@ -847,139 +904,203 @@ function downloadFile(content, filename, type) {
 // ============================================================
 
     /* ---- Overview / Tab switching ---- */
-    function switchBudgetTab_init() {
-      document.querySelectorAll('.budget-tab').forEach((t, i) => {
-        t.classList.toggle('active', i === 0);
+// ========== DYNAMIC BUDGET TAB SYSTEM ==========
+    var currentTab = 'overview';
+    var currentSectionIdx = -1;
+    var PIE_COLORS = ['#c8b88a','#4a6fa5','#4caf50','#ff9800','#9c27b0','#e53935','#fdd835','#00897b','#78909c','#d81b60'];
+
+    function buildBudgetTabs() {
+      var tabs = document.getElementById('budgetTabs');
+      if(!tabs) return;
+      var data = getAllData();
+      var sections = data.sections || [];
+      var html = '<button class="budget-tab active" onclick="switchTab(\'overview\', this)">Overview</button>';
+      html += '<button class="budget-tab" onclick="switchTab(\'costbreakdown\', this)">Cost Breakdown</button>';
+      sections.forEach(function(s, i) {
+        var name = (s.name || 'Section ' + (i+1));
+        html += '<button class="budget-tab" onclick="switchTab(\'section-' + i + '\', this)" data-section="' + i + '">' + name + '</button>';
       });
-      document.getElementById('overviewView').style.display = 'block';
-      document.getElementById('detailView').style.display = 'none';
-      renderOverview();
+      html += '<button class="budget-tab" onclick="switchTab(\'detail\', this)">All Detail</button>';
+      tabs.innerHTML = html;
     }
 
-    function switchBudgetTab(tab, btn) {
-      document.querySelectorAll('.budget-tab').forEach(t => t.classList.remove('active'));
-      if (btn) btn.classList.add('active');
-      const ov = document.getElementById('overviewView');
-      const dt = document.getElementById('detailView');
-      if (tab === 'overview') { ov.style.display = 'block'; dt.style.display = 'none'; renderOverview(); }
-      else { ov.style.display = 'none'; dt.style.display = 'block'; }
+    function switchTab(tab, btn) {
+      var allTabs = document.querySelectorAll('.budget-tab');
+      allTabs.forEach(function(t) { t.classList.remove('active'); });
+      if(btn) btn.classList.add('active');
+      currentTab = tab;
+      ['overviewView','costBreakdownView','sectionDetailView','detailView'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if(el) el.style.display = 'none';
+      });
+      if(tab === 'overview') { document.getElementById('overviewView').style.display = 'block'; renderOverview(); }
+      else if(tab === 'costbreakdown') { document.getElementById('costBreakdownView').style.display = 'block'; renderCostBreakdown(); }
+      else if(tab.startsWith('section-')) { currentSectionIdx = parseInt(tab.split('-')[1]); document.getElementById('sectionDetailView').style.display = 'block'; renderSectionView(currentSectionIdx); }
+      else if(tab === 'detail') { document.getElementById('detailView').style.display = 'block'; }
     }
 
-    const PIE_COLORS = ['#c8b88a','#42a5f5','#4caf50','#ff9800','#ce93d8','#d32f2f','#fdd835','#1a2a3a','#3a2a0a','#666666'];
+    function renderCostBreakdown() {
+      var data = getAllData(); var sections = data.sections || [];
+      var grid = document.getElementById('cbGrid'); var totalEl = document.getElementById('cbTotal');
+      var grandTotal = 0; var sectionTotals = [];
+      sections.forEach(function(s, i) {
+        var total = 0;
+        (s.rows || []).forEach(function(r) { total += (parseFloat(r.qty)||0) * (parseFloat(r.rate)||0); });
+        sectionTotals.push({ name: s.name || 'Section '+(i+1), total: total, idx: i });
+        grandTotal += total;
+      });
+      var sorted = sectionTotals.slice().sort(function(a,b){return b.total-a.total;});
+      var html = '';
+      sorted.forEach(function(s) {
+        var pct = grandTotal > 0 ? (s.total/grandTotal*100) : 0;
+        var color = PIE_COLORS[s.idx % PIE_COLORS.length];
+        html += '<div class="cb-card" onclick="switchToSection('+s.idx+')">';
+        html += '<div class="cb-name">'+s.name+'</div><div class="cb-amount">'+fmt(s.total)+'</div>';
+        html += '<div class="cb-pct">'+pct.toFixed(1)+'% of expenses</div>';
+        html += '<div class="cb-bar" style="width:'+Math.max(pct,2)+'%;background:'+color+';"></div></div>';
+      });
+      grid.innerHTML = html;
+      totalEl.textContent = fmt(grandTotal);
+    }
+
+    function switchToSection(idx) {
+      var tabs = document.querySelectorAll('.budget-tab[data-section]');
+      tabs.forEach(function(t) {
+        if(parseInt(t.getAttribute('data-section')) === idx) switchTab('section-'+idx, t);
+      });
+    }
+
+    function renderSectionView(idx) {
+      var data = getAllData(); var sections = data.sections || [];
+      if(idx < 0 || idx >= sections.length) return;
+      var section = sections[idx];
+      document.getElementById('sectionViewTitle').textContent = section.name || 'Section '+(idx+1);
+      var rows = section.rows || []; var sectionTotal = 0;
+      var html = '<table class="sv-table"><thead><tr>';
+      ['DESCRIPTION','VENDOR','QTY','RATE','UNIT','TOTAL',''].forEach(function(h){
+        var align = (h==='QTY'||h==='UNIT')?'center':(h==='RATE'||h==='TOTAL')?'right':'left';
+        html += '<th style="text-align:'+align+'">'+h+'</th>';
+      });
+      html += '</tr></thead><tbody>';
+      rows.forEach(function(r, ri) {
+        var lt = (parseFloat(r.qty)||0)*(parseFloat(r.rate)||0); sectionTotal += lt;
+        html += '<tr>';
+        html += '<td><input class="sv-inp" value="'+(r.desc||'').replace(/"/g,'&quot;')+'" data-s="'+idx+'" data-r="'+ri+'" data-f="desc" onchange="updateSectionRow(this)"></td>';
+        html += '<td><input class="sv-inp" value="'+(r.vendor||'').replace(/"/g,'&quot;')+'" data-s="'+idx+'" data-r="'+ri+'" data-f="vendor" onchange="updateSectionRow(this)"></td>';
+        html += '<td><input class="sv-inp sv-inp-sm" type="number" value="'+(r.qty||1)+'" data-s="'+idx+'" data-r="'+ri+'" data-f="qty" onchange="updateSectionRow(this)"></td>';
+        html += '<td><input class="sv-inp sv-inp-rate" type="number" value="'+(r.rate||0)+'" data-s="'+idx+'" data-r="'+ri+'" data-f="rate" onchange="updateSectionRow(this)"></td>';
+        html += '<td style="text-align:center;"><select class="sv-inp" style="width:80px;" data-s="'+idx+'" data-r="'+ri+'" data-f="unit" onchange="updateSectionRow(this)">';
+        ['flat','day','week','hour'].forEach(function(u){ html += '<option value="'+u+'"'+(r.unit===u?' selected':'')+'>'+u.charAt(0).toUpperCase()+u.slice(1)+'</option>'; });
+        html += '</select></td>';
+        html += '<td style="text-align:right;color:var(--accent);font-family:var(--font-body);">'+fmt(lt)+'</td>';
+        html += '<td><button onclick="removeSectionRow('+idx+','+ri+')" style="background:none;border:none;color:var(--red-dim);cursor:pointer;font-size:16px;">&times;</button></td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      document.getElementById('sectionViewContent').innerHTML = html;
+      document.getElementById('sectionViewTotal').textContent = fmt(sectionTotal);
+    }
+
+    function updateSectionRow(el) {
+      var si=parseInt(el.getAttribute('data-s')), ri=parseInt(el.getAttribute('data-r')), f=el.getAttribute('data-f');
+      var containers = document.querySelectorAll('#sectionsContainer .budget-section');
+      if(containers[si]) {
+        var rows = containers[si].querySelectorAll('.budget-row');
+        if(rows[ri]) {
+          var inputs = rows[ri].querySelectorAll('input, select');
+          var map = {desc:0,vendor:1,qty:2,rate:3,unit:4};
+          var inp = inputs[map[f]];
+          if(inp) { inp.value = el.value; inp.setAttribute('value', el.value); }
+        }
+      }
+      recalcAll(); renderSectionView(si); triggerAutoSave();
+    }
+
+    function addRowToCurrentSection() {
+      if(currentSectionIdx < 0) return;
+      var containers = document.querySelectorAll('#sectionsContainer .budget-section');
+      if(!containers[currentSectionIdx]) return;
+      var btn = containers[currentSectionIdx].querySelector('.btn-add-row');
+      if(btn) btn.click();
+      setTimeout(function(){ recalcAll(); renderSectionView(currentSectionIdx); }, 100);
+    }
+
+    function removeSectionRow(si, ri) {
+      var containers = document.querySelectorAll('#sectionsContainer .budget-section');
+      if(!containers[si]) return;
+      var rows = containers[si].querySelectorAll('.budget-row');
+      if(rows[ri]) { var btn = rows[ri].querySelector('.row-remove'); if(btn) btn.click(); }
+      setTimeout(function(){ recalcAll(); renderSectionView(si); triggerAutoSave(); }, 100);
+    }
 
     function renderOverview() {
-      const data = getAllData();
-      if (!data || !data.sections) return;
-      const sections = data.sections;
-      
-      // Summary numbers
-      let totalBudget = 0, totalItems = 0;
-      const sectionTotals = [];
-      const allItems = [];
-      
-      sections.forEach(sec => {
-        let secTotal = 0;
-        (sec.rows || []).forEach(row => {
-          const qty = parseFloat(row.qty) || 0;
-          const rate = parseFloat(row.rate) || 0;
-          const total = qty * rate;
-          secTotal += total;
-          totalItems++;
-          if (row.desc && total > 0) allItems.push({ desc: row.desc, total, section: sec.name });
+      var data = getAllData(); var sections = data.sections || [];
+      var total=0, itemCount=0, sectionTotals=[], allItems=[];
+      sections.forEach(function(s, i) {
+        var st = 0;
+        (s.rows||[]).forEach(function(r) {
+          var lt = (parseFloat(r.qty)||0)*(parseFloat(r.rate)||0); st += lt; itemCount++;
+          if(lt > 0) allItems.push({name:r.desc||'Unnamed',total:lt,color:PIE_COLORS[i%PIE_COLORS.length]});
         });
-        totalBudget += secTotal;
-        if (sec.name) sectionTotals.push({ name: sec.name, total: secTotal });
+        total += st;
+        sectionTotals.push({name:s.name||'Section '+(i+1),total:st,color:PIE_COLORS[i%PIE_COLORS.length]});
       });
-
-      document.getElementById('ovTotal').textContent = fmt(totalBudget);
-      document.getElementById('ovSections').textContent = sections.length;
-      document.getElementById('ovItems').textContent = totalItems;
-      
-      // Notes
-      const notesEl = document.getElementById('ovNotes');
-      notesEl.textContent = data.notes || 'No notes added yet.';
-
-      // Pie Chart - section breakdown
-      renderPieChart(sectionTotals, totalBudget);
-      
-      // Bar Chart - top line items
-      renderBarChart(allItems);
-      
-      // Section totals bar chart
-      renderSectionBars(sectionTotals, totalBudget);
+      var e = function(id){return document.getElementById(id);};
+      if(e('finTotal')) e('finTotal').textContent = fmt(total);
+      if(e('finSections')) e('finSections').textContent = sections.length;
+      if(e('finItems')) e('finItems').textContent = itemCount;
+      var sorted = sectionTotals.slice().sort(function(a,b){return b.total-a.total;});
+      if(sorted.length>0) { if(e('finLargest')) e('finLargest').textContent=fmt(sorted[0].total); if(e('finLargestName')) e('finLargestName').textContent=sorted[0].name; }
+      if(e('ovTotal')) e('ovTotal').textContent = fmt(total);
+      if(e('ovSections')) e('ovSections').textContent = sections.length;
+      if(e('ovItems')) e('ovItems').textContent = itemCount;
+      renderPieChart(sectionTotals, total);
+      allItems.sort(function(a,b){return b.total-a.total;});
+      renderBarChart(allItems.slice(0,8));
+      renderSectionBars(sectionTotals, total);
+      var ovN=e('ovNotes'),nA=e('notesArea');
+      if(ovN&&nA) ovN.textContent = nA.value||'No notes yet.';
     }
 
     function renderPieChart(sectionTotals, total) {
-      const svg = document.getElementById('pieChart');
-      const legend = document.getElementById('pieLegend');
-      svg.innerHTML = '';
-      legend.innerHTML = '';
-      if (!sectionTotals.length || total === 0) {
-        svg.innerHTML = '<text x="100" y="105" text-anchor="middle" fill="#666" font-size="12">No data</text>';
-        return;
-      }
-      const cx = 100, cy = 100, r = 80;
-      let startAngle = -Math.PI / 2;
-      sectionTotals.forEach((sec, i) => {
-        const pct = sec.total / total;
-        const angle = pct * 2 * Math.PI;
-        const endAngle = startAngle + angle;
-        const largeArc = angle > Math.PI ? 1 : 0;
-        const x1 = cx + r * Math.cos(startAngle);
-        const y1 = cy + r * Math.sin(startAngle);
-        const x2 = cx + r * Math.cos(endAngle);
-        const y2 = cy + r * Math.sin(endAngle);
-        const color = PIE_COLORS[i % PIE_COLORS.length];
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const d = sectionTotals.length === 1
-          ? 'M ' + cx + ' ' + (cy-r) + ' A ' + r + ' ' + r + ' 0 1 1 ' + (cx-0.01) + ' ' + (cy-r) + ' Z'
-          : 'M ' + cx + ' ' + cy + ' L ' + x1 + ' ' + y1 + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2 + ' ' + y2 + ' Z';
-        path.setAttribute('d', d);
-        path.setAttribute('fill', color);
-        path.setAttribute('stroke', '#0a0a0a');
-        path.setAttribute('stroke-width', '2');
-        svg.appendChild(path);
-        
-        legend.innerHTML += '<div class="legend-item"><div class="legend-dot" style="background:' + color + '"></div>'
-          + '<span class="legend-label">' + sec.name + '</span>'
-          + '<span class="legend-val">' + fmt(sec.total) + ' (' + (pct * 100).toFixed(1) + '%)</span></div>';
-        startAngle = endAngle;
+      var svg=document.getElementById('pieChart'),legend=document.getElementById('pieLegend');
+      if(!svg||!legend) return;
+      if(total===0){svg.innerHTML='<text x="100" y="105" text-anchor="middle" fill="var(--muted)" font-size="12">No data</text>';legend.innerHTML='';return;}
+      var cx=100,cy=100,r=80,ir=50,angle=-Math.PI/2,paths='';
+      sectionTotals.forEach(function(s){
+        if(s.total<=0) return;
+        var pct=s.total/total,a1=angle,a2=angle+pct*2*Math.PI,lg=pct>0.5?1:0;
+        var x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1),x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);
+        var ix1=cx+ir*Math.cos(a2),iy1=cy+ir*Math.sin(a2),ix2=cx+ir*Math.cos(a1),iy2=cy+ir*Math.sin(a1);
+        paths+='<path d="M'+x1+' '+y1+' A'+r+' '+r+' 0 '+lg+' 1 '+x2+' '+y2+' L'+ix1+' '+iy1+' A'+ir+' '+ir+' 0 '+lg+' 0 '+ix2+' '+iy2+' Z" fill="'+s.color+'"/>';
+        angle=a2;
       });
+      var tk=total>=1000?'$'+Math.round(total/1000)+'K':fmt(total);
+      paths+='<text x="100" y="95" text-anchor="middle" class="donut-center" font-size="10" fill="var(--muted)">TOTAL</text>';
+      paths+='<text x="100" y="112" text-anchor="middle" class="donut-center" font-size="16" font-weight="bold">'+tk+'</text>';
+      svg.innerHTML=paths;
+      var lh='';
+      sectionTotals.forEach(function(s){if(s.total<=0)return;var p=(s.total/total*100).toFixed(1);lh+='<div class="legend-item"><span class="legend-dot" style="background:'+s.color+'"></span><span class="legend-label">'+s.name+'</span><span class="legend-val">'+fmt(s.total)+' ('+p+'%)</span></div>';});
+      legend.innerHTML=lh;
     }
 
-    function renderBarChart(allItems) {
-      const container = document.getElementById('barChart');
-      container.innerHTML = '';
-      const sorted = allItems.sort((a, b) => b.total - a.total).slice(0, 8);
-      if (!sorted.length) { container.innerHTML = '<div style="color:var(--muted);font-size:12px;">No items yet</div>'; return; }
-      const max = sorted[0].total;
-      sorted.forEach((item, i) => {
-        const pct = max > 0 ? (item.total / max * 100) : 0;
-        const color = PIE_COLORS[i % PIE_COLORS.length];
-        container.innerHTML += '<div class="bar-row">'
-          + '<div class="bar-label" title="' + item.desc + '">' + item.desc + '</div>'
-          + '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>'
-          + '<div class="bar-amount">' + fmt(item.total) + '</div></div>';
-      });
+    function renderBarChart(items) {
+      var el=document.getElementById('barChart'); if(!el) return;
+      if(!items.length){el.innerHTML='<div style="color:var(--muted);font-size:12px;">No items</div>';return;}
+      var mx=items[0].total,h='';
+      items.forEach(function(it){var p=mx>0?(it.total/mx*100):0;h+='<div class="bar-row"><span class="bar-label">'+it.name+'</span><div class="bar-track"><div class="bar-fill" style="width:'+p+'%;background:'+it.color+'"></div></div><span class="bar-amount">'+fmt(it.total)+'</span></div>';});
+      el.innerHTML=h;
     }
 
-    function renderSectionBars(sectionTotals, total) {
-      const container = document.getElementById('sectionBars');
-      container.innerHTML = '';
-      if (!sectionTotals.length) { container.innerHTML = '<div style="color:var(--muted);font-size:12px;">No sections yet</div>'; return; }
-      const max = Math.max(...sectionTotals.map(s => s.total));
-      sectionTotals.forEach((sec, i) => {
-        const pct = max > 0 ? (sec.total / max * 100) : 0;
-        const color = PIE_COLORS[i % PIE_COLORS.length];
-        container.innerHTML += '<div class="bar-row">'
-          + '<div class="bar-label" title="' + sec.name + '">' + sec.name + '</div>'
-          + '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>'
-          + '<div class="bar-amount">' + fmt(sec.total) + '</div></div>';
-      });
+    function renderSectionBars(st, total) {
+      var el=document.getElementById('sectionBars'); if(!el) return;
+      var mx=0; st.forEach(function(s){if(s.total>mx)mx=s.total;});
+      var h='';
+      st.forEach(function(s){var p=mx>0?(s.total/mx*100):0;h+='<div class="bar-row"><span class="bar-label">'+s.name+'</span><div class="bar-track"><div class="bar-fill" style="width:'+p+'%;background:'+s.color+'"></div></div><span class="bar-amount">'+fmt(s.total)+'</span></div>';});
+      el.innerHTML=h;
     }
 
-
-function initTracker() {
+    function initTracker() {
   $('sectionsContainer').innerHTML = '';
   $('budgetTitle').textContent = 'UNTITLED BUDGET';
   $('budgetSubtitle').textContent = 'Click to add subtitle';
@@ -1015,7 +1136,7 @@ async function appInit() {
       loadDashboard();
     }
   });
-
+ 
   // Title/subtitle editing triggers auto-save
   $('budgetTitle').addEventListener('input', triggerAutoSave);
   $('budgetSubtitle').addEventListener('input', triggerAutoSave);
