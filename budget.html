@@ -176,6 +176,40 @@
       .dashboard { padding:20px; }
       .budget-grid { grid-template-columns:1fr; }
     }
+
+    /* Overview Tabs */
+    .budget-tabs { display:flex; gap:0; margin:24px 0 0; border-bottom:2px solid var(--border); }
+    .budget-tab { padding:10px 24px; cursor:pointer; font-family:var(--font-display); font-size:13px; 
+      letter-spacing:2px; text-transform:uppercase; color:var(--muted); background:none; border:none;
+      border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.2s; }
+    .budget-tab:hover { color:var(--text); }
+    .budget-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    
+    /* Overview Screen */
+    .overview-container { padding:24px 0; }
+    .overview-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
+    .overview-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; }
+    .overview-card h3 { font-family:var(--font-display); font-size:16px; letter-spacing:1px; margin-bottom:16px; color:var(--text); }
+    .chart-container { position:relative; width:100%; }
+    .pie-chart-wrap { display:flex; align-items:center; gap:24px; }
+    .pie-svg { width:200px; height:200px; }
+    .pie-legend { flex:1; }
+    .legend-item { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; }
+    .legend-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+    .legend-label { color:var(--text-dim); flex:1; }
+    .legend-val { color:var(--text); font-family:var(--font-body); }
+    .bar-chart { display:flex; flex-direction:column; gap:8px; }
+    .bar-row { display:flex; align-items:center; gap:12px; }
+    .bar-label { width:140px; font-size:11px; color:var(--text-dim); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .bar-track { flex:1; height:24px; background:var(--surface-2); border-radius:4px; overflow:hidden; position:relative; }
+    .bar-fill { height:100%; border-radius:4px; transition:width 0.4s ease; min-width:2px; }
+    .bar-amount { font-size:11px; color:var(--text); width:90px; text-align:right; font-family:var(--font-body); }
+    .overview-summary { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:24px; }
+    .summary-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; text-align:center; }
+    .summary-card .big-num { font-family:var(--font-display); font-size:28px; color:var(--accent); }
+    .summary-card .big-label { font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-top:4px; }
+    @media(max-width:768px) { .overview-grid { grid-template-columns:1fr; } .overview-summary { grid-template-columns:1fr; } }
+
 </style>
 </head>
 <body>
@@ -256,6 +290,50 @@ NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS 
     <div class="stat-box"><div class="stat-label">Last Saved</div><div class="stat-value green" id="statSaved" style="font-size:16px;">--</div></div>
   </div>
 
+    <!-- Budget View Tabs -->
+    <div class="budget-tabs">
+      <button class="budget-tab active" onclick="switchBudgetTab('overview')">Overview</button>
+      <button class="budget-tab" onclick="switchBudgetTab('detail')">Detail</button>
+    </div>
+
+    <!-- Overview View -->
+    <div id="overviewView" style="display:block;">
+      <div class="overview-container">
+        <div class="overview-summary">
+          <div class="summary-card"><div class="big-num" id="ovTotal">$0</div><div class="big-label">Total Budget</div></div>
+          <div class="summary-card"><div class="big-num" id="ovSections">0</div><div class="big-label">Sections</div></div>
+          <div class="summary-card"><div class="big-num" id="ovItems">0</div><div class="big-label">Line Items</div></div>
+        </div>
+        <div class="overview-grid">
+          <div class="overview-card">
+            <h3>BUDGET BREAKDOWN</h3>
+            <div class="pie-chart-wrap">
+              <svg class="pie-svg" id="pieChart" viewBox="0 0 200 200"></svg>
+              <div class="pie-legend" id="pieLegend"></div>
+            </div>
+          </div>
+          <div class="overview-card">
+            <h3>TOP LINE ITEMS</h3>
+            <div class="bar-chart" id="barChart"></div>
+          </div>
+        </div>
+        <div class="overview-grid">
+          <div class="overview-card">
+            <h3>SECTION TOTALS</h3>
+            <div class="bar-chart" id="sectionBars"></div>
+          </div>
+          <div class="overview-card">
+            <h3>BUDGET NOTES</h3>
+            <div id="ovNotes" style="color:var(--text-dim);font-size:13px;line-height:1.6;white-space:pre-wrap;">No notes yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail View (wraps existing sections/notes) -->
+    <div id="detailView" style="display:none;">
+
+
   <!-- Sections Container -->
   <div class="content" id="sectionsContainer"></div>
 
@@ -269,6 +347,7 @@ NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS 
   </div>
 
   <!-- Footer -->
+    </div> <!-- end detailView -->
   <div class="footer">
     <span>NBL OPS &mdash; Budget Tracker</span>
     <span id="footerTimestamp"></span>
@@ -437,6 +516,7 @@ async function openBudget(id) {
     $('statusSelect').value = b.status || 'draft';
     updateStatusBadge(b.status || 'draft');
     restoreData(b.data || {});
+          switchBudgetTab_init();
     $('statSaved').textContent = shortDate(b.updated_at);
   } catch(e) {
     showToast('Error loading budget: ' + e.message, 'error');
@@ -689,6 +769,7 @@ function recalcAll() {
   $('statTotal').textContent = fmt(grandTotal);
   $('statSections').textContent = sections.length;
   $('statItems').textContent = totalItems;
+      if (document.getElementById("overviewView").style.display !== "none") renderOverview();
 }
 
 // ============================================================
@@ -754,6 +835,140 @@ function downloadFile(content, filename, type) {
 // ============================================================
 // INIT TRACKER (blank state)
 // ============================================================
+
+    /* ---- Overview / Tab switching ---- */
+    function switchBudgetTab_init() {
+      document.querySelectorAll('.budget-tab').forEach((t, i) => {
+        t.classList.toggle('active', i === 0);
+      });
+      document.getElementById('overviewView').style.display = 'block';
+      document.getElementById('detailView').style.display = 'none';
+      renderOverview();
+    }
+
+    function switchBudgetTab(tab) {
+      document.querySelectorAll('.budget-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      const ov = document.getElementById('overviewView');
+      const dt = document.getElementById('detailView');
+      if (tab === 'overview') { ov.style.display = 'block'; dt.style.display = 'none'; renderOverview(); }
+      else { ov.style.display = 'none'; dt.style.display = 'block'; }
+    }
+
+    const PIE_COLORS = ['#c8b88a','#42a5f5','#4caf50','#ff9800','#ce93d8','#d32f2f','#fdd835','#1a2a3a','#3a2a0a','#666666'];
+
+    function renderOverview() {
+      const data = getAllData();
+      if (!data || !data.sections) return;
+      const sections = data.sections;
+      
+      // Summary numbers
+      let totalBudget = 0, totalItems = 0;
+      const sectionTotals = [];
+      const allItems = [];
+      
+      sections.forEach(sec => {
+        let secTotal = 0;
+        (sec.rows || []).forEach(row => {
+          const qty = parseFloat(row.qty) || 0;
+          const rate = parseFloat(row.rate) || 0;
+          const total = qty * rate;
+          secTotal += total;
+          totalItems++;
+          if (row.desc && total > 0) allItems.push({ desc: row.desc, total, section: sec.name });
+        });
+        totalBudget += secTotal;
+        if (sec.name) sectionTotals.push({ name: sec.name, total: secTotal });
+      });
+
+      document.getElementById('ovTotal').textContent = fmt(totalBudget);
+      document.getElementById('ovSections').textContent = sections.length;
+      document.getElementById('ovItems').textContent = totalItems;
+      
+      // Notes
+      const notesEl = document.getElementById('ovNotes');
+      notesEl.textContent = data.notes || 'No notes added yet.';
+
+      // Pie Chart - section breakdown
+      renderPieChart(sectionTotals, totalBudget);
+      
+      // Bar Chart - top line items
+      renderBarChart(allItems);
+      
+      // Section totals bar chart
+      renderSectionBars(sectionTotals, totalBudget);
+    }
+
+    function renderPieChart(sectionTotals, total) {
+      const svg = document.getElementById('pieChart');
+      const legend = document.getElementById('pieLegend');
+      svg.innerHTML = '';
+      legend.innerHTML = '';
+      if (!sectionTotals.length || total === 0) {
+        svg.innerHTML = '<text x="100" y="105" text-anchor="middle" fill="#666" font-size="12">No data</text>';
+        return;
+      }
+      const cx = 100, cy = 100, r = 80;
+      let startAngle = -Math.PI / 2;
+      sectionTotals.forEach((sec, i) => {
+        const pct = sec.total / total;
+        const angle = pct * 2 * Math.PI;
+        const endAngle = startAngle + angle;
+        const largeArc = angle > Math.PI ? 1 : 0;
+        const x1 = cx + r * Math.cos(startAngle);
+        const y1 = cy + r * Math.sin(startAngle);
+        const x2 = cx + r * Math.cos(endAngle);
+        const y2 = cy + r * Math.sin(endAngle);
+        const color = PIE_COLORS[i % PIE_COLORS.length];
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const d = sectionTotals.length === 1
+          ? 'M ' + cx + ' ' + (cy-r) + ' A ' + r + ' ' + r + ' 0 1 1 ' + (cx-0.01) + ' ' + (cy-r) + ' Z'
+          : 'M ' + cx + ' ' + cy + ' L ' + x1 + ' ' + y1 + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2 + ' ' + y2 + ' Z';
+        path.setAttribute('d', d);
+        path.setAttribute('fill', color);
+        path.setAttribute('stroke', '#0a0a0a');
+        path.setAttribute('stroke-width', '2');
+        svg.appendChild(path);
+        
+        legend.innerHTML += '<div class="legend-item"><div class="legend-dot" style="background:' + color + '"></div>'
+          + '<span class="legend-label">' + sec.name + '</span>'
+          + '<span class="legend-val">' + fmt(sec.total) + ' (' + (pct * 100).toFixed(1) + '%)</span></div>';
+        startAngle = endAngle;
+      });
+    }
+
+    function renderBarChart(allItems) {
+      const container = document.getElementById('barChart');
+      container.innerHTML = '';
+      const sorted = allItems.sort((a, b) => b.total - a.total).slice(0, 8);
+      if (!sorted.length) { container.innerHTML = '<div style="color:var(--muted);font-size:12px;">No items yet</div>'; return; }
+      const max = sorted[0].total;
+      sorted.forEach((item, i) => {
+        const pct = max > 0 ? (item.total / max * 100) : 0;
+        const color = PIE_COLORS[i % PIE_COLORS.length];
+        container.innerHTML += '<div class="bar-row">'
+          + '<div class="bar-label" title="' + item.desc + '">' + item.desc + '</div>'
+          + '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>'
+          + '<div class="bar-amount">' + fmt(item.total) + '</div></div>';
+      });
+    }
+
+    function renderSectionBars(sectionTotals, total) {
+      const container = document.getElementById('sectionBars');
+      container.innerHTML = '';
+      if (!sectionTotals.length) { container.innerHTML = '<div style="color:var(--muted);font-size:12px;">No sections yet</div>'; return; }
+      const max = Math.max(...sectionTotals.map(s => s.total));
+      sectionTotals.forEach((sec, i) => {
+        const pct = max > 0 ? (sec.total / max * 100) : 0;
+        const color = PIE_COLORS[i % PIE_COLORS.length];
+        container.innerHTML += '<div class="bar-row">'
+          + '<div class="bar-label" title="' + sec.name + '">' + sec.name + '</div>'
+          + '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>'
+          + '<div class="bar-amount">' + fmt(sec.total) + '</div></div>';
+      });
+    }
+
+
 function initTracker() {
   $('sectionsContainer').innerHTML = '';
   $('budgetTitle').textContent = 'UNTITLED BUDGET';
