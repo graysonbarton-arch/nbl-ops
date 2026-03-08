@@ -342,7 +342,7 @@
     <div class="meta-item"><span class="meta-label">PROJECT TYPE</span><input class="editable editable-meta" id="metaType" value="Tour / Live Event" style="width:160px"></div>
     <div class="meta-item"><span class="meta-label">DATES</span><input type="date" class="editable editable-meta" id="metaDateStart" style="width:130px"><span style="color:var(--muted); margin:0 6px">—</span><input type="date" class="editable editable-meta" id="metaDateEnd" style="width:130px"></div>
     <div class="meta-item"><span class="meta-label">LOCATION</span><input class="editable editable-meta" id="metaLocation" value="TBD" style="width:160px"></div>
-    <div class="meta-item"><span class="meta-label">DURATION</span><input class="editable editable-meta" id="metaDuration" value="— DAYS" style="width:100px"></div>
+    <div class="meta-item"><span class="meta-label">DURATION</span><input class="editable editable-meta" id="metaDuration" value="— DAYS" style="width:100px" readonly></div>
     <div class="meta-item"><span class="meta-label">CREW SIZE</span><input class="editable editable-meta" id="metaCrew" value="— MEMBERS" style="width:120px"></div>
     <div class="meta-item"><span class="meta-label">STATUS</span><input class="editable editable-meta" id="metaStatus" value="PRE-PRODUCTION" style="width:140px; color:var(--orange)"></div>
   </div>
@@ -2702,6 +2702,12 @@ function restoreFromData(data) {
       delete data.meta.metaDates;
     }
     Object.keys(data.meta || {}).forEach(id => { if ($(id)) $(id).value = data.meta[id]; });
+    // Recalculate duration from restored dates
+    const ds = $('metaDateStart')?.value, de = $('metaDateEnd')?.value;
+    if (ds && de) {
+      const days = Math.round((new Date(de+'T12:00:00') - new Date(ds+'T12:00:00')) / 86400000) + 1;
+      $('metaDuration').value = (days > 0 ? days : '—') + ' DAYS';
+    }
     Object.keys(data.settings || {}).forEach(id => {
       if (id === 'income') { document.querySelector('[data-field="income"]').value = data.settings[id]; }
       else if ($(id)) $(id).value = data.settings[id];
@@ -2908,9 +2914,26 @@ function init() {
 
   buildPresetsUI();
 
+  // Auto-calculate duration from start/end dates
+  function updateDuration() {
+    const s = $('metaDateStart')?.value;
+    const e = $('metaDateEnd')?.value;
+    if (s && e) {
+      const d1 = new Date(s + 'T12:00:00');
+      const d2 = new Date(e + 'T12:00:00');
+      const days = Math.round((d2 - d1) / 86400000) + 1;
+      $('metaDuration').value = (days > 0 ? days : '—') + ' DAYS';
+    } else {
+      $('metaDuration').value = '— DAYS';
+    }
+    scheduleAutoSave();
+  }
+  $('metaDateStart')?.addEventListener('change', updateDuration);
+  $('metaDateEnd')?.addEventListener('change', updateDuration);
+
   // Wire hero/meta fields and notes to auto-save (these don't trigger recalcAll)
-  ['heroTitle','heroSubtitle','metaType','metaDateStart','metaDateEnd','metaLocation',
-   'metaDuration','metaCrew','metaStatus'].forEach(fieldId => {
+  ['heroTitle','heroSubtitle','metaType','metaLocation',
+   'metaCrew','metaStatus'].forEach(fieldId => {
     const el = $(fieldId);
     if (el) el.addEventListener('input', scheduleAutoSave);
   });
