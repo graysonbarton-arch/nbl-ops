@@ -2401,8 +2401,80 @@ function importSheetToSection(sec, rows, headers) {
   return count;
 }
 
+// Row-level routing: check if a single row's description matches a known section
+// and route it there instead of the custom section
+const ROW_ROUTES = [
+  { test: /hotel|lodging|room block|accommodation/i, tabId: 'hotel', bodyId: 'hotelBody',
+    addRow: () => addHotelRow(),
+    fill: (inputs, desc, rate, qty) => {
+      // hotel inputs: [date, city, guest, dob, loyalty#, note, rooms, nights, rate]
+      if (inputs[5]) inputs[5].value = desc;
+      if (inputs[6]) inputs[6].value = '1';
+      if (inputs[7]) inputs[7].value = qty || '1';
+      if (inputs[8]) inputs[8].value = rate || '0';
+    }
+  },
+  { test: /per diem|perdiem|per-diem|daily allowance|meal allowance/i, tabId: 'perdiems', bodyId: 'pdBody',
+    addRow: () => addPDRow(),
+    fill: (inputs, desc, rate, qty) => {
+      // pd inputs: [position, name, days, pd_rate]
+      if (inputs[0]) inputs[0].value = desc;
+      if (inputs[2]) inputs[2].value = qty || '0';
+      if (inputs[3]) inputs[3].value = rate || '0';
+    }
+  },
+  { test: /\bflight|airfare|plane ticket|airline/i, tabId: 'airfares', bodyId: 'flightBody',
+    addRow: () => addFlightRow(),
+    fill: (inputs, desc, rate, qty) => {
+      // flight inputs: [route, airline, name, dob, skymiles, class, price, qty, bags]
+      if (inputs[0]) inputs[0].value = desc;
+      if (inputs[6]) inputs[6].value = rate || '0';
+      if (inputs[7]) inputs[7].value = qty || '1';
+    }
+  },
+  { test: /insurance|liability|coverage|policy/i, tabId: 'insurance', bodyId: 'insurBody',
+    addRow: (id) => addLineRow('insurBody', ['text','text','num','num']),
+    fill: (inputs, desc, rate, qty) => {
+      if (inputs[0]) inputs[0].value = desc;
+      if (inputs[2]) inputs[2].value = rate || '0';
+      if (inputs[3]) inputs[3].value = qty || '1';
+    }
+  },
+  { test: /truck|freight|shipping|cargo|hauling/i, tabId: 'trucking', bodyId: 'truckABody',
+    addRow: () => addLineRow('truckABody', ['text','num','num']),
+    fill: (inputs, desc, rate, qty) => {
+      if (inputs[0]) inputs[0].value = desc;
+      if (inputs[1]) inputs[1].value = rate || '0';
+      if (inputs[2]) inputs[2].value = qty || '1';
+    }
+  }
+];
+
+// Try routing a single row to a built-in section based on its description.
+// Returns the route object if matched, null if not.
+function tryRouteRow(desc, rate, qty, activatedTabs) {
+  for (const route of ROW_ROUTES) {
+    if (route.test.test(desc)) {
+      route.addRow();
+      const tb = $(route.bodyId);
+      const lastRow = tb.rows[tb.rows.length - 1];
+      const inputs = lastRow.querySelectorAll('input');
+      route.fill(inputs, desc, rate, qty);
+      // Activate the tab
+      const tabBtn = document.querySelector(`.tab[data-tab="${route.tabId}"]`);
+      if (tabBtn && !activatedTabs.includes(tabBtn)) {
+        tabBtn.style.display = '';
+        addCloseBtn(tabBtn);
+        activatedTabs.push(tabBtn);
+      }
+      return route;
+    }
+  }
+  return null;
+}
+
 // Import a sheet as a custom section
-function importSheetAsCustom(name, rows, headers) {
+function importSheetAsCustom(name, rows, headers, activatedTabs) {
   const slug = 'custom_' + customSections.length;
   customSections.push({ slug, name: name.trim() });
 
@@ -2431,6 +2503,7 @@ function importSheetAsCustom(name, rows, headers) {
 
   const bodyId = slug + '_body';
   let count = 0;
+  let routedCount = 0;
   // Smart column mapping: try to find Description, Vendor, Rate, Qty columns by header name
   const hdr = headers.map(h => (h || '').toLowerCase());
   const descIdx = hdr.findIndex(h => /description|item|name|detail|line item|equipment/i.test(h));
@@ -2458,6 +2531,14 @@ function importSheetAsCustom(name, rows, headers) {
     }
     // Skip rows where all mapped values are empty/zero
     if (vals.every(v => v === '' || v == null || v === 0 || v === '0')) return;
+    // Try routing to a built-in section based on description keywords
+    const desc = String(vals[0] || '');
+    const rate = vals[2] != null ? String(vals[2]) : '';
+    const qty  = vals[3] != null ? String(vals[3]) : '';
+    if (activatedTabs && desc && tryRouteRow(desc, rate, qty, activatedTabs)) {
+      routedCount++;
+      return; // routed to built-in section, skip custom
+    }
     addLineRow(bodyId, ['text','text','num','num']);
     const tb = $(bodyId);
     const lastRow = tb.rows[tb.rows.length - 1];
@@ -2465,7 +2546,7 @@ function importSheetAsCustom(name, rows, headers) {
     vals.forEach((v, i) => { if (inputs[i]) inputs[i].value = v != null ? String(v) : ''; });
     count++;
   });
-  return { slug, count };
+  return { slug, count, routedCount };
 }
 
 // Smart single-sheet splitter: detect section headers embedded in rows
@@ -2556,9 +2637,14 @@ function importSpreadsheet(file) {
             // No section headers found — import as custom section
             const name = sheetName === 'Sheet1' && wb.SheetNames.length === 1
               ? file.name.replace(/\.[^.]+$/, '') : sheetName;
-            const res = importSheetAsCustom(name, dataRows, headers);
-            results.push(`${name} (${res.count} rows, custom)`);
-            activatedTabs.push(document.querySelector(`.tab[data-tab="${res.slug}"]`));
+            const res = importSheetAsCustom(name, dataRows, headers, activatedTabs);
+            if (res.count > 0) {
+              results.push(`${name} (${res.count} rows, custom)`);
+              activatedTabs.push(document.querySelector(`.tab[data-tab="${res.slug}"]`));
+            }
+            if (res.routedCount > 0) {
+              results.push(`${res.routedCount} row(s) auto-routed to built-in sections`);
+            }
           }
         }
       });
