@@ -2233,6 +2233,104 @@ const sectionMatchers = [
       return [get('idea','description','item','suggestion'), get('saving','amount','est','value'), get('status','note')];
     }
   },
+  // ── Production Sections ──
+  { id: 'prod_0', bodyId: 'prod_0', tabId: 'production', keywords: ['sound','audio','pa system','speaker','monitors'],
+    detect: h => h.some(c => /sound|audio|pa\b|speaker|monitor mix/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail','line item','equipment'), get('vendor','supplier','company','provider','source','rental'), get('rate','cost','price','amount','unit cost','unit price'), get('qty','quantity','count','units','days','number')];
+    }
+  },
+  { id: 'prod_1', bodyId: 'prod_1', tabId: 'production', keywords: ['light','lighting','spot','truss','led'],
+    detect: h => h.some(c => /\blight/i.test(c)) && !h.some(c => /design/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail','equipment'), get('vendor','supplier','company','provider','rental'), get('rate','cost','price','amount'), get('qty','quantity','count','units','days')];
+    }
+  },
+  { id: 'prod_2', bodyId: 'prod_2', tabId: 'production', keywords: ['backline','instrument','amp','drum','guitar','bass','keyboard'],
+    detect: h => h.some(c => /backline|instrument|amp|drum|guitar|bass|keyboard/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail','equipment'), get('vendor','supplier','company','provider','rental'), get('rate','cost','price','amount'), get('qty','quantity','count','units','days')];
+    }
+  },
+  { id: 'prod_3', bodyId: 'prod_3', tabId: 'production', keywords: ['radio','comms','walkie','communication','intercom'],
+    detect: h => h.some(c => /radio|walkie|comms|intercom/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail','equipment'), get('vendor','supplier','company','provider','rental'), get('rate','cost','price','amount'), get('qty','quantity','count','units','days')];
+    }
+  },
+  { id: 'prod_4', bodyId: 'prod_4', tabId: 'production', keywords: ['video','screen','led wall','projector','camera','imag'],
+    detect: h => h.some(c => /video|screen|led wall|projector|camera|imag/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail','equipment'), get('vendor','supplier','company','provider','rental'), get('rate','cost','price','amount'), get('qty','quantity','count','units','days')];
+    }
+  },
+  { id: 'prod_5', bodyId: 'prod_5', tabId: 'production', keywords: ['staging','scenic','riser','deck','barricade','drape','set piece'],
+    detect: h => h.some(c => /staging|scenic|riser|deck|barricade|drape/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail','equipment'), get('vendor','supplier','company','provider','rental'), get('rate','cost','price','amount'), get('qty','quantity','count','units','days')];
+    }
+  },
+  { id: 'prod_6', bodyId: 'prod_6', tabId: 'production', keywords: ['sfx','effect','pyro','confetti','fog','haze','co2','cryo','flame'],
+    detect: h => h.some(c => /sfx|pyro|confetti|fog|haze|co2|cryo|flame/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail','equipment'), get('vendor','supplier','company','provider','rental'), get('rate','cost','price','amount'), get('qty','quantity','count','units','days')];
+    }
+  },
+  // ── Startup Sections ──
+  { id: 'startup_0', bodyId: 'startup_0', tabId: 'startup', keywords: ['production design','lighting design','creative','design fee'],
+    detect: h => h.some(c => /production design|lighting design|creative/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail'), get('vendor','supplier','company','provider'), get('rate','cost','price','amount','fee'), get('qty','quantity','count','units','days')];
+    }
+  },
+  { id: 'startup_1', bodyId: 'startup_1', tabId: 'startup', keywords: ['rehearsal','practice','studio'],
+    detect: h => h.some(c => /rehearsal|practice|studio/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail'), get('vendor','supplier','company','provider','venue'), get('rate','cost','price','amount'), get('qty','quantity','count','units','days')];
+    }
+  },
+  { id: 'startup_2', bodyId: 'startup_2', tabId: 'startup', keywords: ['equipment purchase','purchase','buy','acquisition'],
+    detect: h => h.some(c => /purchase|acquisition|buy/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail','equipment'), get('vendor','supplier','company','provider','store'), get('rate','cost','price','amount'), get('qty','quantity','count','units')];
+    }
+  },
+  { id: 'startup_3', bodyId: 'startup_3', tabId: 'startup', keywords: ['prod rehearsal','production rehearsal','tech rehearsal'],
+    detect: h => h.some(c => /prod.*rehearsal|tech.*rehearsal/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail'), get('vendor','supplier','company','provider','venue'), get('rate','cost','price','amount'), get('qty','quantity','count','units','days')];
+    }
+  },
+  { id: 'startup_4', bodyId: 'startup_4', tabId: 'startup', keywords: ['misc','miscellaneous','other','general'],
+    detect: h => h.some(c => /misc|other|general/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','name','detail'), get('vendor','supplier','company','provider'), get('rate','cost','price','amount'), get('qty','quantity','count','units','days')];
+    }
+  },
 ];
 
 // Match a sheet name to a built-in section
@@ -2263,11 +2361,13 @@ function importSheetToSection(sec, rows, headers) {
   let count = 0;
   rows.forEach(row => {
     // Skip empty rows
-    if (row.every(c => c === '' || c == null)) return;
+    if (row.every(c => c === '' || c == null || c === 0)) return;
+    const mapped = sec.map(row, headers);
+    // Skip rows where all mapped values are empty/zero
+    if (mapped.every(v => v === '' || v == null || v === 0 || v === '0')) return;
     sec.addRow(sec.bodyId);
     const lastRow = tb.rows[tb.rows.length - 1];
     const inputs = lastRow.querySelectorAll('input');
-    const mapped = sec.map(row, headers);
     mapped.forEach((v, i) => { if (inputs[i]) inputs[i].value = v != null ? String(v) : ''; });
     count++;
   });
@@ -2318,6 +2418,46 @@ function importSheetAsCustom(name, rows, headers) {
   return { slug, count };
 }
 
+// Smart single-sheet splitter: detect section headers embedded in rows
+function trySplitSheet(dataRows, headers, results, activatedTabs) {
+  // Look for rows that act as section headers (text in col A, rest mostly empty)
+  const groups = [];
+  let currentGroup = null;
+
+  for (const row of dataRows) {
+    const firstCell = String(row[0] || '').trim();
+    const restEmpty = row.slice(1).every(c => c === '' || c == null || c === 0);
+    const isHeaderRow = firstCell.length > 1 && firstCell.length < 60 && restEmpty && !/^\d+(\.\d+)?$/.test(firstCell);
+
+    if (isHeaderRow) {
+      const sec = matchSheetToSection(firstCell);
+      if (sec) {
+        currentGroup = { sec, rows: [] };
+        groups.push(currentGroup);
+        continue;
+      }
+    }
+    // Add data row to current group (or skip if no group yet)
+    if (currentGroup && !row.every(c => c === '' || c == null || c === 0)) {
+      currentGroup.rows.push(row);
+    }
+  }
+
+  if (groups.length === 0) return false; // no section headers found
+
+  // Import each group into its matched section
+  groups.forEach(g => {
+    if (g.rows.length === 0) return;
+    // Activate the tab (use parent tabId for production/startup sub-sections)
+    const tabKey = g.sec.tabId || g.sec.id;
+    const tabBtn = document.querySelector(`.tab[data-tab="${tabKey}"]`);
+    if (tabBtn && !activatedTabs.includes(tabBtn)) { tabBtn.style.display = ''; addCloseBtn(tabBtn); activatedTabs.push(tabBtn); }
+    const count = importSheetToSection(g.sec, g.rows, headers);
+    results.push(`${g.sec.id} (${count} rows)`);
+  });
+  return true;
+}
+
 // Main spreadsheet import handler
 function importSpreadsheet(file) {
   const reader = new FileReader();
@@ -2341,9 +2481,10 @@ function importSpreadsheet(file) {
         if (!sec) sec = detectSectionByHeaders(headers);
 
         if (sec) {
-          // Activate the built-in tab
-          const tabBtn = document.querySelector(`.tab[data-tab="${sec.id}"]`);
-          if (tabBtn) {
+          // Activate the built-in tab (use parent tabId for production/startup sub-sections)
+          const tabKey = sec.tabId || sec.id;
+          const tabBtn = document.querySelector(`.tab[data-tab="${tabKey}"]`);
+          if (tabBtn && !activatedTabs.includes(tabBtn)) {
             tabBtn.style.display = '';
             addCloseBtn(tabBtn);
             activatedTabs.push(tabBtn);
@@ -2351,12 +2492,16 @@ function importSpreadsheet(file) {
           const count = importSheetToSection(sec, dataRows, headers);
           results.push(`${sec.id.charAt(0).toUpperCase() + sec.id.slice(1)} (${count} rows)`);
         } else {
-          // Import as custom section
-          const name = sheetName === 'Sheet1' && wb.SheetNames.length === 1
-            ? file.name.replace(/\.[^.]+$/, '') : sheetName;
-          const res = importSheetAsCustom(name, dataRows, headers);
-          results.push(`${name} (${res.count} rows, custom)`);
-          activatedTabs.push(document.querySelector(`.tab[data-tab="${res.slug}"]`));
+          // Try smart split: look for section headers embedded in the rows
+          const didSplit = trySplitSheet(dataRows, headers, results, activatedTabs);
+          if (!didSplit) {
+            // No section headers found — import as custom section
+            const name = sheetName === 'Sheet1' && wb.SheetNames.length === 1
+              ? file.name.replace(/\.[^.]+$/, '') : sheetName;
+            const res = importSheetAsCustom(name, dataRows, headers);
+            results.push(`${name} (${res.count} rows, custom)`);
+            activatedTabs.push(document.querySelector(`.tab[data-tab="${res.slug}"]`));
+          }
         }
       });
 
