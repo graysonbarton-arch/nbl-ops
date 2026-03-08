@@ -1,1151 +1,2619 @@
-<!DOCTYPE html>  
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nappy Boy Live &mdash; Budget Tracker</title>
+<title>Nappy Boy Live — Budget Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="project-store.js"></script>
+<script src="example-data.js"></script>
 <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-    :root {
-      --bg: #0a0a0a; --surface: #1a1a1a; --surface-2: #222222;
-      --border: #333333; --border-light: #444444; --muted: #666666;
-      --text: #f5f5f0; --text-dim: #999999; --accent: #c8b88a;
-      --red: #d32f2f; --red-dim: #4a1a1a; --green: #4caf50; --green-dim: #1a3a1a;
-      --blue: #42a5f5; --blue-dim: #1a2a3a; --orange: #ff9800; --orange-dim: #3a2a0a;
-      --yellow: #fdd835; --purple: #ce93d8;
-      --font-display: 'Bebas Neue', sans-serif; --font-body: 'DM Mono', monospace;
-    }
-    body { background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:12px; line-height:1.5; min-height:100vh; }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0a; --surface: #1a1a1a; --surface-2: #222222;
+    --border: #333333; --border-light: #444444; --muted: #666666;
+    --text: #f5f5f0; --text-dim: #999999; --accent: #c8b88a;
+    --red: #d32f2f; --red-dim: #4a1a1a; --green: #4caf50; --green-dim: #1a3a1a;
+    --blue: #42a5f5; --blue-dim: #1a2a3a; --orange: #ff9800; --orange-dim: #3a2a0a;
+    --yellow: #fdd835; --purple: #ce93d8;
+    --font-display: 'Bebas Neue', sans-serif; --font-body: 'DM Mono', monospace;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:12px; line-height:1.5; min-height:100vh; }
 
-    /* Ticker */
-    .ticker { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 0; overflow:hidden; white-space:nowrap; }
-    .ticker-inner { display:inline-block; animation:marquee 30s linear infinite; color:var(--muted); font-size:10px; letter-spacing:2px; text-transform:uppercase; }
-    @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+  /* Ticker */
+  /* Example banner */
+  .example-banner {
+    background:var(--blue-dim); border-bottom:2px solid var(--blue); padding:10px 40px;
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:11px; letter-spacing:1px; color:var(--blue); text-transform:uppercase;
+  }
+  .example-banner span { font-weight:500; }
+  .example-banner a {
+    color:var(--text); text-decoration:none; font-size:10px; letter-spacing:2px;
+    padding:6px 16px; border:1px solid var(--border); background:var(--surface);
+    cursor:pointer; transition:all .2s;
+  }
+  .example-banner a:hover { border-color:var(--accent); color:var(--accent); }
+  /* Pie Chart */
+  .overview-visual { display:flex; gap:32px; align-items:flex-start; flex-wrap:wrap; margin-bottom:24px; }
+  .pie-wrap { flex:0 0 220px; text-align:center; }
+  .pie-wrap canvas { display:block; margin:0 auto; }
+  .pie-legend { flex:1; min-width:200px; }
+  .pie-legend-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:11px; }
+  .pie-legend-swatch { width:12px; height:12px; border-radius:2px; flex-shrink:0; }
+  .pie-legend-label { flex:1; color:var(--text-dim); }
+  .pie-legend-val { font-weight:500; color:var(--text); }
+  .pie-legend-pct { color:var(--muted); width:44px; text-align:right; }
 
-    /* Nav */
-    .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 40px; border-bottom:1px solid var(--border); }
-    .nav-logo { width:40px; height:40px; border:2px solid var(--text); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:18px; }
-    .nav-title { font-family:var(--font-display); font-size:28px; letter-spacing:3px; }
-    .nav-links { display:flex; gap:24px; align-items:center; }
-    .nav-links a { color:var(--text-dim); text-decoration:none; font-size:11px; letter-spacing:1px; text-transform:uppercase; transition:color 0.2s; }
-    .nav-links a:hover { color:var(--accent); }
-    .nav-links a.active { color:var(--accent); }
+  .ticker { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 0; overflow:hidden; white-space:nowrap; }
+  .ticker-inner { display:inline-block; animation:marquee 30s linear infinite; color:var(--muted); font-size:10px; letter-spacing:2px; text-transform:uppercase; }
+  @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
 
-    /* Login Screen */
-    .screen { display:none; }
-    .screen.active { display:block; }
-    #loginScreen.active { display:flex; align-items:center; justify-content:center; min-height:80vh; }
-    .login-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:48px; max-width:420px; width:100%; text-align:center; }
-    .login-card h2 { font-family:var(--font-display); font-size:36px; letter-spacing:3px; margin-bottom:8px; }
-    .login-card p { color:var(--text-dim); margin-bottom:24px; font-size:11px; }
-    .login-card input[type="email"] { width:100%; padding:12px 16px; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:var(--font-body); font-size:13px; border-radius:4px; margin-bottom:16px; outline:none; }
-    .login-card input[type="email"]:focus { border-color:var(--accent); }
-    .login-card .btn-magic { width:100%; padding:12px; background:var(--accent); color:var(--bg); border:none; font-family:var(--font-display); font-size:18px; letter-spacing:2px; cursor:pointer; border-radius:4px; transition:opacity 0.2s; }
-    .login-card .btn-magic:hover { opacity:0.85; }
-    .login-card .btn-magic:disabled { opacity:0.5; cursor:not-allowed; }
-    .login-msg { margin-top:16px; font-size:11px; color:var(--green); min-height:20px; }
-    .login-msg.error { color:var(--red); }
+  /* Nav */
+  .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 40px; border-bottom:1px solid var(--border); }
+  .nav-logo { width:40px; height:40px; border:2px solid var(--text); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:14px; letter-spacing:1px; }
+  .nav-links { display:flex; gap:24px; }
+  .nav-links a { color:var(--muted); text-decoration:none; font-size:10px; letter-spacing:2px; text-transform:uppercase; transition:color .2s; cursor:pointer; }
+  .nav-links a:hover, .nav-links a.active { color:var(--text); text-decoration:underline; text-underline-offset:6px; }
 
-    /* Dashboard Screen */
-    .dashboard { padding:40px; max-width:1200px; margin:0 auto; }
-    .dashboard-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; }
-    .dashboard-header h2 { font-family:var(--font-display); font-size:36px; letter-spacing:3px; }
-    .btn-new { padding:10px 24px; background:var(--accent); color:var(--bg); border:none; font-family:var(--font-display); font-size:16px; letter-spacing:2px; cursor:pointer; border-radius:4px; transition:opacity 0.2s; }
-    .btn-new:hover { opacity:0.85; }
-    .budget-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:20px; }
-    .budget-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; cursor:pointer; transition:border-color 0.2s, transform 0.1s; }
-    .budget-card:hover { border-color:var(--accent); transform:translateY(-2px); }
-    .budget-card h3 { font-family:var(--font-display); font-size:22px; letter-spacing:2px; margin-bottom:4px; }
-    .budget-card .card-total { font-family:var(--font-display); font-size:20px; color:var(--accent); margin:4px 0 2px; }
-    .card-subtitle { color:var(--text-dim); font-size:11px; margin-bottom:12px; }
-    .budget-card .card-meta { display:flex; justify-content:space-between; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:1px; }
-    .budget-card .card-status { display:inline-block; padding:2px 8px; border-radius:3px; font-size:10px; text-transform:uppercase; letter-spacing:1px; }
-    .budget-card .card-status.draft { background:var(--blue-dim); color:var(--blue); }
-    .budget-card .card-status.active { background:var(--green-dim); color:var(--green); }
-    .budget-card .card-status.final { background:var(--orange-dim); color:var(--orange); }
-    .budget-card .card-actions { display:flex; gap:8px; margin-top:12px; }
-    .budget-card .card-actions button { padding:4px 12px; background:transparent; border:1px solid var(--border); color:var(--text-dim); font-family:var(--font-body); font-size:10px; cursor:pointer; border-radius:3px; }
-    .budget-card .card-actions button:hover { border-color:var(--accent); color:var(--accent); }
-    .budget-card .card-actions button.delete-btn:hover { border-color:var(--red); color:var(--red); }
-    .no-budgets { text-align:center; padding:80px 20px; color:var(--muted); }
-    .no-budgets p { font-size:13px; margin-bottom:16px; }
-    .user-bar { display:flex; align-items:center; gap:12px; font-size:11px; color:var(--text-dim); }
-    .user-bar .user-email { color:var(--accent); }
-    .user-bar button { padding:4px 12px; background:transparent; border:1px solid var(--border); color:var(--text-dim); font-family:var(--font-body); font-size:10px; cursor:pointer; border-radius:3px; }
-    .user-bar button:hover { border-color:var(--red); color:var(--red); }
+  /* Hero */
+  .hero { padding:60px 40px 40px; background:linear-gradient(180deg,var(--surface) 0%,var(--bg) 100%); }
+  .hero-subtitle { font-family:var(--font-display); font-size:42px; color:var(--muted); letter-spacing:2px; line-height:1; }
+  .hero-title { font-family:var(--font-display); font-size:80px; letter-spacing:2px; line-height:.95; margin-bottom:20px; }
+  .hero-meta { display:flex; gap:40px; padding-top:20px; border-top:1px solid var(--border); flex-wrap:wrap; }
+  .meta-item { display:flex; flex-direction:column; gap:2px; }
+  .meta-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .meta-value { font-size:13px; color:var(--text); font-weight:500; }
 
-    /* Save indicator */
-    .save-indicator { position:fixed; top:12px; right:12px; padding:6px 14px; border-radius:4px; font-size:10px; letter-spacing:1px; text-transform:uppercase; z-index:1000; transition:opacity 0.3s; opacity:0; pointer-events:none; }
-    .save-indicator.saving { opacity:1; background:var(--blue-dim); color:var(--blue); }
-    .save-indicator.saved { opacity:1; background:var(--green-dim); color:var(--green); }
-    .save-indicator.error { opacity:1; background:var(--red-dim); color:var(--red); }
+  /* Editable field */
+  .editable {
+    background: transparent; border: none; border-bottom: 1px dashed var(--border-light);
+    color: var(--blue); font-family: var(--font-body); font-size: inherit;
+    padding: 2px 4px; width: 100%; outline: none; transition: all .2s;
+  }
+  .editable:hover { border-bottom-color: var(--blue); }
+  .editable:focus { border-bottom-color: var(--accent); background: rgba(200,184,138,0.05); color: var(--text); }
+  .editable-lg { font-family: var(--font-display); font-size: 80px; letter-spacing: 2px; line-height: .95; color: var(--text); border-bottom: 2px dashed var(--border); padding: 4px 0; }
+  .editable-lg:focus { border-bottom-color: var(--accent); }
+  .editable-md { font-family: var(--font-display); font-size: 42px; color: var(--muted); letter-spacing: 2px; border-bottom: 1px dashed var(--border); }
+  .editable-meta { font-size: 13px; font-weight: 500; }
+  .editable-num { text-align: right; width: 100px; }
+  .editable-wide { width: 200px; }
+  .calc-field { color: var(--accent); font-weight: 500; cursor: default; }
 
-    /* Header */
-    .header { padding:24px 40px; border-bottom:1px solid var(--border); }
-    .header-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
-    .header-info h1 { font-family:var(--font-display); font-size:42px; letter-spacing:4px; line-height:1; }
-    .header-info p { color:var(--text-dim); font-size:11px; margin-top:4px; }
-    .header-actions { display:flex; gap:8px; align-items:center; }
-    .header-actions button, .header-actions select { padding:8px 16px; background:var(--surface); border:1px solid var(--border); color:var(--text); font-family:var(--font-body); font-size:11px; cursor:pointer; transition:all 0.2s; }
-    .header-actions button:hover { border-color:var(--accent); color:var(--accent); }
-    .header-actions select { appearance:none; padding-right:28px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; }
-    .status-badge { padding:4px 12px; font-size:10px; letter-spacing:1px; text-transform:uppercase; border-radius:3px; }
-    .status-draft { background:var(--blue-dim); color:var(--blue); }
-    .status-pending { background:var(--orange-dim); color:var(--orange); }
-    .status-approved { background:var(--green-dim); color:var(--green); }
+  /* Tabs */
+  .tabs { display:flex; gap:0; padding:0 40px; border-bottom:1px solid var(--border); overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .tabs::-webkit-scrollbar { height:2px; }
+  .tabs::-webkit-scrollbar-thumb { background:var(--border); }
+  .tab { padding:12px 18px; font-family:var(--font-body); font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; white-space:nowrap; flex-shrink:0; }
+  .tab:hover { color:var(--text-dim); }
+  .tab.active { color:var(--text); border-bottom-color:var(--text); }
+  .tab { position:relative; padding-right:28px; }
+  .tab .tab-close { display:none; position:absolute; right:6px; top:50%; transform:translateY(-50%); width:16px; height:16px; line-height:16px; text-align:center; font-size:11px; color:var(--muted); background:none; border:none; cursor:pointer; border-radius:3px; padding:0; font-family:var(--font-body); }
+  .tab:hover .tab-close { display:block; }
+  .tab .tab-close:hover { color:var(--red); background:var(--red-dim); }
+  .tab[data-tab="overview"] { padding-right:18px; } /* no close on overview */
+  .tab-add { padding:12px 16px; font-size:16px; color:var(--muted); background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; flex-shrink:0; line-height:1; position:relative; }
+  .tab-add:hover { color:var(--accent); border-bottom-color:var(--accent); }
 
-    /* Stats Bar */
-    .stats-bar { display:flex; gap:1px; background:var(--border); border-bottom:1px solid var(--border); }
-    .stat-box { flex:1; background:var(--bg); padding:16px 24px; }
-    .stat-box .stat-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
-    .stat-box .stat-value { font-family:var(--font-display); font-size:28px; letter-spacing:1px; }
-    .stat-box .stat-value.red { color:var(--red); }
-    .stat-box .stat-value.green { color:var(--green); }
-    .stat-box .stat-value.blue { color:var(--blue); }
+  /* Section picker dropdown */
+  .section-picker { display:none; position:fixed; z-index:9999; background:var(--surface); border:1px solid var(--border); min-width:280px; max-height:calc(100vh - 24px); box-shadow:0 8px 32px rgba(0,0,0,.5); border-radius:4px; }
+  .section-picker.open { display:flex; flex-direction:column; }
+  .section-picker-header { padding:12px 16px; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); flex-shrink:0; }
+  .section-picker-scroll { overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; flex:1; min-height:0; }
+  .section-picker-item { padding:10px 16px; font-size:11px; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; gap:10px; transition:all .15s; border-bottom:1px solid #1f1f1f; }
+  .section-picker-item:hover { background:var(--surface-2); color:var(--text); }
+  .section-picker-item .picker-icon { width:20px; text-align:center; font-size:13px; color:var(--muted); flex-shrink:0; }
+  .section-picker-item:hover .picker-icon { color:var(--accent); }
+  .section-picker-item.added { opacity:.35; }
+  .section-picker-item.added::after { content:'ADDED'; font-size:8px; letter-spacing:1px; color:var(--muted); margin-left:auto; }
+  .section-picker-item.added input[type="checkbox"] { display:none; }
+  .section-picker-divider { padding:8px 16px; font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--border-light); border-bottom:1px solid var(--border); background:var(--bg); }
+  .section-picker-item.custom-option { color:var(--accent); }
+  .section-picker-item.custom-option .picker-icon { color:var(--accent); }
+  .picker-cb { accent-color:var(--accent); margin-right:4px; cursor:pointer; flex-shrink:0; }
+  .section-picker-actions { display:flex; gap:8px; padding:10px 16px; border-top:1px solid var(--border); flex-shrink:0; }
+  .section-picker-actions button { flex:1; padding:8px; font-size:10px; letter-spacing:1px; text-transform:uppercase; cursor:pointer; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); transition:all .15s; }
+  .section-picker-actions button:hover { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+  .email-log-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:10px; position:relative; }
+  .email-log-card:hover { border-color:var(--accent-dim, #555); }
+  .email-log-header { display:grid; grid-template-columns:110px 1fr 1fr; gap:8px; margin-bottom:8px; }
+  .email-log-header input { font-size:11px; }
+  .email-log-body textarea { width:100%; min-height:80px; background:var(--surface-2, #1a1a1a); border:1px solid var(--border); color:var(--text); font-size:11px; padding:10px; resize:vertical; font-family:var(--font-body); line-height:1.5; }
+  .email-log-card .email-delete { position:absolute; top:8px; right:8px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:2px 6px; opacity:0; transition:opacity .15s; }
+  .email-log-card:hover .email-delete { opacity:1; }
+  .email-log-card .email-delete:hover { color:var(--red, #e74c3c); }
+  .email-log-subject { margin-bottom:8px; }
+  .email-log-subject input { font-size:12px; font-weight:600; width:100%; }
 
-    /* Sections */
-    .content { padding:24px 40px; }
-    .section { margin-bottom:32px; border:1px solid var(--border); background:var(--surface); }
-    .section-header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; }
-    .section-header h3 { font-family:var(--font-display); font-size:18px; letter-spacing:2px; }
-    .section-header .section-total { font-family:var(--font-display); font-size:18px; color:var(--accent); }
-    .section-header .toggle-icon { color:var(--muted); transition:transform 0.2s; font-size:14px; }
-    .section-header .toggle-icon.collapsed { transform:rotate(-90deg); }
-    .section-body { padding:0; }
-    .section-body.collapsed { display:none; }
+  .content { padding:30px 40px; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
 
-    /* Table */
-    .budget-table { width:100%; border-collapse:collapse; }
-    .budget-table th { padding:8px 12px; text-align:left; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--border); font-weight:400; }
-    .budget-table td { padding:6px 12px; border-bottom:1px solid var(--border); font-size:12px; vertical-align:middle; }
-    .budget-table tr:last-child td { border-bottom:none; }
-    .budget-table input, .budget-table select { width:100%; padding:6px 8px; background:var(--bg); border:1px solid transparent; color:var(--text); font-family:var(--font-body); font-size:12px; transition:border-color 0.2s; }
-    .budget-table input:focus, .budget-table select:focus { border-color:var(--accent); outline:none; }
-    .budget-table input[type="number"] { text-align:right; -moz-appearance:textfield; }
-    .budget-table input[type="number"]::-webkit-inner-spin-button { -webkit-appearance:none; }
-    .budget-table .row-total { text-align:right; font-weight:500; color:var(--accent); padding-right:12px; }
-    .budget-table .col-drag { width:30px; cursor:grab; color:var(--muted); text-align:center; }
-    .budget-table .col-desc { width:25%; }
-    .budget-table .col-vendor { width:15%; }
-    .budget-table .col-qty { width:8%; }
-    .budget-table .col-rate { width:12%; }
-    .budget-table .col-unit { width:10%; }
-    .budget-table .col-total { width:12%; }
-    .budget-table .col-actions { width:60px; text-align:center; }
-    .btn-add-row { display:block; width:100%; padding:8px; background:transparent; border:1px dashed var(--border); color:var(--muted); font-family:var(--font-body); font-size:11px; cursor:pointer; transition:all 0.2s; }
-    .btn-add-row:hover { border-color:var(--accent); color:var(--accent); }
-    .btn-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:4px 8px; }
-    .btn-remove:hover { color:var(--red); }
-    .btn-add-section { display:block; margin:0 40px 32px; padding:12px; background:transparent; border:1px dashed var(--border); color:var(--muted); font-family:var(--font-body); font-size:12px; cursor:pointer; width:calc(100% - 80px); transition:all 0.2s; }
-    .btn-add-section:hover { border-color:var(--accent); color:var(--accent); }
+  /* KPI Cards */
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px; }
+  .kpi-card { background:var(--surface); border:1px solid var(--border); padding:20px; position:relative; overflow:hidden; }
+  .kpi-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; }
+  .kpi-card.red::before { background:var(--red); } .kpi-card.green::before { background:var(--green); }
+  .kpi-card.blue::before { background:var(--blue); } .kpi-card.orange::before { background:var(--orange); }
+  .kpi-card.accent::before { background:var(--accent); }
+  .kpi-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  .kpi-value { font-family:var(--font-display); font-size:36px; letter-spacing:1px; line-height:1; }
+  .kpi-sub { font-size:10px; color:var(--muted); margin-top:6px; }
 
-    /* Notes */
-    .notes-section { margin:0 40px 32px; padding:16px; background:var(--surface); border:1px solid var(--border); }
-    .notes-section h3 { font-family:var(--font-display); font-size:16px; letter-spacing:2px; margin-bottom:8px; }
-    .notes-section textarea { width:100%; min-height:80px; padding:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:var(--font-body); font-size:12px; resize:vertical; }
-    .notes-section textarea:focus { border-color:var(--accent); outline:none; }
+  /* Section headers */
+  .section-header { display:flex; align-items:center; gap:12px; margin:32px 0 16px; }
+  .section-number { font-family:var(--font-display); font-size:36px; color:var(--border); line-height:1; }
+  .section-title { font-family:var(--font-display); font-size:24px; letter-spacing:2px; }
+  .section-line { flex:1; height:1px; background:var(--border); }
+  .collapsible { cursor:pointer; user-select:none; }
+  .collapse-arrow { font-size:12px; color:var(--muted); transition:transform .2s; }
+  .collapsible.collapsed .collapse-arrow { transform:rotate(-90deg); }
+  .section-body { overflow:hidden; transition:max-height .3s ease, opacity .2s ease; }
+  .section-body.collapsed { max-height:0 !important; opacity:0; margin:0; padding:0; }
+  .sub-header { font-family:var(--font-display); font-size:18px; letter-spacing:2px; color:var(--accent); margin:24px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
 
-    /* Footer */
-    .footer { padding:24px 40px; border-top:1px solid var(--border); display:flex; justify-content:space-between; color:var(--muted); font-size:10px; }
+  /* Tables */
+  .budget-table { width:100%; border-collapse:collapse; margin-bottom:24px; }
+  .budget-table th { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); }
+  .budget-table th.r { text-align:right; }
+  .budget-table td { padding:8px 12px; border-bottom:1px solid #1f1f1f; font-size:11px; vertical-align:middle; }
+  .budget-table td.r { text-align:right; font-variant-numeric:tabular-nums; }
+  .budget-table tr:hover { background:var(--surface); }
+  .budget-table .subtotal-row { background:var(--surface); border-top:1px solid var(--border); }
+  .budget-table .subtotal-row td { font-weight:500; color:var(--text); }
+  .budget-table .grand-total-row { background:var(--surface-2); border-top:2px solid var(--accent); }
+  .budget-table .grand-total-row td { font-weight:500; color:var(--accent); font-size:12px; }
 
-    /* Toast */
-    .toast { position:fixed; bottom:24px; right:24px; padding:12px 20px; background:var(--surface); border:1px solid var(--border); color:var(--text); font-size:12px; z-index:10000; border-radius:4px; opacity:0; transition:opacity 0.3s; pointer-events:none; }
-    .toast.visible { opacity:1; }
-    .toast.success { border-color:var(--green); }
-    .toast.error { border-color:var(--red); }
+  /* Name clear button */
+  .name-wrap { position:relative; display:inline-block; width:100%; }
+  .name-wrap input { padding-right:18px; }
+  .name-clear { position:absolute; right:2px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer; display:none; padding:0 4px; line-height:1; }
+  .name-wrap:hover .name-clear, .name-wrap input:focus ~ .name-clear { display:block; }
+  .name-clear:hover { color:var(--text); }
 
-    /* Modal */
-    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; }
-    .modal-overlay.active { display:flex; }
-    .modal { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:32px; max-width:480px; width:90%; }
-    .modal h3 { font-family:var(--font-display); font-size:24px; letter-spacing:2px; margin-bottom:16px; }
-    .modal input, .modal select { width:100%; padding:10px 12px; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:var(--font-body); font-size:12px; margin-bottom:12px; border-radius:4px; }
-    .modal input:focus, .modal select:focus { border-color:var(--accent); outline:none; }
-    .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
-    .modal-actions button { padding:8px 20px; border:1px solid var(--border); background:transparent; color:var(--text); font-family:var(--font-body); font-size:12px; cursor:pointer; border-radius:4px; }
-    .modal-actions button.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+  /* Profiles table */
+  .profiles-table { margin-bottom:8px; }
+  .profiles-table th { font-size:8px; white-space:nowrap; padding:6px 8px; }
+  .profiles-table td { padding:4px 6px; }
+  .profiles-table input { font-size:10px; width:100%; min-width:70px; }
+  .profiles-table input[type="date"] { min-width:110px; }
 
-    @media (max-width:768px) {
-      .nav { padding:12px 16px; }
-      .header { padding:16px; }
-      .content { padding:16px; }
-      .stats-bar { flex-wrap:wrap; }
-      .stat-box { min-width:50%; }
-      .budget-table { font-size:11px; }
-      .dashboard { padding:20px; }
-      .budget-grid { grid-template-columns:1fr; }
-    }
+  /* Progress bars */
+  .progress-bar { width:100%; height:4px; background:var(--surface-2); border-radius:2px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:2px; transition:width .6s ease; }
 
-    /* Overview Tabs */
-    .budget-tabs { display:flex; gap:0; margin:24px 0 0; border-bottom:2px solid var(--border); overflow-x:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
-    .budget-tabs::-webkit-scrollbar { height:4px; }
-    .budget-tabs::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-    .budget-tab { white-space:nowrap; flex-shrink:0; }
-    .budget-tab { padding:10px 24px; cursor:pointer; font-family:var(--font-display); font-size:13px; 
-      letter-spacing:2px; text-transform:uppercase; color:var(--muted); background:none; border:none;
-      border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.2s; }
-    .budget-tab:hover { color:var(--text); }
-    .budget-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-    
-    /* Cost Breakdown */
-    .cb-container { padding:24px 0; }
-    .cb-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:24px; }
-    .cb-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; cursor:pointer; transition:all 0.2s; }
-    .cb-card:hover { border-color:var(--accent); transform:translateY(-2px); }
-    .cb-card .cb-name { font-family:var(--font-display); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
-    .cb-card .cb-amount { font-family:var(--font-display); font-size:28px; color:var(--text); margin-bottom:4px; }
-    .cb-card .cb-pct { font-size:12px; color:var(--text-dim); margin-bottom:12px; }
-    .cb-card .cb-bar { height:4px; border-radius:2px; }
-    .cb-section-header { font-family:var(--font-display); font-size:14px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:16px; display:flex; align-items:center; gap:12px; }
-    .cb-section-header .cb-num { font-size:32px; color:var(--border); font-weight:300; }
-    .cb-section-header span:last-child { border-bottom:1px solid var(--border); flex:1; padding-bottom:4px; }
-    .cb-total-row { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-top:16px; }
-    .cb-total-label { font-family:var(--font-display); font-size:14px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); }
-    .cb-total-amount { font-family:var(--font-display); font-size:24px; color:var(--accent); }
-    .section-view-container { padding:24px 0; }
-    .section-view-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-    .section-view-title { font-family:var(--font-display); font-size:24px; letter-spacing:2px; text-transform:uppercase; }
-    .section-view-total { font-family:var(--font-display); font-size:24px; color:var(--accent); }
-    .fin-summary { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:24px; }
-    .fin-card { background:var(--surface); border-radius:8px; padding:20px; border-top:3px solid var(--border); }
-    .fin-card.red { border-top-color:var(--red); } .fin-card.blue { border-top-color:var(--blue); }
-    .fin-card.green { border-top-color:var(--green); } .fin-card.accent { border-top-color:var(--accent); }
-    .fin-card .fin-label { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
-    .fin-card .fin-value { font-family:var(--font-display); font-size:28px; color:var(--text); }
-    .fin-card .fin-sub { font-size:11px; color:var(--text-dim); margin-top:4px; }
-    .donut-center { font-family:var(--font-display); fill:var(--text); }
-    .sv-table { width:100%; border-collapse:collapse; }
-    .sv-table th { text-align:left; padding:8px; font-family:var(--font-display); font-size:11px; letter-spacing:2px; color:var(--muted); border-bottom:1px solid var(--border); }
-    .sv-table td { padding:6px 8px; border-bottom:1px solid var(--border); }
-    .sv-inp { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:6px 8px; color:var(--text); font-size:13px; }
-    .sv-inp-sm { width:70px; text-align:center; } .sv-inp-rate { width:100px; text-align:right; }
-    @media(max-width:768px) { .cb-grid{grid-template-columns:1fr;} .fin-summary{grid-template-columns:1fr 1fr;} }
-    /* Overview Screen */
-    .overview-container { padding:24px 0; }
-    .overview-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
-    .overview-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; }
-    .overview-card h3 { font-family:var(--font-display); font-size:16px; letter-spacing:1px; margin-bottom:16px; color:var(--text); }
-    .chart-container { position:relative; width:100%; }
-    .pie-chart-wrap { display:flex; align-items:center; gap:24px; }
-    .pie-svg { width:200px; height:200px; }
-    .pie-legend { flex:1; }
-    .legend-item { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; }
-    .legend-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
-    .legend-label { color:var(--text-dim); flex:1; }
-    .legend-val { color:var(--text); font-family:var(--font-body); }
-    .bar-chart { display:flex; flex-direction:column; gap:8px; }
-    .bar-row { display:flex; align-items:center; gap:12px; }
-    .bar-label { width:140px; font-size:11px; color:var(--text-dim); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .bar-track { flex:1; height:24px; background:var(--surface-2); border-radius:4px; overflow:hidden; position:relative; }
-    .bar-fill { height:100%; border-radius:4px; transition:width 0.4s ease; min-width:2px; }
-    .bar-amount { font-size:11px; color:var(--text); width:90px; text-align:right; font-family:var(--font-body); }
-    .overview-summary { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:24px; }
-    .summary-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; text-align:center; }
-    .summary-card .big-num { font-family:var(--font-display); font-size:28px; color:var(--accent); }
-    .summary-card .big-label { font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-top:4px; }
-    @media(max-width:768px) { .overview-grid { grid-template-columns:1fr; } .overview-summary { grid-template-columns:1fr; } }
+  /* Category grid */
+  .category-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:32px; }
+  .category-card { background:var(--surface); border:1px solid var(--border); padding:16px; }
+  .category-name { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px; }
+  .category-amount { font-family:var(--font-display); font-size:28px; letter-spacing:1px; }
+  .category-pct { font-size:10px; color:var(--muted); margin-top:4px; }
 
+  /* Donut */
+  .chart-container { display:flex; align-items:center; gap:32px; margin:24px 0 32px; }
+  .donut-wrap { position:relative; }
+  .donut-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+  .donut-center-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .donut-center-value { font-family:var(--font-display); font-size:28px; }
+  .chart-legend { display:flex; flex-direction:column; gap:10px; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:11px; }
+  .legend-dot { width:10px; height:10px; border-radius:50%; }
+
+  /* Schedule */
+  .schedule-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+  .schedule-card { background:var(--surface); border:1px solid var(--border); padding:14px; }
+  .schedule-date { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  .schedule-city { font-family:var(--font-display); font-size:20px; letter-spacing:1px; }
+  .schedule-venue { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .badge { display:inline-block; padding:2px 8px; font-size:9px; letter-spacing:1px; text-transform:uppercase; margin-top:8px; border:1px solid; }
+  .badge-show { color:var(--green); border-color:var(--green); background:var(--green-dim); }
+  .badge-rehearsal { color:var(--blue); border-color:var(--blue); background:var(--blue-dim); }
+  .badge-travel { color:var(--orange); border-color:var(--orange); background:var(--orange-dim); }
+  .badge-off { color:var(--muted); border-color:var(--border); }
+  .badge-tech { color:var(--yellow); border-color:var(--yellow); background:#3a3a0a; }
+  .badge-build { color:var(--purple); border-color:var(--purple); background:#2a1a2a; }
+
+  /* Timeline grid */
+  .tl-controls { display:flex; gap:24px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+  .tl-controls input[type="date"] { background:var(--surface); border:1px solid var(--border); color:var(--text); font-family:var(--font-body); font-size:12px; padding:6px 10px; border-radius:0; }
+  .tl-wrap { overflow-x:auto; margin-bottom:16px; border:1px solid var(--border); -webkit-overflow-scrolling:touch; }
+  .tl-wrap::-webkit-scrollbar { height:6px; }
+  .tl-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  .tl-table { border-collapse:collapse; min-width:100%; }
+  .tl-table th, .tl-table td { border:1px solid var(--border); padding:0; text-align:center; vertical-align:middle; }
+  .tl-corner { position:sticky; left:0; z-index:3; background:var(--bg); min-width:120px; width:120px; }
+  .tl-date-header { font-size:9px; letter-spacing:1px; color:var(--muted); padding:8px 4px !important; min-width:72px; background:var(--surface); white-space:nowrap; font-weight:normal; }
+  .tl-date-header.tl-weekend { background:var(--surface-2); }
+  .tl-name { position:sticky; left:0; z-index:2; background:var(--surface); min-width:120px; width:120px; padding:0 !important; white-space:nowrap; }
+  .tl-name.tl-label { font-size:9px; letter-spacing:2px; color:var(--muted); padding:6px 10px !important; text-align:left; background:var(--bg); font-weight:normal; }
+  .tl-name-input { background:transparent; border:none; color:var(--text); font-family:var(--font-body); font-size:11px; padding:6px 10px; width:calc(100% - 20px); outline:none; }
+  .tl-name-input:focus { background:rgba(200,184,138,0.05); }
+  .tl-remove-person { display:none; position:absolute; right:2px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--muted); font-size:12px; padding:2px 4px; border-radius:3px; font-family:var(--font-body); line-height:1; }
+  .tl-person-row:hover .tl-remove-person { display:block; }
+  .tl-remove-person:hover { color:var(--red); background:var(--red-dim); }
+  .tl-cell { padding:0 !important; }
+  .tl-input { background:transparent; border:none; color:var(--text-dim); font-family:var(--font-body); font-size:10px; padding:6px 4px; width:100%; text-align:center; outline:none; }
+  .tl-input:focus { background:rgba(200,184,138,0.05); color:var(--text); }
+  .tl-select { background:transparent; border:none; color:var(--text); font-family:var(--font-body); font-size:9px; letter-spacing:1px; padding:8px 2px; width:100%; text-align:center; text-align-last:center; outline:none; cursor:pointer; -webkit-appearance:none; -moz-appearance:none; appearance:none; }
+  .tl-select option { background:var(--surface); color:var(--text); }
+  .tl-venue-row .tl-cell { background:rgba(0,0,0,.2); }
+  .tl-show { background:var(--green-dim); } .tl-show .tl-select { color:var(--green); }
+  .tl-rehearsal { background:var(--blue-dim); } .tl-rehearsal .tl-select { color:var(--blue); }
+  .tl-travel { background:var(--orange-dim); } .tl-travel .tl-select { color:var(--orange); }
+  .tl-off { background:transparent; } .tl-off .tl-select { color:var(--muted); }
+  .tl-tech { background:#3a3a0a; } .tl-tech .tl-select { color:var(--yellow); }
+  .tl-build { background:#2a1a2a; } .tl-build .tl-select { color:var(--purple); }
+  .tl-loadin { background:rgba(200,184,138,0.08); } .tl-loadin .tl-select { color:var(--accent); }
+  .tl-wrap-type { background:var(--red-dim); } .tl-wrap-type .tl-select { color:var(--red); }
+  .tl-sep td { padding:0 !important; height:0; border-top:2px solid var(--accent) !important; border-bottom:none !important; }
+
+  /* Guest card */
+  .guest-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:24px; }
+  .guest-card { background:var(--surface); border:1px solid var(--border); padding:20px; }
+  .guest-title { font-family:var(--font-display); font-size:22px; letter-spacing:2px; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); color:var(--accent); }
+
+  /* Add row button */
+  .add-row-btn {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 16px;
+    background:var(--surface); border:1px dashed var(--border-light);
+    color:var(--muted); font-family:var(--font-body); font-size:10px;
+    letter-spacing:1px; text-transform:uppercase; cursor:pointer;
+    transition:all .2s; margin:8px 0 20px;
+  }
+  .add-row-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* Row & card delete */
+  .row-action { width:30px; text-align:center; padding:4px 8px !important; }
+  .row-delete-btn { display:none; background:none; border:none; cursor:pointer; color:var(--muted); font-size:14px; padding:2px 6px; border-radius:3px; font-family:var(--font-body); line-height:1; }
+  tr:hover .row-delete-btn { display:inline-block; }
+  .row-delete-btn:hover { color:var(--red); background:var(--red-dim); }
+  .card-delete-btn { position:absolute; top:8px; right:8px; background:none; border:none; cursor:pointer; color:var(--muted); font-size:16px; padding:2px 6px; border-radius:3px; font-family:var(--font-body); line-height:1; display:none; }
+  .guest-card:hover .card-delete-btn, .schedule-card:hover .card-delete-btn { display:block; }
+  .card-delete-btn:hover { color:var(--red); background:var(--red-dim); }
+  .guest-card, .schedule-card { position:relative; }
+
+  /* Savings card */
+  .savings-card { background:var(--surface); border:1px solid var(--border); padding:24px; margin-bottom:16px; }
+
+  /* Footer */
+  .footer { padding:32px 40px; border-top:1px solid var(--border); font-size:10px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+
+  /* Export banner */
+  .export-bar { display:flex; gap:12px; padding:12px 40px; background:var(--surface); border-bottom:1px solid var(--border); align-items:center; }
+  .export-btn {
+    padding:6px 16px; background:var(--accent); color:#000; font-family:var(--font-body);
+    font-size:10px; letter-spacing:1px; text-transform:uppercase; border:none; cursor:pointer;
+    font-weight:500; transition:opacity .2s;
+  }
+  .export-btn:hover { opacity:.85; }
+  .export-btn.secondary { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .export-label { font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+
+  @media(max-width:900px) {
+    .kpi-grid { grid-template-columns:repeat(2,1fr); }
+    .category-grid { grid-template-columns:1fr 1fr; }
+    .hero-title,.editable-lg { font-size:48px!important; }
+    .guest-grid { grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
 
-<!-- Ticker -->
-<div class="ticker"><div class="ticker-inner" id="tickerContent">
-NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS &bull; NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS &bull; NBL OPS &bull; BUDGET MANAGEMENT SYSTEM &bull; NAPPY BOY LIVE &bull; ALL ACCESS &bull;
-</div></div>
+<!-- EXAMPLE BANNER (hidden by default, shown via JS for ?id=example) -->
+<div class="example-banner" id="exampleBanner" style="display:none">
+  <span>Read-only example &mdash; changes will not be saved</span>
+  <a href="projects.html">Back to Projects</a>
+</div>
 
-<!-- Nav -->
-<div class="nav">
-  <div style="display:flex;align-items:center;gap:16px;">
-    <div class="nav-logo">NBL</div>
-    <div class="nav-title">NBL OPS</div>
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner" id="tickerText">
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; PROJECT BUDGET TEMPLATE &nbsp;&bull;&nbsp; LIVE CALCULATOR &nbsp;&bull;&nbsp; ALL FIELDS EDITABLE &nbsp;&bull;&nbsp; TOTALS AUTO-UPDATE &nbsp;&bull;&nbsp;
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; PROJECT BUDGET TEMPLATE &nbsp;&bull;&nbsp; LIVE CALCULATOR &nbsp;&bull;&nbsp; ALL FIELDS EDITABLE &nbsp;&bull;&nbsp; TOTALS AUTO-UPDATE &nbsp;&bull;&nbsp;
   </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="projects.html" class="nav-logo" style="text-decoration:none; color:var(--text)">NBL</a>
   <div class="nav-links">
-    <a href="index.html">HOME</a>
-    <a href="budget.html" class="active">BUDGETS</a>
-    <span id="navUser" class="user-bar" style="display:none;"></span>
+    <a href="projects.html">PROJECTS</a>
+    <a href="/">PROJECT INTAKE</a>
+    <a href="javascript:void(0)" class="active">BUDGET TRACKER</a>
+  </div>
+</nav>
+
+<!-- EXPORT BAR -->
+<div class="export-bar">
+  <span class="export-label">Template Tools:</span>
+  <button class="export-btn" onclick="saveToJSON()">EXPORT DATA (JSON)</button>
+  <button class="export-btn secondary" onclick="loadFromJSON()">IMPORT DATA (JSON / XLSX / CSV)</button>
+  <button class="export-btn secondary" onclick="resetAll()">RESET ALL</button>
+  <input type="file" id="importFile" accept=".json,.xlsx,.xls,.csv,.tsv" style="display:none" onchange="handleImport(event)">
+</div>
+
+<!-- HERO (editable) -->
+<div class="hero">
+  <input class="editable editable-md" id="heroSubtitle" value="ARTIST / CLIENT NAME" style="width:100%; display:block; margin-bottom:4px;">
+  <input class="editable editable-lg" id="heroTitle" value="PROJECT TITLE" style="width:100%; display:block;">
+  <div class="hero-meta" style="margin-top:20px">
+    <div class="meta-item"><span class="meta-label">PROJECT TYPE</span><input class="editable editable-meta" id="metaType" value="Tour / Live Event" style="width:160px"></div>
+    <div class="meta-item"><span class="meta-label">DATES</span><input class="editable editable-meta" id="metaDates" value="TBD" style="width:200px"></div>
+    <div class="meta-item"><span class="meta-label">LOCATION</span><input class="editable editable-meta" id="metaLocation" value="TBD" style="width:160px"></div>
+    <div class="meta-item"><span class="meta-label">DURATION</span><input class="editable editable-meta" id="metaDuration" value="— DAYS" style="width:100px"></div>
+    <div class="meta-item"><span class="meta-label">CREW SIZE</span><input class="editable editable-meta" id="metaCrew" value="— MEMBERS" style="width:120px"></div>
+    <div class="meta-item"><span class="meta-label">STATUS</span><input class="editable editable-meta" id="metaStatus" value="PRE-PRODUCTION" style="width:140px; color:var(--orange)"></div>
   </div>
 </div>
 
-<!-- Save Indicator -->
-<div id="saveIndicator" class="save-indicator"></div>
-
-<!-- ============ LOGIN SCREEN ============ -->
-<div id="loginScreen" class="screen" style="display:none;">
-  <div class="login-card">
-    <h2>BUDGET ACCESS</h2>
-    <p>Enter your email to receive a magic sign-in link</p>
-    <input type="email" id="loginEmail" placeholder="you@nappyboylive.com" autocomplete="email">
-    <button class="btn-magic" id="btnMagicLink" onclick="sendMagicLink()">SEND MAGIC LINK</button>
-    <div id="loginMsg" class="login-msg"></div>
-  </div>
+<!-- TABS -->
+<div class="tabs" id="tabBar">
+  <button class="tab active" data-tab="overview" onclick="showTab('overview',this)">OVERVIEW</button>
+  <button class="tab" data-tab="notescomms" onclick="showTab('notescomms',this)">NOTES &amp; DOCS</button>
+  <button class="tab" data-tab="payroll" onclick="showTab('payroll',this)" style="display:none">PAYROLL</button>
+  <button class="tab" data-tab="perdiems" onclick="showTab('perdiems',this)" style="display:none">PER DIEMS</button>
+  <button class="tab" data-tab="hotel" onclick="showTab('hotel',this)" style="display:none">HOTEL</button>
+  <button class="tab" data-tab="airfares" onclick="showTab('airfares',this)" style="display:none">AIRFARES</button>
+  <button class="tab" data-tab="ground" onclick="showTab('ground',this)" style="display:none">GROUND TRANSPORT</button>
+  <button class="tab" data-tab="production" onclick="showTab('production',this)" style="display:none">PRODUCTION</button>
+  <button class="tab" data-tab="startup" onclick="showTab('startup',this)" style="display:none">START UP & MISC</button>
+  <button class="tab" data-tab="trucking" onclick="showTab('trucking',this)" style="display:none">TRUCKING</button>
+  <button class="tab" data-tab="insurance" onclick="showTab('insurance',this)" style="display:none">INSURANCE</button>
+  <button class="tab" data-tab="guests" onclick="showTab('guests',this)" style="display:none">SPECIAL GUESTS</button>
+  <button class="tab" data-tab="schedule" onclick="showTab('schedule',this)" style="display:none">SCHEDULE</button>
+  <button class="tab" data-tab="crew" onclick="showTab('crew',this)" style="display:none">CREW</button>
+  <button class="tab" data-tab="savings" onclick="showTab('savings',this)" style="display:none">SAVINGS</button>
+  <button class="tab-add" onclick="togglePicker(event)" title="Add budget section">+</button>
 </div>
 
-<!-- ============ DASHBOARD SCREEN ============ -->
-<div id="dashboardScreen" class="screen active">
-  <div class="dashboard">
-    <div class="dashboard-header">
-      <h2>YOUR BUDGETS</h2>
-      <button class="btn-new" onclick="createNewBudget()">+ NEW BUDGET</button>
+<div class="content">
+
+<!-- ==================== OVERVIEW ==================== -->
+<div id="overview" class="tab-panel active">
+  <div class="kpi-grid">
+    <div class="kpi-card red"><div class="kpi-label">TOTAL EXPENSES</div><div class="kpi-value" id="kpiTotal">$0</div><div class="kpi-sub">Including contingency &amp; commissions</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">EXPENSES SUBTOTAL</div><div class="kpi-value" id="kpiSubtotal">$0</div><div class="kpi-sub">Before contingency</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">GROSS INCOME</div><div class="kpi-value" id="kpiIncome">$0</div><div class="kpi-sub">Revenue / deal value</div></div>
+    <div class="kpi-card green"><div class="kpi-label">NET PROFIT / (LOSS)</div><div class="kpi-value" id="kpiNet">$0</div><div class="kpi-sub" id="kpiMargin">0% margin</div></div>
+  </div>
+
+  <div class="overview-visual">
+    <div class="pie-wrap">
+      <canvas id="pieChart" width="200" height="200"></canvas>
     </div>
-    <div id="budgetGrid" class="budget-grid"></div>
+    <div class="pie-legend" id="pieLegend"></div>
   </div>
-</div>
 
-<!-- ============ TRACKER SCREEN ============ -->
-<div id="trackerScreen" class="screen">
+  <div class="section-header collapsible" onclick="toggleSection(this)"><span class="section-number">01</span><span class="section-title">INCOME</span><span class="section-line"></span><span class="collapse-arrow">&#9660;</span></div>
+  <div class="section-body">
+  <div style="margin-bottom:8px"><span class="meta-label">GROSS INCOME / DEAL VALUE: </span><input class="editable editable-num" data-field="income" type="number" value="0" style="width:200px; font-size:16px; font-family:var(--font-display);" oninput="recalcAll()"></div>
+  </div>
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-top">
-      <div class="header-info">
-        <h1 id="budgetTitle" contenteditable="true" spellcheck="false">UNTITLED BUDGET</h1>
-        <p id="budgetSubtitle" contenteditable="true" spellcheck="false">Click to add subtitle</p>
-      </div>
-      <div class="header-actions">
-        <span id="statusBadge" class="status-badge status-draft">DRAFT</span>
-        <select id="statusSelect" onchange="updateStatus(this.value)">
-          <option value="draft">Draft</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-        </select>
-        <button onclick="showDashboard()">&#x2190; ALL BUDGETS</button>
-        <button onclick="duplicateBudget()">DUPLICATE</button>
-        <button onclick="exportJSON()">EXPORT JSON</button>
-        <button onclick="exportCSV()">EXPORT CSV</button>
-      </div>
+  <div class="section-header collapsible" onclick="toggleSection(this)"><span class="section-number">02</span><span class="section-title">EXPENSE CATEGORIES</span><span class="section-line"></span><span class="collapse-arrow">&#9660;</span></div>
+  <div class="section-body">
+  <table class="budget-table">
+    <thead><tr><th>#</th><th>CATEGORY</th><th class="r">BUDGET</th><th class="r">% OF TOTAL</th></tr></thead>
+    <tbody id="overviewTable"></tbody>
+  </table>
+
+  <div style="margin-top:16px">
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+      <div><span class="meta-label">CONTINGENCY %: </span><input class="editable editable-num" id="contingencyPct" type="number" value="5" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
+      <div><span class="meta-label">MGMT COMMISSION %: </span><input class="editable editable-num" id="mgmtPct" type="number" value="10" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
+      <div><span class="meta-label">AGENT COMMISSION %: </span><input class="editable editable-num" id="agentPct" type="number" value="10" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
+      <div><span class="meta-label">BIZ MGR %: </span><input class="editable editable-num" id="bizPct" type="number" value="5" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
+      <div><span class="meta-label">LAWYER %: </span><input class="editable editable-num" id="lawyerPct" type="number" value="5" min="0" max="50" style="width:60px" oninput="recalcAll()"></div>
     </div>
-  </div>
-
-  <!-- Stats Bar -->
-  <div class="stats-bar">
-    <div class="stat-box"><div class="stat-label">Total Budget</div><div class="stat-value" id="statTotal">$0</div></div>
-    <div class="stat-box"><div class="stat-label">Sections</div><div class="stat-value blue" id="statSections">0</div></div>
-    <div class="stat-box"><div class="stat-label">Line Items</div><div class="stat-value" id="statItems">0</div></div>
-    <div class="stat-box"><div class="stat-label">Last Saved</div><div class="stat-value green" id="statSaved" style="font-size:16px;">--</div></div>
-  </div>
-
-    <!-- Budget View Tabs -->
-    <div class="budget-tabs" id="budgetTabs"></div>
-
-      <!-- Overview View -->
-    <div id="overviewView" style="display:block;">
-      <div class="overview-container">
-        <div class="fin-summary">
-          <div class="fin-card accent"><div class="fin-label">TOTAL EXPENSES</div><div class="fin-value" id="finTotal"></div><div class="fin-sub">All sections combined</div></div>
-          <div class="fin-card blue"><div class="fin-label">SECTIONS</div><div class="fin-value" id="finSections"></div><div class="fin-sub">Budget categories</div></div>
-          <div class="fin-card green"><div class="fin-label">LINE ITEMS</div><div class="fin-value" id="finItems"></div><div class="fin-sub">Individual expenses</div></div>
-          <div class="fin-card red"><div class="fin-label">LARGEST SECTION</div><div class="fin-value" id="finLargest"></div><div class="fin-sub" id="finLargestName"></div></div>
-        </div>
-        <div class="overview-summary">
-          <div class="summary-card"><div class="big-num" id="ovTotal">$0</div><div class="big-label">Total Budget</div></div>
-          <div class="summary-card"><div class="big-num" id="ovSections">0</div><div class="big-label">Sections</div></div>
-          <div class="summary-card"><div class="big-num" id="ovItems">0</div><div class="big-label">Line Items</div></div>
-        </div>
-        <div class="overview-grid">
-          <div class="overview-card">
-            <h3>BUDGET BREAKDOWN</h3>
-            <div class="pie-chart-wrap">
-              <svg class="pie-svg" id="pieChart" viewBox="0 0 200 200"></svg>
-              <div class="pie-legend" id="pieLegend"></div>
-            </div>
-          </div>
-          <div class="overview-card">
-            <h3>TOP LINE ITEMS</h3>
-            <div class="bar-chart" id="barChart"></div>
-          </div>
-        </div>
-        <div class="overview-grid">
-          <div class="overview-card">
-            <h3>SECTION TOTALS</h3>
-            <div class="bar-chart" id="sectionBars"></div>
-          </div>
-          <div class="overview-card">
-            <h3>BUDGET NOTES</h3>
-            <div id="ovNotes" style="color:var(--text-dim);font-size:13px;line-height:1.6;white-space:pre-wrap;">No notes yet.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Cost Breakdown View -->
-      <div id="costBreakdownView" style="display:none;">
-        <div class="cb-container">
-          <div class="cb-section-header"><span class="cb-num">01</span><span>EXPENSE CATEGORIES</span></div>
-          <div class="cb-grid" id="cbGrid"></div>
-          <div class="cb-total-row"><div class="cb-total-label">TOTAL BUDGET</div><div class="cb-total-amount" id="cbTotal"></div></div>
-        </div>
-      </div>
-
-      <!-- Section Detail View -->
-      <div id="sectionDetailView" style="display:none;">
-        <div class="section-view-container">
-          <div class="section-view-header"><div class="section-view-title" id="sectionViewTitle"></div><div class="section-view-total" id="sectionViewTotal"></div></div>
-          <div id="sectionViewContent"></div>
-          <button id="sectionAddRow" onclick="addRowToCurrentSection()" style="margin-top:12px;padding:8px 16px;background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer;font-family:var(--font-display);font-size:11px;letter-spacing:2px;">+ ADD ROW</button>
-        </div>
-      </div>
-
-      <!-- Detail View (wraps existing sections/notes) -->
-    <div id="detailView" style="display:none;">
-
-
-  <!-- Sections Container -->
-  <div class="content" id="sectionsContainer"></div>
-
-  <!-- Add Section Button -->
-  <button class="btn-add-section" onclick="addSection()">+ ADD SECTION</button>
-
-  <!-- Notes -->
-  <div class="notes-section">
-    <h3>NOTES</h3>
-    <textarea id="notesArea" placeholder="General notes, assumptions, contingency plans..." oninput="triggerAutoSave()"></textarea>
-  </div>
-
-  <!-- Footer -->
-    </div> <!-- end detailView -->
-  <div class="footer">
-    <span>NBL OPS &mdash; Budget Tracker</span>
-    <span id="footerTimestamp"></span>
-  </div>
-</div>
-
-<!-- Confirm Delete Modal -->
-<div id="confirmModal" class="modal-overlay">
-  <div class="modal">
-    <h3>CONFIRM DELETE</h3>
-    <p id="confirmMsg">Are you sure you want to archive this budget?</p>
-    <div class="modal-actions">
-      <button onclick="closeModal()">CANCEL</button>
-      <button class="primary" id="confirmBtn" onclick="confirmAction()">ARCHIVE</button>
+    <div style="margin-top:12px; padding:12px; background:var(--surface); border:1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Contingency</span><span id="ovContingency" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Management Commission</span><span id="ovMgmt" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Agent Commission</span><span id="ovAgent" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Business Mgr Commission</span><span id="ovBiz" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px"><span>Lawyer</span><span id="ovLawyer" class="calc-field">$0</span></div>
+      <div style="display:flex; justify-content:space-between; padding-top:8px; border-top:2px solid var(--accent); font-weight:500; font-size:13px"><span style="color:var(--accent)">GRAND TOTAL</span><span id="ovGrandTotal" style="color:var(--accent)">$0</span></div>
     </div>
   </div>
+  </div>
 </div>
 
-<!-- Toast -->
-<div id="toast" class="toast"></div>
+<!-- ==================== PAYROLL ==================== -->
+<div id="payroll" class="tab-panel">
+  <div id="payBlockKPIs" class="kpi-grid"></div>
+  <div id="payBlockContainer"></div>
+  <button class="add-row-btn" onclick="addPayBlock()" style="margin-bottom:16px">+ ADD BLOCK</button>
+  <div style="padding:12px; background:var(--surface-2); border-top:2px solid var(--accent); text-align:right; font-size:13px">
+    <span style="color:var(--accent); font-weight:500">PAYROLL GRAND TOTAL: </span><span id="payGrandTotal" style="color:var(--accent); font-weight:500">$0</span>
+  </div>
+</div>
 
+<!-- ==================== PER DIEMS ==================== -->
+<div id="perdiems" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card green"><div class="kpi-label">PER DIEMS TOTAL</div><div class="kpi-value" id="kpiPD">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">DEFAULT DAILY RATE</div><div class="kpi-value">$<input class="editable" id="pdDefaultRate" type="number" value="50" style="width:60px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()"></div></div>
+    <div class="kpi-card accent"><div class="kpi-label">CREW ON PD</div><div class="kpi-value" id="kpiPDCount">0</div></div>
+  </div>
+  <table class="budget-table"><thead><tr><th>#</th><th>POSITION</th><th>NAME</th><th class="r">DAYS</th><th class="r">PD RATE</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="pdBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addPDRow()">+ ADD ROW</button>
+</div>
+
+<!-- ==================== HOTEL ==================== -->
+<div id="hotel" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card green"><div class="kpi-label">HOTELS TOTAL</div><div class="kpi-value" id="kpiHotel">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">TAX RATE</div><div class="kpi-value"><input class="editable" id="hotelTax" type="number" value="10" style="width:50px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()">%</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">DEFAULT ROOMS/NIGHT</div><div class="kpi-value"><input class="editable" id="hotelDefaultRooms" type="number" value="14" style="width:50px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()"></div></div>
+  </div>
+  <table class="budget-table"><thead><tr><th>DATE</th><th>CITY</th><th style="min-width:140px">GUEST</th><th>DOB</th><th>LOYALTY #</th><th>NOTE</th><th class="r">ROOMS</th><th class="r">NIGHTS</th><th class="r">RATE</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="hotelBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addHotelRow()">+ ADD ROW</button>
+</div>
+
+<!-- ==================== AIRFARES ==================== -->
+<div id="airfares" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card blue"><div class="kpi-label">FLIGHTS TOTAL</div><div class="kpi-value" id="kpiFlights">$0</div></div>
+    <div class="kpi-card accent"><div class="kpi-label">BOOKED FLIGHTS</div><div class="kpi-value" id="kpiFlightCount">0</div></div>
+  </div>
+  <table class="budget-table"><thead><tr><th>#</th><th>DATE</th><th>FLIGHT</th><th style="min-width:140px">NAME</th><th style="min-width:100px">DOB</th><th>SKYMILES</th><th>CLASS</th><th class="r">PRICE</th><th class="r">QTY</th><th class="r">BAGS</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="flightBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addFlightRow()">+ ADD ROW</button>
+</div>
+
+<!-- ==================== GROUND TRANSPORT ==================== -->
+<div id="ground" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card accent"><div class="kpi-label">GROUND TOTAL</div><div class="kpi-value" id="kpiGround">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">BUSSING</div><div class="kpi-value" id="kpiBus">$0</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">LOCAL</div><div class="kpi-value" id="kpiLocal">$0</div></div>
+  </div>
+  <div class="sub-header">BUSSES / SPRINTERS</div>
+  <table class="budget-table"><thead><tr><th>EQUIPMENT</th><th>VENDOR</th><th class="r">DAILY RATE</th><th class="r"># DAYS</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="busBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('busBody',['text','text','num','num'])">+ ADD ROW</button>
+  <div class="sub-header">LOCAL GROUND</div>
+  <table class="budget-table"><thead><tr><th>ITEM</th><th>VENDOR</th><th class="r">COST</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="localBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('localBody',['text','text','num','num'])">+ ADD ROW</button>
+</div>
+
+<!-- ==================== PRODUCTION ==================== -->
+<div id="production" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card red"><div class="kpi-label">PRODUCTION TOTAL</div><div class="kpi-value" id="kpiProd">$0</div></div>
+    <div class="kpi-card accent"><div class="kpi-label">SECTIONS</div><div class="kpi-value">7</div></div>
+  </div>
+  <div id="prodSections"></div>
+</div>
+
+<!-- ==================== START UP & MISC ==================== -->
+<div id="startup" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card orange"><div class="kpi-label">START UP TOTAL</div><div class="kpi-value" id="kpiStartup">$0</div></div>
+    <div class="kpi-card accent"><div class="kpi-label">SECTIONS</div><div class="kpi-value">5</div></div>
+  </div>
+  <div id="startupSections"></div>
+</div>
+
+<!-- ==================== TRUCKING ==================== -->
+<div id="trucking" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-card accent"><div class="kpi-label">TRUCKING TOTAL</div><div class="kpi-value" id="kpiTruck">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">TRUCKING</div><div class="kpi-value" id="kpiTruckA">$0</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">FREIGHT</div><div class="kpi-value" id="kpiTruckB">$0</div></div>
+  </div>
+  <div class="sub-header">TRUCKING</div>
+  <table class="budget-table"><thead><tr><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="truckABody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('truckABody',['text','num','num'])">+ ADD ROW</button>
+  <div class="sub-header">INTERNAL MOVEMENTS</div>
+  <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th class="r">COST/MOVE</th><th class="r"># MOVES</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="truckBBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('truckBBody',['text','num','num'])">+ ADD ROW</button>
+</div>
+
+<!-- ==================== INSURANCE ==================== -->
+<div id="insurance" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card orange"><div class="kpi-label">INSURANCE TOTAL</div><div class="kpi-value" id="kpiInsurance">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">STATUS</div><div class="kpi-value" style="font-size:24px">AWAITING QUOTES</div></div>
+  </div>
+  <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="insurBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLineRow('insurBody',['text','text','num','num'])">+ ADD ROW</button>
+</div>
+
+<!-- ==================== SPECIAL GUESTS ==================== -->
+<div id="guests" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card accent"><div class="kpi-label">GUESTS TOTAL</div><div class="kpi-value" id="kpiGuests">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">GUEST SLOTS</div><div class="kpi-value" id="kpiGuestCount">4</div></div>
+  </div>
+  <div id="guestCards" class="guest-grid"></div>
+  <button class="add-row-btn" onclick="addGuestCard()">+ ADD GUEST SLOT</button>
+</div>
+
+<!-- ==================== SCHEDULE ==================== -->
+<div id="schedule" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi-card green"><div class="kpi-label">TOTAL DAYS</div><div class="kpi-value" id="kpiSchedDays">0</div></div>
+    <div class="kpi-card accent"><div class="kpi-label">SHOW DAYS</div><div class="kpi-value" id="kpiSchedShows">0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">PEOPLE</div><div class="kpi-value" id="kpiSchedPeople">0</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">CITIES</div><div class="kpi-value" id="kpiSchedCities">0</div></div>
+  </div>
+  <div class="tl-controls">
+    <div><span class="meta-label">START DATE</span><input type="date" class="editable" id="schedStart" onchange="onSchedDateChange()" style="margin-left:8px"></div>
+    <div><span class="meta-label">END DATE</span><input type="date" class="editable" id="schedEnd" onchange="onSchedDateChange()" style="margin-left:8px"></div>
+  </div>
+  <div class="tl-wrap" id="tlGrid"></div>
+  <button class="add-row-btn" onclick="addSchedPerson()">+ ADD PERSON</button>
+  <datalist id="dlVenues"></datalist>
+</div>
+
+<!-- ==================== CREW ==================== -->
+<div id="crew" class="tab-panel">
+  <div class="section-header"><span class="section-number">01</span><span class="section-title">CREW ROSTER</span><span class="section-line"></span></div>
+  <table class="budget-table"><thead><tr><th>#</th><th>POSITION</th><th>NAME</th><th>PHONE</th><th>EMAIL</th><th>STATUS</th><th></th></tr></thead>
+    <tbody id="crewBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addCrewRow()">+ ADD CREW MEMBER</button>
+</div>
+
+<!-- ==================== SAVINGS ==================== -->
+<div id="savings" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card green"><div class="kpi-label">POTENTIAL SAVINGS</div><div class="kpi-value" id="kpiSavings">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">CURRENT BUDGET</div><div class="kpi-value" id="kpiSavBudget">$0</div></div>
+  </div>
+  <div class="section-header"><span class="section-number">01</span><span class="section-title">IDEAS TO SAVE MONEY</span><span class="section-line"></span></div>
+  <table class="budget-table"><thead><tr><th>#</th><th>IDEA</th><th class="r">EST. SAVINGS</th><th>STATUS</th><th></th></tr></thead>
+    <tbody id="savingsBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addSavingsRow()">+ ADD IDEA</button>
+</div>
+
+<!-- NOTES & DOCS tab panel -->
+<div id="notescomms" class="tab-panel">
+  <div class="section-header"><span class="section-number">&#9993;</span><span class="section-title">KEY CONTACTS</span><span class="section-line"></span></div>
+  <table class="budget-table" style="margin-bottom:8px">
+    <thead><tr><th>ROLE</th><th>NAME</th><th>PHONE</th><th>EMAIL</th><th></th></tr></thead>
+    <tbody id="contactsBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addContactRow()">+ ADD CONTACT</button>
+
+  <div class="section-header" style="margin-top:32px"><span class="section-number">&#9993;</span><span class="section-title">EMAIL LOG</span><span class="section-line"></span></div>
+  <div id="emailLogContainer"></div>
+  <button class="add-row-btn" onclick="addEmailLogEntry()">+ ADD EMAIL</button>
+
+  <div class="section-header" style="margin-top:32px"><span class="section-number">&#9993;</span><span class="section-title">LINKS &amp; DOCS</span><span class="section-line"></span></div>
+  <table class="budget-table" style="margin-bottom:8px">
+    <thead><tr><th>DATE</th><th>LABEL</th><th>TYPE</th><th>URL / LINK</th><th></th></tr></thead>
+    <tbody id="linksBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addLinkRow()">+ ADD LINK</button>
+
+  <div class="section-header" style="margin-top:32px"><span class="section-number">&#9993;</span><span class="section-title">NOTES</span><span class="section-line"></span></div>
+  <textarea id="eventNotes" class="editable" placeholder="Add notes about the event, logistics, special instructions..." style="width:100%; min-height:120px; background:var(--surface); border:1px solid var(--border); color:var(--text); font-size:12px; padding:12px; resize:vertical; font-family:var(--font-body); line-height:1.6"></textarea>
+</div>
+
+</div><!-- end .content -->
+
+<datalist id="dlRoster"></datalist>
+<div id="schedPresets" style="margin:32px 48px 0"></div>
+
+<div class="footer">
+  <span>NAPPY BOY LIVE &mdash; BUDGET TEMPLATE</span>
+  <span>ALL FIELDS EDITABLE &bull; TOTALS AUTO-CALCULATE</span>
+  <span id="footerDate"></span>
+</div>
+
+<!-- ==================== JAVASCRIPT ENGINE ==================== -->
 <script>
-/* ============================================================
-   NBL OPS â Budget Tracker with Supabase Integration
-   ============================================================ */
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+const fmt = n => {
+  if (n < 0) return '($' + Math.abs(n).toLocaleString('en-US', {maximumFractionDigits:0}) + ')';
+  return '$' + n.toLocaleString('en-US', {maximumFractionDigits:0});
+};
+const pct = n => (n*100).toFixed(1) + '%';
 
-// ---- Supabase Config ----
-const SUPABASE_URL = 'https://nbkvnzahngrzxmznvofa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ia3ZuemFobmdyenhtem52b2ZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MzMwNzMsImV4cCI6MjA4ODQwOTA3M30.aBXWWThfHJPdJY5SFLDOAcWMrYCby4wMymsTPosz60Y';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ============ PROJECT SYSTEM ============
+let currentProjectId = null;
+let _saveTimer = null;
+let _suppressAutoSave = false;
 
-// ---- App State ----
-let currentUser = null;
-let currentBudgetId = null;
-let autoSaveTimer = null;
-let pendingAction = null;
-const AUTOSAVE_DELAY = 2000;
-
-// ---- Utility ----
-function $(id) { return document.getElementById(id); }
-function fmt(n) { return '$' + Number(n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
-function shortDate(iso) {
-  if (!iso) return '--';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
-}
-function showToast(msg, type='success') {
-  const t = $('toast');
-  t.textContent = msg;
-  t.className = 'toast visible ' + type;
-  setTimeout(() => t.className = 'toast', 3000);
+function scheduleAutoSave() {
+  if (!currentProjectId || _suppressAutoSave) return;
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(autoSave, 1000);
 }
 
-// ---- Screen Management ----
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  $(id).classList.add('active');
+function autoSave() {
+  if (!currentProjectId || _suppressAutoSave) return;
+  const data = getAllData();
+  const meta = {
+    title:       $('heroTitle')?.value     || 'UNTITLED',
+    artist:      $('heroSubtitle')?.value  || '',
+    dates:       $('metaDates')?.value     || 'TBD',
+    status:      $('metaStatus')?.value    || 'Draft',
+    budgetTotal: parseFloat(($('kpiTotal')?.textContent || '0').replace(/[$,()]/g, '')) || 0,
+  };
+  ProjectStore.save(currentProjectId, data, meta);
 }
 
-// ---- Save Indicator ----
-function showSaveStatus(status) {
-  const el = $('saveIndicator');
-  el.className = 'save-indicator ' + status;
-  el.textContent = status === 'saving' ? 'SAVING...' : status === 'saved' ? 'SAVED' : 'SAVE ERROR';
-  if (status === 'saved') setTimeout(() => { el.style.opacity = '0'; }, 2000);
-}
+window.addEventListener('beforeunload', () => {
+  if (currentProjectId && !_suppressAutoSave) autoSave();
+});
 
-// ============================================================
-// AUTH
-// ============================================================
-async function sendMagicLink() {
-  const email = $('loginEmail').value.trim();
-  if (!email) { $('loginMsg').textContent = 'Please enter your email'; $('loginMsg').className = 'login-msg error'; return; }
-  const btn = $('btnMagicLink');
-  btn.disabled = true; btn.textContent = 'SENDING...';
-  try {
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin + '/budget.html' }
-    });
-    if (error) throw error;
-    $('loginMsg').textContent = 'Magic link sent! Check your email.';
-    $('loginMsg').className = 'login-msg';
-  } catch(e) {
-    $('loginMsg').textContent = e.message || 'Failed to send link';
-    $('loginMsg').className = 'login-msg error';
+// Collapsible sections
+function toggleSection(header) {
+  header.classList.toggle('collapsed');
+  const body = header.nextElementSibling;
+  if (body && body.classList.contains('section-body')) {
+    body.classList.toggle('collapsed');
+    if (!body.classList.contains('collapsed')) body.style.maxHeight = body.scrollHeight + 'px';
   }
-  btn.disabled = false; btn.textContent = 'SEND MAGIC LINK';
 }
 
-async function signOut() {
-  await sb.auth.signOut();
-  currentUser = null;
-  currentBudgetId = null;
-  showScreen('loginScreen');
-  $('navUser').style.display = 'none';
+// Tab switching
+function showTab(id, el) {
+  $$('.tab-panel').forEach(p => p.classList.remove('active'));
+  $$('.tab').forEach(t => t.classList.remove('active'));
+  $(id).classList.add('active');
+  if (el) el.classList.add('active');
 }
 
-function updateNavUser() {
-  if (!currentUser) { $('navUser').style.display = 'none'; return; }
-  $('navUser').style.display = 'flex';
-  $('navUser').innerHTML = '<span class="user-email">' + currentUser.email + '</span><button onclick="signOut()">SIGN OUT</button>';
+// ============ GENERIC TABLE HELPERS ============
+function makeInput(type, val, cls, extra) {
+  const inp = document.createElement('input');
+  inp.className = 'editable' + (cls ? ' ' + cls : '');
+  inp.type = type === 'num' ? 'number' : 'text';
+  inp.value = val || '';
+  inp.step = type === 'num' ? 'any' : undefined;
+  inp.addEventListener('input', recalcAll);
+  if (extra) Object.assign(inp, extra);
+  return inp;
 }
 
-// ============================================================
+function makeNameInput(tr, autofillFn) {
+  const wrap=document.createElement('span'); wrap.className='name-wrap';
+  const inp=makeInput('text',''); inp.setAttribute('list','dlRoster');
+  const btn=document.createElement('button'); btn.className='name-clear'; btn.innerHTML='×'; btn.type='button';
+  btn.onclick=function(){ inp.value=''; autofillFn(tr,''); };
+  inp.addEventListener('change', function(){
+    if(this.value==='— CLEAR —') this.value='';
+    const name=this.value.trim();
+    if(name) {
+      const tbody=tr.closest('tbody');
+      if(tbody) {
+        const dup=Array.from(tbody.rows).some(r => {
+          if(r===tr) return false;
+          const ni=r.querySelector('.name-wrap input');
+          return ni && ni.value.trim().toLowerCase()===name.toLowerCase();
+        });
+        if(dup){ alert(name+' is already in this section.'); this.value=''; return; }
+      }
+    }
+    autofillFn(tr, this.value);
+    if(this.value.trim()) syncNameToSections(this.value.trim(), tr.closest('tbody'));
+  });
+  wrap.appendChild(inp); wrap.appendChild(btn);
+  return wrap;
+}
 
-    function calcBudgetTotal(data) {
-      if (!data || !data.sections) return 0;
-      let t = 0;
-      data.sections.forEach(s => (s.rows || []).forEach(r => t += (parseFloat(r.qty)||0) * (parseFloat(r.rate)||0)));
-      return t;
+// Live sync: when a name is entered in one section, add to all other open sections
+function syncNameToSections(name, sourceTbody) {
+  const targets = [];
+  // Payroll blocks
+  payrollBlocks.forEach(b => targets.push({ id: b.id+'_body', add: id => addPayRow(id), fill: autofillPayProfile, isPayroll: true }));
+  // Other sections with name inputs
+  targets.push({ id:'pdBody', add: () => addPDRow(), fill: autofillPayProfile });
+  targets.push({ id:'hotelBody', add: () => addHotelRow(), fill: autofillHotelProfile });
+  targets.push({ id:'flightBody', add: () => addFlightRow(), fill: autofillFlightProfile });
+  targets.push({ id:'crewBody', add: () => addCrewRow(), fill: autofillCrewProfile });
+
+  targets.forEach(t => {
+    const tb = $(t.id);
+    if (!tb || tb === sourceTbody) return;
+    // Check tab is visible
+    const panel = tb.closest('.tab-panel');
+    if (panel) {
+      const tabBtn = document.querySelector('.tab[data-tab="'+panel.id+'"]');
+      if (tabBtn && tabBtn.style.display === 'none') return;
+    }
+    // Check name not already in this table
+    const exists = Array.from(tb.rows).some(r => {
+      const ni = r.querySelector('.name-wrap input');
+      return ni && ni.value.trim().toLowerCase() === name.toLowerCase();
+    });
+    if (exists) return;
+    // Find the first empty row or add one
+    let targetRow = null;
+    for (let i = 0; i < tb.rows.length; i++) {
+      const ni = tb.rows[i].querySelector('.name-wrap input');
+      if (ni && !ni.value.trim()) { targetRow = tb.rows[i]; break; }
+    }
+    if (!targetRow) {
+      if (t.isPayroll) t.add(t.id); else t.add();
+      targetRow = tb.rows[tb.rows.length - 1];
+    }
+    const ni = targetRow.querySelector('.name-wrap input');
+    if (ni) { ni.value = name; t.fill(targetRow, name); }
+  });
+
+  // Sync to schedule if visible
+  syncNameToSchedule(name);
+}
+
+function syncNameToSchedule(name) {
+  const schedTab = document.querySelector('.tab[data-tab="schedule"]');
+  if (!schedTab || schedTab.style.display === 'none') return;
+  const tbody = document.querySelector('.tl-table tbody');
+  if (!tbody) return;
+  // Check if name already exists in schedule
+  const exists = Array.from(tbody.querySelectorAll('.tl-name-input')).some(
+    inp => inp.value.trim().toLowerCase() === name.toLowerCase()
+  );
+  if (exists) return;
+  // Find first empty person row or add one
+  const emptyRow = Array.from(tbody.querySelectorAll('.tl-person-row')).find(r => {
+    const ni = r.querySelector('.tl-name-input');
+    return ni && !ni.value.trim();
+  });
+  if (emptyRow) {
+    emptyRow.querySelector('.tl-name-input').value = name;
+  } else {
+    const days = getTimelineDays();
+    if (!days.length) return;
+    const temp = document.createElement('tbody');
+    temp.innerHTML = buildPersonRow(name, days, {});
+    tbody.appendChild(temp.querySelector('tr'));
+  }
+  recalcSchedKPIs();
+}
+
+function makeDeleteCell() {
+  const td = document.createElement('td');
+  td.className = 'row-action';
+  const btn = document.createElement('button');
+  btn.className = 'row-delete-btn';
+  btn.innerHTML = '×';
+  btn.title = 'Remove row';
+  btn.onclick = function() {
+    const tr = this.closest('tr');
+    const tbody = tr.parentNode;
+    tr.remove();
+    renumberRows(tbody);
+    recalcAll();
+  };
+  td.appendChild(btn);
+  return td;
+}
+
+function renumberRows(tbody) {
+  for (let i = 0; i < tbody.rows.length; i++) {
+    const cell = tbody.rows[i].cells[0];
+    if (cell && !cell.querySelector('input') && /^\d+$/.test(cell.textContent.trim())) {
+      cell.textContent = i + 1;
+    }
+  }
+}
+
+function removeGuestCard(btn) {
+  btn.closest('.guest-card').remove();
+  guestCount = $$('.guest-card').length;
+  $('kpiGuestCount').textContent = guestCount;
+  recalcAll();
+}
+
+
+function addPayRow(bodyId) {
+  const tb = $(bodyId); const n = tb.rows.length + 1;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
+  tr.cells[1].appendChild(makeInput('text','','editable-wide'));
+  tr.cells[2].appendChild(makeNameInput(tr, autofillPayProfile));
+  tr.cells[3].appendChild(makeInput('num','0','editable-num'));
+  tr.cells[4].appendChild(makeInput('num','0','editable-num'));
+  tr.appendChild(makeDeleteCell());
+  recalcAll();
+}
+
+// ============ DYNAMIC PAYROLL BLOCKS ============
+const KPI_COLORS = ['blue','accent','orange','green','blue','accent','orange','green'];
+let payrollBlocks = [
+  { id: 'pay_0', name: 'SHOW DAYS' },
+  { id: 'pay_1', name: 'REHEARSAL BLOCK 1' },
+  { id: 'pay_2', name: 'REHEARSAL BLOCK 2' }
+];
+let payBlockCounter = 3;
+
+function buildPayrollUI() {
+  const kpiEl=$('payBlockKPIs'), container=$('payBlockContainer');
+  if(!kpiEl||!container) return;
+  // KPI cards
+  kpiEl.style.gridTemplateColumns = 'repeat('+payrollBlocks.length+',1fr)';
+  kpiEl.innerHTML = payrollBlocks.map((b,i) =>
+    `<div class="kpi-card ${KPI_COLORS[i%KPI_COLORS.length]}"><div class="kpi-label">${escHtml(b.name)}</div><div class="kpi-value" id="kpi_${b.id}">$0</div></div>`
+  ).join('');
+  // Block tables
+  container.innerHTML = payrollBlocks.map((b,i) =>
+    `<div class="pay-block" data-idx="${i}"><div class="sub-header" style="display:flex;align-items:center;gap:8px"><input class="editable" value="${escHtml(b.name)}" style="font-size:11px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;color:var(--accent);font-weight:500;flex:1" onchange="payrollBlocks[${i}].name=this.value;$('kpi_${b.id}').closest('.kpi-card').querySelector('.kpi-label').textContent=this.value">${payrollBlocks.length>1?`<button class="row-delete-btn" style="display:inline-block;font-size:14px" onclick="removePayBlock(${i})" title="Remove block">×</button>`:''}</div>`+
+    `<table class="budget-table"><thead><tr><th>#</th><th>POSITION</th><th>NAME</th><th class="r">DAYS</th><th class="r">DAY RATE</th><th class="r">TOTAL</th><th></th></tr></thead><tbody id="${b.id}_body"></tbody></table>`+
+    `<button class="add-row-btn" onclick="addPayRow('${b.id}_body')">+ ADD ROW</button></div>`
+  ).join('');
+}
+
+function addPayBlock() {
+  const id = 'pay_' + payBlockCounter++;
+  payrollBlocks.push({ id, name: 'NEW BLOCK' });
+  buildPayrollUI();
+  populateNewSection(id + '_body', 'payroll');
+  recalcAll();
+}
+
+// ============ AUTO-POPULATE NEW SECTIONS FROM EXISTING DATA ============
+// Scans all budget tables for unique filled-in names
+function collectBudgetNames() {
+  const names = new Set();
+  // Payroll blocks
+  payrollBlocks.forEach(b => {
+    const tb = $(b.id + '_body'); if (!tb) return;
+    Array.from(tb.rows).forEach(tr => {
+      const inp = tr.querySelector('.name-wrap input');
+      if (inp && inp.value.trim()) names.add(inp.value.trim());
+    });
+  });
+  // Per diems, hotel, flights, crew
+  ['pdBody','hotelBody','flightBody','crewBody'].forEach(id => {
+    const tb = $(id); if (!tb) return;
+    Array.from(tb.rows).forEach(tr => {
+      const inp = tr.querySelector('.name-wrap input');
+      // crew rows don't use name-wrap, name is 2nd input (index 1)
+      if (inp && inp.value.trim()) { names.add(inp.value.trim()); return; }
+      if (id === 'crewBody') {
+        const inputs = tr.querySelectorAll('input');
+        if (inputs[1] && inputs[1].value.trim()) names.add(inputs[1].value.trim());
+      }
+    });
+  });
+  return [...names];
+}
+
+// Populate a newly added/enabled section with names already in other budget tables
+function populateNewSection(bodyId, type) {
+  const names = collectBudgetNames();
+  if (names.length === 0) return; // nothing filled in yet, leave existing blank rows
+  const tb = $(bodyId); if (!tb) return;
+  // Collect names already filled in (keep those rows)
+  const existing = new Set();
+  const blankRows = [];
+  Array.from(tb.rows).forEach(tr => {
+    const ni = tr.querySelector('.name-wrap input');
+    if (ni && ni.value.trim()) existing.add(ni.value.trim().toLowerCase());
+    else blankRows.push(tr);
+  });
+  // Remove blank rows — we'll add fresh ones after populating
+  blankRows.forEach(tr => tr.remove());
+  // Add rows for names not already present
+  const addFn = { payroll: bodyId => addPayRow(bodyId), perdiems: () => addPDRow(), hotel: () => addHotelRow(), flights: () => addFlightRow(), crew: () => addCrewRow() };
+  const fillFn = { payroll: autofillPayProfile, perdiems: autofillPayProfile, hotel: autofillHotelProfile, flights: autofillFlightProfile, crew: autofillCrewProfile };
+  names.forEach(name => {
+    if (existing.has(name.toLowerCase())) return;
+    if (type === 'payroll') addFn.payroll(bodyId); else addFn[type]();
+    const tr = tb.rows[tb.rows.length - 1];
+    const ni = tr.querySelector('.name-wrap input');
+    if (ni) { ni.value = name; fillFn[type](tr, name); }
+  });
+  // Add 1 blank row at the end
+  if (type === 'payroll') addFn.payroll(bodyId); else addFn[type]();
+  renumberRows(tb);
+}
+
+// Map tab IDs to their table body + type for auto-populate
+const TAB_POPULATE_MAP = {
+  payroll:  { populate() { payrollBlocks.forEach(b => populateNewSection(b.id+'_body','payroll')); }},
+  perdiems: { bodyId:'pdBody', type:'perdiems' },
+  hotel:    { bodyId:'hotelBody', type:'hotel' },
+  airfares: { bodyId:'flightBody', type:'flights' },
+  crew:     { bodyId:'crewBody', type:'crew' }
+};
+
+function removePayBlock(idx) {
+  if(payrollBlocks.length<=1) return;
+  payrollBlocks.splice(idx,1);
+  buildPayrollUI();
+  recalcAll();
+}
+
+function addPDRow() {
+  const tb = $('pdBody'); const n = tb.rows.length + 1;
+  const defRate = $('pdDefaultRate').value || 50;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
+  tr.cells[1].appendChild(makeInput('text',''));
+  tr.cells[2].appendChild(makeNameInput(tr, autofillPayProfile));
+  tr.cells[3].appendChild(makeInput('num','0','editable-num'));
+  tr.cells[4].appendChild(makeInput('num', defRate,'editable-num'));
+  tr.appendChild(makeDeleteCell());
+  recalcAll();
+}
+
+function addHotelRow() {
+  const tb = $('hotelBody'); const defRooms = $('hotelDefaultRooms').value || 14;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
+  tr.cells[0].appendChild(makeInput('text',''));
+  tr.cells[1].appendChild(makeInput('text',''));
+  tr.cells[2].appendChild(makeNameInput(tr, autofillHotelProfile));
+  tr.cells[3].appendChild(makeInput('text',''));  // DOB (auto-filled)
+  tr.cells[4].appendChild(makeInput('text',''));  // Loyalty # (auto-filled)
+  tr.cells[5].appendChild(makeInput('text',''));  // Note
+  tr.cells[6].appendChild(makeInput('num', defRooms,'editable-num'));
+  tr.cells[7].appendChild(makeInput('num','1','editable-num'));
+  tr.cells[8].appendChild(makeInput('num','0','editable-num'));
+  tr.appendChild(makeDeleteCell());
+  recalcAll();
+}
+
+function addFlightRow() {
+  const tb = $('flightBody'); const n = tb.rows.length + 1;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
+  tr.cells[1].appendChild(makeInput('text',''));
+  tr.cells[2].appendChild(makeInput('text',''));
+  tr.cells[3].appendChild(makeNameInput(tr, autofillFlightProfile));
+  tr.cells[4].appendChild(makeInput('text',''));  // DOB (auto-filled)
+  tr.cells[5].appendChild(makeInput('text',''));  // SkyMiles (auto-filled)
+  tr.cells[6].appendChild(makeInput('text','Economy'));
+  tr.cells[7].appendChild(makeInput('num','0','editable-num'));
+  tr.cells[8].appendChild(makeInput('num','1','editable-num'));
+  tr.cells[9].appendChild(makeInput('num','0','editable-num'));
+  tr.appendChild(makeDeleteCell());
+  recalcAll();
+}
+
+function addLineRow(bodyId, types) {
+  const tb = $(bodyId);
+  const tr = tb.insertRow();
+  types.forEach(t => {
+    const td = tr.insertCell(); td.appendChild(makeInput(t, t==='num'?'0':'', t==='num'?'editable-num':''));
+    if (t === 'num') td.className = 'r';
+  });
+  const td = tr.insertCell(); td.className = 'r calc-field'; td.textContent = '$0';
+  tr.appendChild(makeDeleteCell());
+  recalcAll();
+}
+
+function autofillCrewProfile(tr, name) {
+  const posInp = tr.cells[1]?.querySelector('input');
+  const phoneInp = tr.cells[3]?.querySelector('input');
+  const emailInp = tr.cells[4]?.querySelector('input');
+  if (!name) {
+    const lp = tr._lastProfile;
+    if (lp) {
+      if (posInp && posInp.value === lp.position) posInp.value = '';
+      if (phoneInp && phoneInp.value === lp.phone) phoneInp.value = '';
+      if (emailInp && emailInp.value === lp.email) emailInp.value = '';
+    }
+    tr._lastProfile = null; return;
+  }
+  const p = findProfile(name); if (!p) return;
+  if (posInp && !posInp.value) posInp.value = p.position || '';
+  if (phoneInp && !phoneInp.value) phoneInp.value = p.phone || '';
+  if (emailInp && !emailInp.value) emailInp.value = p.email || '';
+  tr._lastProfile = { position: p.position || '', phone: p.phone || '', email: p.email || '' };
+}
+
+function addCrewRow() {
+  const tb = $('crewBody'); const n = tb.rows.length + 1;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td></td><td></td><td></td><td></td>`;
+  tr.cells[1].appendChild(makeInput('text',''));
+  tr.cells[2].appendChild(makeNameInput(tr, autofillCrewProfile));
+  for (let i = 3; i <= 5; i++) tr.cells[i].appendChild(makeInput('text',''));
+  tr.appendChild(makeDeleteCell());
+  recalcAll();
+}
+
+function addSavingsRow() {
+  const tb = $('savingsBody'); const n = tb.rows.length + 1;
+  const tr = tb.insertRow();
+  tr.innerHTML = `<td>${n}</td><td></td><td class="r"></td><td></td>`;
+  tr.cells[1].appendChild(makeInput('text','','editable-wide'));
+  tr.cells[2].appendChild(makeInput('num','0','editable-num'));
+  tr.cells[3].appendChild(makeInput('text','Pending'));
+  tr.appendChild(makeDeleteCell());
+  recalcAll();
+}
+
+// ============ NOTES & COMMS ============
+function addContactRow() {
+  const tb = $('contactsBody');
+  const tr = tb.insertRow();
+  tr.innerHTML = '<td></td><td></td><td></td><td></td>';
+  tr.cells[0].appendChild(makeInput('text','','',{placeholder:'e.g. Promoter'}));
+  tr.cells[1].appendChild(makeInput('text','','',{placeholder:'Name'}));
+  tr.cells[2].appendChild(makeInput('text','','',{placeholder:'Phone'}));
+  tr.cells[3].appendChild(makeInput('text','','',{placeholder:'Email'}));
+  tr.appendChild(makeDeleteCell());
+}
+
+function addLinkRow() {
+  const tb = $('linksBody');
+  const tr = tb.insertRow();
+  tr.innerHTML = '<td></td><td></td><td></td><td></td>';
+  tr.cells[0].appendChild(makeInput('text','','',{placeholder:'MM/DD/YY'}));
+  tr.cells[1].appendChild(makeInput('text','','',{placeholder:'Description'}));
+  const sel = document.createElement('select');
+  sel.className = 'editable';
+  sel.style.cssText = 'font-size:11px;width:100%';
+  ['Tech Package','Google Doc','Dropbox','Contract','Invoice','Other'].forEach(opt => {
+    sel.innerHTML += `<option>${opt}</option>`;
+  });
+  tr.cells[2].appendChild(sel);
+  const linkInp = makeInput('text','','',{placeholder:'Paste URL...'});
+  linkInp.addEventListener('click', function() { if(this.value) window.open(this.value,'_blank'); });
+  linkInp.style.cursor = 'pointer';
+  tr.cells[3].appendChild(linkInp);
+  tr.appendChild(makeDeleteCell());
+}
+
+function addEmailLogEntry(data) {
+  const container = $('emailLogContainer');
+  const card = document.createElement('div');
+  card.className = 'email-log-card';
+
+  // Delete button
+  const delBtn = document.createElement('button');
+  delBtn.className = 'email-delete';
+  delBtn.innerHTML = '×';
+  delBtn.title = 'Remove email';
+  delBtn.onclick = function() { card.remove(); };
+  card.appendChild(delBtn);
+
+  // Header row: date, from
+  const header = document.createElement('div');
+  header.className = 'email-log-header';
+  const dateInp = makeInput('text', data?.date || '', '', {placeholder:'MM/DD/YY'});
+  const fromInp = makeInput('text', data?.from || '', '', {placeholder:'From (name or email)'});
+  const toInp = makeInput('text', data?.to || '', '', {placeholder:'To (optional)'});
+  header.appendChild(dateInp);
+  header.appendChild(fromInp);
+  header.appendChild(toInp);
+  card.appendChild(header);
+
+  // Subject line
+  const subjWrap = document.createElement('div');
+  subjWrap.className = 'email-log-subject';
+  const subjInp = makeInput('text', data?.subject || '', '', {placeholder:'Subject line'});
+  subjWrap.appendChild(subjInp);
+  card.appendChild(subjWrap);
+
+  // Body textarea
+  const bodyWrap = document.createElement('div');
+  bodyWrap.className = 'email-log-body';
+  const bodyTa = document.createElement('textarea');
+  bodyTa.className = 'editable';
+  bodyTa.placeholder = 'Paste email body here...';
+  bodyTa.value = data?.body || '';
+  bodyWrap.appendChild(bodyTa);
+  card.appendChild(bodyWrap);
+
+  container.appendChild(card);
+  return card;
+}
+
+let guestCount = 0;
+function addGuestCard() {
+  guestCount++;
+  const div = document.createElement('div'); div.className = 'guest-card';
+  const expenses = ['Appearance Fee','Airfare','Hotel','Ground','Glam','Misc Exp'];
+  let html = `<button class="card-delete-btn" onclick="removeGuestCard(this)" title="Remove guest">×</button>`;
+  html += `<div class="guest-title"><input class="editable" value="SPECIAL GUEST ${guestCount}" style="font-family:var(--font-display); font-size:22px; letter-spacing:2px; color:var(--accent); width:100%"></div>`;
+  expenses.forEach(e => {
+    html += `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #1f1f1f; font-size:11px">
+      <span style="color:var(--text-dim)">${e}</span>
+      <input class="editable editable-num guest-expense" type="number" value="0" style="width:80px; text-align:right" oninput="recalcAll()">
+    </div>`;
+  });
+  html += `<div style="display:flex; justify-content:space-between; padding:8px 0; margin-top:4px; font-weight:500"><span>Total</span><span class="guest-card-total">$0</span></div>`;
+  div.innerHTML = html;
+  $('guestCards').appendChild(div);
+  $('kpiGuestCount').textContent = guestCount;
+  recalcAll();
+}
+
+// ============ SCHEDULE TIMELINE ============
+const SCHED_TYPES = [
+  { val:'', label:'—', cls:'' },
+  { val:'show', label:'SHOW', cls:'tl-show' },
+  { val:'rehearsal', label:'RHRSL', cls:'tl-rehearsal' },
+  { val:'travel', label:'TRVL', cls:'tl-travel' },
+  { val:'off', label:'OFF', cls:'tl-off' },
+  { val:'tech', label:'TECH', cls:'tl-tech' },
+  { val:'build', label:'BUILD', cls:'tl-build' },
+  { val:'loadin', label:'LOAD', cls:'tl-loadin' },
+  { val:'wrap', label:'WRAP', cls:'tl-wrap-type' },
+];
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function getDaysBetween(start, end) {
+  const days = [], d = new Date(start+'T00:00:00'), e = new Date(end+'T00:00:00');
+  while (d <= e && days.length < 120) { days.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+  return days;
+}
+
+function buildTimeline(data) {
+  const startDate = $('schedStart').value, endDate = $('schedEnd').value;
+  if (!startDate || !endDate || startDate > endDate) { $('tlGrid').innerHTML = ''; recalcSchedKPIs(); return; }
+  const days = getDaysBetween(startDate, endDate);
+  if (!days.length) return;
+  const prev = data || {};
+  let html = '<table class="tl-table"><thead><tr><th class="tl-corner"></th>';
+  days.forEach(d => {
+    const dt = new Date(d+'T00:00:00');
+    const dow = ['SUN','MON','TUE','WED','THU','FRI','SAT'][dt.getDay()];
+    const ds = (dt.getMonth()+1)+'/'+dt.getDate();
+    const we = dt.getDay()===0||dt.getDay()===6;
+    html += `<th class="tl-date-header${we?' tl-weekend':''}">${dow}<br><span style="font-size:10px;color:var(--text-dim)">${ds}</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+  // City row
+  html += '<tr class="tl-venue-row"><td class="tl-name tl-label">CITY</td>';
+  days.forEach(d => {
+    const v = prev.venues?.[d]?.city || '';
+    html += `<td class="tl-cell"><input class="tl-input tl-city-input" data-date="${d}" list="dlVenues" value="${escHtml(v)}" placeholder="—" oninput="recalcSchedKPIs()"></td>`;
+  });
+  html += '</tr>';
+  // Venue row
+  html += '<tr class="tl-venue-row"><td class="tl-name tl-label">VENUE</td>';
+  days.forEach(d => {
+    const v = prev.venues?.[d]?.venue || '';
+    html += `<td class="tl-cell"><input class="tl-input tl-venue-input" data-date="${d}" list="dlVenues" value="${escHtml(v)}" placeholder="—"></td>`;
+  });
+  html += '</tr>';
+  // Separator
+  html += '<tr class="tl-sep"><td class="tl-name" style="border-top:2px solid var(--accent)"></td>';
+  days.forEach(() => html += '<td style="border-top:2px solid var(--accent)"></td>');
+  html += '</tr>';
+  // Person rows
+  const people = prev.people?.length ? prev.people : ['Artist','Band','Crew'];
+  people.forEach(p => { html += buildPersonRow(p, days, prev.assignments?.[p] || {}); });
+  html += '</tbody></table>';
+  $('tlGrid').innerHTML = html;
+  updateVenueDatalist();
+  updateRosterDatalist();
+  recalcSchedKPIs();
+}
+
+function buildPersonRow(name, days, asgn) {
+  let html = '<tr class="tl-person-row"><td class="tl-name"><input class="tl-name-input" value="'+escHtml(name)+'" list="dlRoster" placeholder="Name"><button class="tl-remove-person" onclick="removeSchedPerson(this)" title="Remove">×</button></td>';
+  days.forEach(d => {
+    const v = asgn[d] || '';
+    const cls = SCHED_TYPES.find(t=>t.val===v)?.cls || '';
+    html += `<td class="tl-cell ${cls}"><select class="tl-select" data-date="${d}" onchange="updateSchedCell(this)">`;
+    SCHED_TYPES.forEach(t => { html += `<option value="${t.val}"${t.val===v?' selected':''}>${t.label}</option>`; });
+    html += '</select></td>';
+  });
+  return html + '</tr>';
+}
+
+function addSchedPerson() {
+  const tbody = document.querySelector('.tl-table tbody');
+  if (!tbody) return;
+  const days = getTimelineDays();
+  if (!days.length) return;
+  const temp = document.createElement('tbody');
+  temp.innerHTML = buildPersonRow('', days, {});
+  const row = temp.querySelector('tr');
+  tbody.appendChild(row);
+  recalcSchedKPIs();
+  row.querySelector('.tl-name-input')?.focus();
+}
+
+function removeSchedPerson(btn) { btn.closest('tr').remove(); recalcSchedKPIs(); }
+
+function updateSchedCell(sel) {
+  const td = sel.parentNode;
+  SCHED_TYPES.forEach(t => { if (t.cls) td.classList.remove(t.cls); });
+  const type = SCHED_TYPES.find(t => t.val === sel.value);
+  if (type?.cls) td.classList.add(type.cls);
+  recalcSchedKPIs();
+}
+
+function onSchedDateChange() { buildTimeline(getSchedData()); }
+function getTimelineDays() { const s=$('schedStart')?.value, e=$('schedEnd')?.value; return (s&&e)?getDaysBetween(s,e):[]; }
+
+function recalcSchedKPIs() {
+  const days = getTimelineDays(), rows = document.querySelectorAll('.tl-person-row');
+  if ($('kpiSchedDays')) $('kpiSchedDays').textContent = days.length;
+  if ($('kpiSchedPeople')) $('kpiSchedPeople').textContent = rows.length;
+  let showDays = 0;
+  days.forEach(d => { if ([...document.querySelectorAll(`.tl-select[data-date="${d}"]`)].some(s=>s.value==='show')) showDays++; });
+  if ($('kpiSchedShows')) $('kpiSchedShows').textContent = showDays;
+  const cities = new Set();
+  document.querySelectorAll('.tl-city-input').forEach(inp => { if (inp.value.trim()) cities.add(inp.value.trim().toLowerCase()); });
+  if ($('kpiSchedCities')) $('kpiSchedCities').textContent = cities.size;
+}
+
+function getSchedData() {
+  const startDate=$('schedStart')?.value||'', endDate=$('schedEnd')?.value||'';
+  const days = (startDate&&endDate)?getDaysBetween(startDate,endDate):[];
+  const people=[], assignments={};
+  document.querySelectorAll('.tl-person-row').forEach(row => {
+    const name = row.querySelector('.tl-name-input')?.value||'';
+    people.push(name);
+    const a = {};
+    row.querySelectorAll('.tl-select').forEach(sel => { if (sel.value) a[sel.dataset.date]=sel.value; });
+    assignments[name] = a;
+  });
+  const venues = {};
+  days.forEach(d => {
+    const city = document.querySelector(`.tl-city-input[data-date="${d}"]`)?.value||'';
+    const venue = document.querySelector(`.tl-venue-input[data-date="${d}"]`)?.value||'';
+    if (city||venue) venues[d] = {city,venue};
+  });
+  return { startDate, endDate, people, venues, assignments };
+}
+
+function loadSchedData(data) {
+  if (!data||!data.startDate) return;
+  $('schedStart').value = data.startDate;
+  $('schedEnd').value = data.endDate||data.startDate;
+  buildTimeline(data);
+}
+
+// Saved presets (localStorage)
+function loadSavedRoster() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('nbl_saved_roster'))||[];
+    return raw.map(r => {
+      if(typeof r === 'string') return {name:r,position:'',payType:'day',rate:'',dob:'',skyMiles:'',ktn:'',hilton:'',marriott:'',shirtSize:'',email:'',phone:''};
+      if(!r.position) r.position=''; if(!r.payType) r.payType='day'; if(!r.rate) r.rate=''; if(!r.shirtSize) r.shirtSize=''; if(!r.email) r.email=''; if(!r.phone) r.phone=''; return r;
+    });
+  } catch { return []; }
+}
+function saveSavedRoster(list) { localStorage.setItem('nbl_saved_roster',JSON.stringify(list)); updateRosterDatalist(); }
+const DEFAULT_VENUES = [
+  {city:'New York, NY',venue:'Madison Square Garden'},{city:'New York, NY',venue:'Barclays Center'},{city:'New York, NY',venue:'Radio City Music Hall'},
+  {city:'New York, NY',venue:'Terminal 5'},{city:'New York, NY',venue:'Irving Plaza'},{city:'New York, NY',venue:'Brooklyn Steel'},
+  {city:'Los Angeles, CA',venue:'The Forum'},{city:'Los Angeles, CA',venue:'Hollywood Bowl'},{city:'Los Angeles, CA',venue:'Crypto.com Arena'},
+  {city:'Los Angeles, CA',venue:'The Wiltern'},{city:'Los Angeles, CA',venue:'Greek Theatre'},{city:'Los Angeles, CA',venue:'The Roxy'},
+  {city:'Chicago, IL',venue:'United Center'},{city:'Chicago, IL',venue:'Wintrust Arena'},{city:'Chicago, IL',venue:'Chicago Theatre'},
+  {city:'Chicago, IL',venue:'Riviera Theatre'},{city:'Chicago, IL',venue:'House of Blues Chicago'},
+  {city:'Houston, TX',venue:'Toyota Center'},{city:'Houston, TX',venue:'713 Music Hall'},{city:'Houston, TX',venue:'House of Blues Houston'},
+  {city:'Dallas, TX',venue:'American Airlines Center'},{city:'Dallas, TX',venue:'The Pavilion at Toyota Music Factory'},{city:'Dallas, TX',venue:'South Side Ballroom'},
+  {city:'Atlanta, GA',venue:'State Farm Arena'},{city:'Atlanta, GA',venue:'Fox Theatre'},{city:'Atlanta, GA',venue:'Coca-Cola Roxy'},
+  {city:'Atlanta, GA',venue:'Tabernacle'},{city:'Atlanta, GA',venue:'Center Stage'},
+  {city:'Miami, FL',venue:'Kaseya Center'},{city:'Miami, FL',venue:'FPL Solar Amphitheater'},{city:'Miami, FL',venue:'The Fillmore Miami Beach'},
+  {city:'Philadelphia, PA',venue:'Wells Fargo Center'},{city:'Philadelphia, PA',venue:'The Met Philadelphia'},{city:'Philadelphia, PA',venue:'The Fillmore Philadelphia'},
+  {city:'Washington, DC',venue:'Capital One Arena'},{city:'Washington, DC',venue:'The Anthem'},{city:'Washington, DC',venue:'9:30 Club'},
+  {city:'Boston, MA',venue:'TD Garden'},{city:'Boston, MA',venue:'MGM Music Hall at Fenway'},{city:'Boston, MA',venue:'House of Blues Boston'},
+  {city:'San Francisco, CA',venue:'Chase Center'},{city:'San Francisco, CA',venue:'The Fillmore'},{city:'San Francisco, CA',venue:'The Warfield'},
+  {city:'Seattle, WA',venue:'Climate Pledge Arena'},{city:'Seattle, WA',venue:'Paramount Theatre'},{city:'Seattle, WA',venue:'The Showbox'},
+  {city:'Denver, CO',venue:'Ball Arena'},{city:'Denver, CO',venue:'Red Rocks Amphitheatre'},{city:'Denver, CO',venue:'Mission Ballroom'},
+  {city:'Phoenix, AZ',venue:'Footprint Center'},{city:'Phoenix, AZ',venue:'Arizona Financial Theatre'},{city:'Phoenix, AZ',venue:'The Van Buren'},
+  {city:'Minneapolis, MN',venue:'Target Center'},{city:'Minneapolis, MN',venue:'First Avenue'},{city:'Minneapolis, MN',venue:'The Armory'},
+  {city:'Detroit, MI',venue:'Little Caesars Arena'},{city:'Detroit, MI',venue:'The Fillmore Detroit'},{city:'Detroit, MI',venue:'Saint Andrew\'s Hall'},
+  {city:'Nashville, TN',venue:'Bridgestone Arena'},{city:'Nashville, TN',venue:'Ryman Auditorium'},{city:'Nashville, TN',venue:'Marathon Music Works'},
+  {city:'Nashville, TN',venue:'Brooklyn Bowl Nashville'},
+  {city:'Charlotte, NC',venue:'Spectrum Center'},{city:'Charlotte, NC',venue:'The Fillmore Charlotte'},{city:'Charlotte, NC',venue:'Neighborhood Theatre'},
+  {city:'New Orleans, LA',venue:'Smoothie King Center'},{city:'New Orleans, LA',venue:'The Fillmore New Orleans'},{city:'New Orleans, LA',venue:'Tipitina\'s'},
+  {city:'San Diego, CA',venue:'Pechanga Arena'},{city:'San Diego, CA',venue:'SOMA'},{city:'San Diego, CA',venue:'House of Blues San Diego'},
+  {city:'Portland, OR',venue:'Moda Center'},{city:'Portland, OR',venue:'Roseland Theater'},{city:'Portland, OR',venue:'Crystal Ballroom'},
+  {city:'Las Vegas, NV',venue:'T-Mobile Arena'},{city:'Las Vegas, NV',venue:'The Theater at Virgin Hotels'},{city:'Las Vegas, NV',venue:'Brooklyn Bowl Las Vegas'},
+  {city:'Austin, TX',venue:'Moody Center'},{city:'Austin, TX',venue:'ACL Live at The Moody Theater'},{city:'Austin, TX',venue:'Stubb\'s BBQ'},
+  {city:'San Antonio, TX',venue:'AT&T Center'},{city:'San Antonio, TX',venue:'Aztec Theatre'},
+  {city:'Orlando, FL',venue:'Amway Center'},{city:'Orlando, FL',venue:'Hard Rock Live Orlando'},
+  {city:'Tampa, FL',venue:'Amalie Arena'},{city:'Tampa, FL',venue:'Jannus Live'},
+  {city:'Kansas City, MO',venue:'T-Mobile Center'},{city:'Kansas City, MO',venue:'Midland Theatre'},
+  {city:'St. Louis, MO',venue:'Enterprise Center'},{city:'St. Louis, MO',venue:'The Pageant'},
+  {city:'Indianapolis, IN',venue:'Gainbridge Fieldhouse'},{city:'Indianapolis, IN',venue:'Egyptian Room at Old National Centre'},
+  {city:'Columbus, OH',venue:'Nationwide Arena'},{city:'Columbus, OH',venue:'KEMBA Live!'},
+  {city:'Cleveland, OH',venue:'Rocket Mortgage FieldHouse'},{city:'Cleveland, OH',venue:'House of Blues Cleveland'},
+  {city:'Pittsburgh, PA',venue:'PPG Paints Arena'},{city:'Pittsburgh, PA',venue:'Stage AE'},
+  {city:'Milwaukee, WI',venue:'Fiserv Forum'},{city:'Milwaukee, WI',venue:'The Rave/Eagles Club'},
+  {city:'Raleigh, NC',venue:'PNC Arena'},{city:'Raleigh, NC',venue:'The Ritz'},
+  {city:'Memphis, TN',venue:'FedExForum'},{city:'Memphis, TN',venue:'Minglewood Hall'},
+  {city:'Oakland, CA',venue:'Fox Theater Oakland'},{city:'Sacramento, CA',venue:'Golden 1 Center'},
+];
+
+function loadSavedVenues() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('nbl_saved_venues'));
+    if (raw && raw.length) return raw;
+    return DEFAULT_VENUES.slice(); // seed with defaults on first load
+  } catch { return DEFAULT_VENUES.slice(); }
+}
+function saveSavedVenues(list) { localStorage.setItem('nbl_saved_venues',JSON.stringify(list)); updateVenueDatalist(); buildPresetsUI(); }
+
+function updateRosterDatalist() {
+  const dl=$('dlRoster'); if(!dl) return;
+  dl.innerHTML=''; loadSavedRoster().forEach(p => { dl.innerHTML+=`<option value="${escHtml(p.name)}">`; });
+}
+function updateVenueDatalist() {
+  const dl=$('dlVenues'); if(!dl) return;
+  dl.innerHTML=''; const seen=new Set();
+  loadSavedVenues().forEach(v => {
+    if(v.city&&!seen.has(v.city)){dl.innerHTML+=`<option value="${escHtml(v.city)}">`;seen.add(v.city);}
+    if(v.venue&&!seen.has(v.venue)){dl.innerHTML+=`<option value="${escHtml(v.venue)}">`;seen.add(v.venue);}
+  });
+}
+
+function addPresetPerson() {
+  const inp=$('newPresetPerson'); if(!inp||!inp.value.trim()) return;
+  const list=loadSavedRoster();
+  if(!list.find(p=>p.name===inp.value.trim())) list.push({name:inp.value.trim(),position:'',payType:'day',rate:'',dob:'',skyMiles:'',ktn:'',hilton:'',marriott:'',shirtSize:'',email:'',phone:''});
+  saveSavedRoster(list); buildPresetsUI(); inp.value='';
+}
+function removePresetPerson(i) { const list=loadSavedRoster(); list.splice(i,1); saveSavedRoster(list); buildPresetsUI(); }
+function findProfile(name) { return loadSavedRoster().find(p=>p.name===name); }
+function autofillPayProfile(tr, name) {
+  const posInp=tr.cells[1]?.querySelector('input'), daysInp=tr.cells[3]?.querySelector('input'), rateInp=tr.cells[4]?.querySelector('input');
+  if(!name) {
+    const lp=tr._lastProfile;
+    if(lp) {
+      if(posInp&&posInp.value===lp.position) posInp.value='';
+      if(daysInp&&lp.days&&daysInp.value===lp.days) daysInp.value='0';
+      if(rateInp&&rateInp.value===lp.rate) rateInp.value='0';
+    }
+    tr._lastProfile=null; recalcAll(); return;
+  }
+  const p=findProfile(name); if(!p) return;
+  if(posInp&&!posInp.value) posInp.value=p.position||'';
+  if(p.payType==='salary'&&p.rate) {
+    if(daysInp) daysInp.value='0';
+    if(rateInp&&(!rateInp.value||rateInp.value==='0')) rateInp.value=p.rate;
+    tr._lastProfile={position:p.position||'',days:'0',rate:p.rate};
+  } else {
+    if(rateInp&&(!rateInp.value||rateInp.value==='0')&&p.rate) rateInp.value=p.rate;
+    tr._lastProfile={position:p.position||'',rate:p.rate||''};
+  }
+  recalcAll();
+}
+function formatDOB(dateStr) {
+  if(!dateStr) return '';
+  const parts=dateStr.split('-');
+  if(parts.length===3) return parts[1]+'/'+parts[2]+'/'+parts[0];
+  return dateStr;
+}
+function autofillFlightProfile(tr, name) {
+  const dobInp=tr.cells[4]?.querySelector('input'), smInp=tr.cells[5]?.querySelector('input');
+  if(!name) {
+    const lp=tr._lastProfile;
+    if(lp) { if(dobInp&&dobInp.value===lp.dob) dobInp.value=''; if(smInp&&smInp.value===lp.skyMiles) smInp.value=''; }
+    tr._lastProfile=null; return;
+  }
+  const p=findProfile(name); if(!p) return;
+  const dob=formatDOB(p.dob);
+  if(dobInp&&!dobInp.value) dobInp.value=dob;
+  if(smInp&&!smInp.value) smInp.value=p.skyMiles||'';
+  tr._lastProfile={dob:dob,skyMiles:p.skyMiles||''};
+}
+function autofillHotelProfile(tr, name) {
+  const dobInp=tr.cells[3]?.querySelector('input'), loyInp=tr.cells[4]?.querySelector('input');
+  if(!name) {
+    const lp=tr._lastProfile;
+    if(lp) { if(dobInp&&dobInp.value===lp.dob) dobInp.value=''; if(loyInp&&loyInp.value===lp.loyalty) loyInp.value=''; }
+    tr._lastProfile=null; return;
+  }
+  const p=findProfile(name); if(!p) return;
+  const dob=formatDOB(p.dob);
+  const loy=p.hilton||p.marriott||'';
+  if(dobInp&&!dobInp.value) dobInp.value=dob;
+  if(loyInp&&!loyInp.value) loyInp.value=loy;
+  tr._lastProfile={dob:dob,loyalty:loy};
+}
+function saveRosterFromUI() {
+  const rows=document.querySelectorAll('.profile-row');
+  const list=[];
+  rows.forEach(row => {
+    const inp=row.querySelectorAll('input');
+    const sel=row.querySelector('select');
+    list.push({name:inp[0].value,position:inp[1].value,payType:sel?sel.value:'day',rate:inp[2].value,email:inp[3].value,phone:inp[4].value,dob:inp[5].value,skyMiles:inp[6].value,ktn:inp[7].value,hilton:inp[8].value,marriott:inp[9].value,shirtSize:inp[10].value});
+  });
+  saveSavedRoster(list);
+}
+function addPresetVenue() {
+  const c=$('newPresetCity'),v=$('newPresetVenue');
+  if(!c?.value.trim()&&!v?.value.trim()) return;
+  const list=loadSavedVenues();
+  list.push({city:c.value.trim(),venue:v.value.trim()});
+  saveSavedVenues(list); c.value=''; v.value='';
+}
+function removePresetVenue(i) { const list=loadSavedVenues(); list.splice(i,1); saveSavedVenues(list); }
+
+function togglePresets() {
+  const el=$('presetsContent'); if(!el) return;
+  const hdr=el.previousElementSibling;
+  if(el.style.display==='none'){el.style.display='block';hdr.textContent='ROSTER ▾';}
+  else{el.style.display='none';hdr.textContent='ROSTER ▸';}
+}
+
+let rosterProfilesOpen = true;
+let rosterVenuesOpen = false;
+
+function toggleRosterSub(key) {
+  if (key === 'profiles') { rosterProfilesOpen = !rosterProfilesOpen; }
+  else { rosterVenuesOpen = !rosterVenuesOpen; }
+  buildPresetsUI();
+}
+
+function buildPresetsUI() {
+  const container=$('schedPresets'); if(!container) return;
+  const roster=loadSavedRoster(), venues=loadSavedVenues();
+  const isOpen=$('presetsContent')?.style.display==='block';
+  let html=`<div class="sub-header" style="cursor:pointer" onclick="togglePresets()">ROSTER ${isOpen?'▾':'▸'}</div>`;
+  html+=`<div id="presetsContent" style="display:${isOpen?'block':'none'}; padding:16px; background:var(--surface); border:1px solid var(--border);">`;
+
+  // Traveler Profiles — collapsible
+  const pArrow = rosterProfilesOpen ? '▾' : '▸';
+  html+=`<div style="margin-bottom:20px">`;
+  html+=`<div style="font-size:9px; letter-spacing:2px; color:var(--muted); margin-bottom:8px; cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px" onclick="toggleRosterSub('profiles')"><span style="font-size:11px">${pArrow}</span> TRAVELER PROFILES <span style="font-size:10px; color:var(--text-dim)">(${roster.length})</span></div>`;
+  if(rosterProfilesOpen) {
+    if(!roster.length) html+='<div style="font-size:11px; color:var(--muted); padding:4px 0">No saved people yet</div>';
+    else {
+      html+='<div style="overflow-x:auto"><table class="budget-table profiles-table"><thead><tr><th>NAME</th><th>POSITION</th><th>PAY TYPE</th><th>RATE</th><th>EMAIL</th><th>PHONE</th><th>DOB</th><th>SKYMILES</th><th>KTN</th><th>HILTON #</th><th>MARRIOTT #</th><th>SHIRT</th><th></th></tr></thead><tbody>';
+      roster.forEach((p,i) => {
+        const pt=p.payType||'day';
+        html+=`<tr class="profile-row"><td><input class="editable" value="${escHtml(p.name)}" placeholder="Name" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.position||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><select class="editable" style="width:80px;font-size:10px" onchange="saveRosterFromUI()"><option value="day"${pt==='day'?' selected':''}>Day Rate</option><option value="salary"${pt==='salary'?' selected':''}>Salary</option></select></td><td><input class="editable" value="${escHtml(p.rate||'')}" placeholder="—" style="width:70px" onchange="saveRosterFromUI()"></td><td><input class="editable" type="email" value="${escHtml(p.email||'')}" placeholder="—" style="min-width:140px" onchange="saveRosterFromUI()"></td><td><input class="editable" type="tel" value="${escHtml(p.phone||'')}" placeholder="—" style="min-width:100px" onchange="saveRosterFromUI()"></td><td><input class="editable" type="date" value="${escHtml(p.dob||'')}" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.skyMiles||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.ktn||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.hilton||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.marriott||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.shirtSize||'')}" placeholder="—" style="width:50px" onchange="saveRosterFromUI()"></td><td><button class="row-delete-btn" style="display:inline-block" onclick="removePresetPerson(${i})">×</button></td></tr>`;
+      });
+      html+='</tbody></table></div>';
+    }
+    html+=`<div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="editable" id="newPresetPerson" placeholder="Add name…" style="width:160px" onkeydown="if(event.key==='Enter')addPresetPerson()"><button class="add-row-btn" style="margin:0;padding:4px 12px" onclick="addPresetPerson()">+ ADD</button></div>`;
+  }
+  html+=`</div>`;
+
+  // Venues — collapsible
+  const vArrow = rosterVenuesOpen ? '▾' : '▸';
+  html+=`<div>`;
+  html+=`<div style="font-size:9px; letter-spacing:2px; color:var(--muted); margin-bottom:8px; cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px" onclick="toggleRosterSub('venues')"><span style="font-size:11px">${vArrow}</span> SAVED VENUES <span style="font-size:10px; color:var(--text-dim)">(${venues.length})</span></div>`;
+  if(rosterVenuesOpen) {
+    if(!venues.length) html+='<div style="font-size:11px; color:var(--muted); padding:4px 0">No saved venues yet</div>';
+    venues.forEach((v,i) => {
+      html+=`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #1f1f1f"><span style="font-size:11px;flex:1;color:var(--text-dim)">${escHtml(v.city)}${v.city&&v.venue?' — ':''}${escHtml(v.venue)}</span><button class="row-delete-btn" style="display:inline-block" onclick="removePresetVenue(${i})">×</button></div>`;
+    });
+    html+=`<div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="editable" id="newPresetCity" placeholder="City" style="width:100px" onkeydown="if(event.key==='Enter')addPresetVenue()"><input class="editable" id="newPresetVenue" placeholder="Venue" style="width:160px" onkeydown="if(event.key==='Enter')addPresetVenue()"><button class="add-row-btn" style="margin:0;padding:4px 12px" onclick="addPresetVenue()">+ ADD</button></div>`;
+  }
+  html+=`</div>`;
+
+  html+='</div>';
+  container.innerHTML = html;
+}
+
+// ============ SECTION PICKER & CUSTOM SECTIONS ============
+let customSections = [];
+
+const builtInSections = [
+  { id:'payroll',    label:'Payroll',          icon:'💰', group:'People' },
+  { id:'perdiems',   label:'Per Diems',        icon:'🍽', group:'People' },
+  { id:'crew',       label:'Crew Roster',      icon:'👥', group:'People' },
+  { id:'hotel',      label:'Hotel',            icon:'🏨', group:'Travel & Transport' },
+  { id:'airfares',   label:'Airfares',         icon:'✈️', group:'Travel & Transport' },
+  { id:'ground',     label:'Ground Transport',  icon:'🚐', group:'Travel & Transport' },
+  { id:'trucking',   label:'Trucking & Freight',icon:'🚛', group:'Travel & Transport' },
+  { id:'production', label:'Production',        icon:'🎤', group:'Production & Logistics' },
+  { id:'startup',    label:'Start Up & Misc',   icon:'🔧', group:'Production & Logistics' },
+  { id:'insurance',  label:'Insurance',         icon:'🛡', group:'Production & Logistics' },
+  { id:'guests',     label:'Special Guests',    icon:'⭐', group:'Extras' },
+  { id:'schedule',   label:'Schedule',          icon:'📅', group:'Extras' },
+  { id:'savings',    label:'Savings Ideas',     icon:'💡', group:'Extras' },
+];
+
+function buildPicker() {
+  const picker = document.createElement('div');
+  picker.className = 'section-picker';
+  picker.id = 'sectionPicker';
+
+  let html = '<div class="section-picker-header">Add budget sections</div>';
+  html += '<div class="section-picker-scroll">';
+  let lastGroup = '';
+  builtInSections.forEach(sec => {
+    if (sec.group !== lastGroup) {
+      html += `<div class="section-picker-divider">${sec.group}</div>`;
+      lastGroup = sec.group;
+    }
+    html += `<div class="section-picker-item" data-section-id="${sec.id}" onclick="togglePickerCheck(this,event)">
+      <input type="checkbox" class="picker-cb" data-sid="${sec.id}" onclick="event.stopPropagation()">
+      <span class="picker-icon">${sec.icon}</span>${sec.label}</div>`;
+  });
+  html += `<div class="section-picker-divider">Custom</div>`;
+  html += `<div class="section-picker-item custom-option" onclick="addCustomSection()">
+    <span class="picker-icon">+</span>Create custom section…</div>`;
+  html += '</div>';
+  html += '<div class="section-picker-actions"><button onclick="addAllSections()">Add All</button><button onclick="addSelectedSections()">Add Selected</button></div>';
+
+  picker.innerHTML = html;
+  document.body.appendChild(picker);
+}
+
+function togglePickerCheck(item, e) {
+  if (item.classList.contains('added')) return;
+  const cb = item.querySelector('.picker-cb');
+  if (e.target !== cb) cb.checked = !cb.checked;
+}
+
+function addSelectedSections() {
+  const cbs = $('sectionPicker').querySelectorAll('.picker-cb:checked');
+  cbs.forEach(cb => { activateBuiltIn(cb.dataset.sid); cb.checked = false; });
+  $('sectionPicker').classList.remove('open');
+}
+
+function addAllSections() {
+  $('sectionPicker').querySelectorAll('.section-picker-item[data-section-id]:not(.added)').forEach(item => {
+    activateBuiltIn(item.dataset.sectionId);
+  });
+  $('sectionPicker').classList.remove('open');
+}
+
+function togglePicker(e) {
+  e.stopPropagation();
+  const picker = $('sectionPicker');
+  // Update added states
+  picker.querySelectorAll('.section-picker-item[data-section-id]').forEach(item => {
+    const tabBtn = document.querySelector(`.tab[data-tab="${item.dataset.sectionId}"]`);
+    item.classList.toggle('added', tabBtn && tabBtn.style.display !== 'none');
+  });
+  const isOpen = picker.classList.toggle('open');
+  if (isOpen) {
+    // Position relative to the + button
+    const btn = document.querySelector('.tab-add');
+    const rect = btn.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    const scrollDiv = picker.querySelector('.section-picker-scroll');
+
+    // Fixed chrome: header (~40px) + action buttons (~50px) = ~90px
+    const chrome = 90;
+    // Decide whether to open downward or upward
+    if (spaceBelow >= 260 || spaceBelow >= spaceAbove) {
+      // Open downward
+      picker.style.top = rect.bottom + 'px';
+      picker.style.bottom = 'auto';
+      scrollDiv.style.maxHeight = Math.max(150, spaceBelow - chrome) + 'px';
+    } else {
+      // Open upward
+      picker.style.bottom = (window.innerHeight - rect.top) + 'px';
+      picker.style.top = 'auto';
+      scrollDiv.style.maxHeight = Math.max(150, spaceAbove - chrome) + 'px';
     }
 
-    // DASHBOARD
-// ============================================================
-async function loadDashboard() {
-  showScreen('dashboardScreen');
-  currentBudgetId = null;
-  window.location.hash = '';
-  const grid = $('budgetGrid');
-  grid.innerHTML = '<p style="color:var(--muted);padding:20px;">Loading budgets...</p>';
-  try {
-    const res = await fetch('/api/budgets/list', { headers: {} });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error);
-    const budgets = json.budgets || [];
-    if (budgets.length === 0) {
-      grid.innerHTML = '<div class="no-budgets"><p>No budgets yet. Create your first one!</p><button class="btn-new" onclick="createNewBudget()">+ NEW BUDGET</button></div>';
+    // Align right edge to button's right edge, but keep on-screen
+    let left = rect.right - picker.offsetWidth;
+    if (left < 8) left = 8;
+    picker.style.left = left + 'px';
+  }
+}
+
+// Close picker on outside click
+document.addEventListener('click', (e) => {
+  const picker = $('sectionPicker');
+  if (picker && !picker.contains(e.target)) picker.classList.remove('open');
+});
+
+// Add close button to a tab (skips Overview)
+function addCloseBtn(tabBtn) {
+  if (tabBtn.dataset.tab === 'overview' || tabBtn.dataset.tab === 'notescomms') return;
+  if (tabBtn.querySelector('.tab-close')) return; // already has one
+  const x = document.createElement('button');
+  x.className = 'tab-close';
+  x.innerHTML = '×';
+  x.title = 'Remove section';
+  x.onclick = function(e) { e.stopPropagation(); removeSection(tabBtn); };
+  tabBtn.appendChild(x);
+}
+
+function removeSection(tabBtn) {
+  const id = tabBtn.dataset.tab;
+  const isCustom = id.startsWith('custom_');
+  const label = tabBtn.textContent.replace('×','').trim();
+
+  if (!confirm('Remove "' + label + '" from this budget?')) return;
+
+  if (isCustom) {
+    // Fully remove custom section: tab, panel, and data
+    customSections = customSections.filter(s => s.slug !== id);
+    const panel = $(id);
+    if (panel) panel.remove();
+    tabBtn.remove();
+  } else {
+    // Built-in section: just hide the tab
+    tabBtn.style.display = 'none';
+    tabBtn.classList.remove('active');
+  }
+
+  // If the removed tab was active, switch back to Overview
+  if (!document.querySelector('.tab.active') || tabBtn.classList.contains('active')) {
+    const ovTab = document.querySelector('.tab[data-tab="overview"]');
+    showTab('overview', ovTab);
+  }
+  recalcAll();
+}
+
+function activateBuiltIn(id) {
+  const tabBtn = document.querySelector(`.tab[data-tab="${id}"]`);
+  if (!tabBtn || tabBtn.style.display !== 'none') return; // already active
+  tabBtn.style.display = '';
+  addCloseBtn(tabBtn);
+  showTab(id, tabBtn);
+  // Auto-populate from names already in other budget sections
+  const pm = TAB_POPULATE_MAP[id];
+  if (pm) {
+    if (pm.populate) pm.populate();
+    else populateNewSection(pm.bodyId, pm.type);
+    recalcAll();
+  }
+}
+
+function addCustomSection() {
+  $('sectionPicker').classList.remove('open');
+  const name = prompt('Section name:');
+  if (!name || !name.trim()) return;
+  const slug = 'custom_' + customSections.length;
+  customSections.push({ slug, name: name.trim() });
+
+  // Add tab button (before the + button)
+  const addBtn = document.querySelector('.tab-add');
+  const tabBtn = document.createElement('button');
+  tabBtn.className = 'tab';
+  tabBtn.setAttribute('data-tab', slug);
+  tabBtn.textContent = name.trim().toUpperCase();
+  tabBtn.onclick = function() { showTab(slug, tabBtn); };
+  addCloseBtn(tabBtn);
+  addBtn.parentNode.insertBefore(tabBtn, addBtn);
+
+  // Create tab panel
+  const panel = document.createElement('div');
+  panel.id = slug;
+  panel.className = 'tab-panel';
+  panel.innerHTML = `
+    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div class="kpi-card accent"><div class="kpi-label">${name.trim().toUpperCase()} TOTAL</div><div class="kpi-value" id="kpi_${slug}">$0</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">LINE ITEMS</div><div class="kpi-value" id="kpiCount_${slug}">0</div></div>
+    </div>
+    <div class="sub-header">${name.trim().toUpperCase()}</div>
+    <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="${slug}_body"></tbody></table>
+    <button class="add-row-btn" onclick="addLineRow('${slug}_body',['text','text','num','num'])">+ ADD ROW</button>`;
+  document.querySelector('.content').appendChild(panel);
+
+  for (let i = 0; i < 2; i++) addLineRow(slug + '_body', ['text','text','num','num']);
+  showTab(slug, tabBtn);
+  recalcAll();
+}
+
+// Production sections builder
+function buildProdSections() {
+  const sections = ['SOUND','LIGHTS','BACKLINE RENTAL','RADIOS','VIDEO','STAGING & SCENIC','SFX'];
+  const container = $('prodSections');
+  sections.forEach((sec, i) => {
+    const id = 'prod_' + i;
+    let html = `<div class="sub-header">${sec}</div>
+      <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
+      <tbody id="${id}"></tbody></table>
+      <button class="add-row-btn" onclick="addLineRow('${id}',['text','text','num','num'])">+ ADD ROW</button>`;
+    container.innerHTML += html;
+  });
+}
+
+// Startup sections builder
+function buildStartupSections() {
+  const sections = ['LIGHTING / PRODUCTION DESIGN','REHEARSAL COSTS','EQUIPMENT PURCHASES','PRODUCTION REHEARSALS','MISC COSTS'];
+  const container = $('startupSections');
+  sections.forEach((sec, i) => {
+    const id = 'startup_' + i;
+    let html = `<div class="sub-header">${sec}</div>
+      <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
+      <tbody id="${id}"></tbody></table>
+      <button class="add-row-btn" onclick="addLineRow('${id}',['text','text','num','num'])">+ ADD ROW</button>`;
+    container.innerHTML += html;
+  });
+}
+
+// ============ CALCULATION ENGINE ============
+function sumTableCalc(bodyId, rateCol, qtyCol, totalCol) {
+  const tb = $(bodyId); if (!tb) return 0;
+  let sum = 0;
+  for (let r = 0; r < tb.rows.length; r++) {
+    const row = tb.rows[r];
+    const rate = parseFloat(row.cells[rateCol]?.querySelector('input')?.value) || 0;
+    const qty = parseFloat(row.cells[qtyCol]?.querySelector('input')?.value) || 0;
+    const total = rate * qty;
+    if (row.cells[totalCol]) row.cells[totalCol].textContent = fmt(total);
+    sum += total;
+  }
+  return sum;
+}
+
+function sumFlights() {
+  const tb = $('flightBody'); if (!tb) return 0;
+  let sum = 0;
+  for (let r = 0; r < tb.rows.length; r++) {
+    const row = tb.rows[r];
+    const price = parseFloat(row.cells[7]?.querySelector('input')?.value) || 0;
+    const qty = parseFloat(row.cells[8]?.querySelector('input')?.value) || 0;
+    const bags = parseFloat(row.cells[9]?.querySelector('input')?.value) || 0;
+    const total = price * qty + bags;
+    if (row.cells[10]) row.cells[10].textContent = fmt(total);
+    sum += total;
+  }
+  return sum;
+}
+
+function sumHotel() {
+  const tb = $('hotelBody'); if (!tb) return 0;
+  const taxRate = (parseFloat($('hotelTax').value) || 0) / 100;
+  let sum = 0;
+  for (let r = 0; r < tb.rows.length; r++) {
+    const row = tb.rows[r];
+    const rooms = parseFloat(row.cells[6]?.querySelector('input')?.value) || 0;
+    const nights = parseFloat(row.cells[7]?.querySelector('input')?.value) || 0;
+    const rate = parseFloat(row.cells[8]?.querySelector('input')?.value) || 0;
+    const total = rooms * nights * rate * (1 + taxRate);
+    if (row.cells[9]) row.cells[9].textContent = fmt(total);
+    sum += total;
+  }
+  return sum;
+}
+
+function sumGuests() {
+  let total = 0;
+  $$('.guest-card').forEach(card => {
+    let cardTotal = 0;
+    card.querySelectorAll('.guest-expense').forEach(inp => cardTotal += parseFloat(inp.value) || 0);
+    card.querySelector('.guest-card-total').textContent = fmt(cardTotal);
+    total += cardTotal;
+  });
+  return total;
+}
+
+function sumSavings() {
+  const tb = $('savingsBody'); if (!tb) return 0;
+  let sum = 0;
+  for (let r = 0; r < tb.rows.length; r++) {
+    const v = parseFloat(tb.rows[r].cells[2]?.querySelector('input')?.value) || 0;
+    sum += v;
+  }
+  return sum;
+}
+
+function sumGenericSection(prefix, count) {
+  let total = 0;
+  for (let i = 0; i < count; i++) {
+    total += sumTableCalc(prefix + '_' + i, 2, 3, 4);
+  }
+  return total;
+}
+
+const PIE_COLORS = [
+  '#d32f2f','#42a5f5','#4caf50','#ff9800','#ce93d8',
+  '#fdd835','#26a69a','#ef5350','#7e57c2','#8d6e63',
+  '#66bb6a','#29b6f6','#ffca28','#ab47bc','#ec407a',
+];
+
+function drawPieChart(categories, subtotal) {
+  const canvas = $('pieChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const size = 200;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+  ctx.scale(dpr, dpr);
+
+  const cx = size / 2, cy = size / 2, r = 85;
+  ctx.clearRect(0, 0, size, size);
+
+  // Filter to categories with value > 0
+  const slices = categories.filter(c => c.val > 0);
+  const legend = $('pieLegend');
+
+  if (slices.length === 0 || subtotal <= 0) {
+    // Empty state — draw grey ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.lineWidth = 28;
+    ctx.strokeStyle = '#333';
+    ctx.stroke();
+    ctx.fillStyle = '#666';
+    ctx.font = '500 11px "DM Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('NO DATA', cx, cy + 4);
+    if (legend) legend.innerHTML = '';
+    return;
+  }
+
+  let startAngle = -Math.PI / 2;
+  slices.forEach((s, i) => {
+    const sweep = (s.val / subtotal) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, startAngle, startAngle + sweep);
+    ctx.closePath();
+    ctx.fillStyle = PIE_COLORS[i % PIE_COLORS.length];
+    ctx.fill();
+    startAngle += sweep;
+  });
+
+  // Center cutout (donut)
+  ctx.beginPath();
+  ctx.arc(cx, cy, 50, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fill();
+
+  // Center label
+  ctx.fillStyle = '#f5f5f0';
+  ctx.font = '500 10px "DM Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('EXPENSES', cx, cy - 4);
+  ctx.font = '700 14px "Bebas Neue", sans-serif';
+  ctx.letterSpacing = '1px';
+  ctx.fillText(fmt(subtotal), cx, cy + 14);
+
+  // Legend
+  if (legend) {
+    legend.innerHTML = slices.map((s, i) => {
+      const pct = (s.val / subtotal * 100).toFixed(1);
+      return `<div class="pie-legend-item">
+        <span class="pie-legend-swatch" style="background:${PIE_COLORS[i % PIE_COLORS.length]}"></span>
+        <span class="pie-legend-label">${s.name}</span>
+        <span class="pie-legend-val">${fmt(s.val)}</span>
+        <span class="pie-legend-pct">${pct}%</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+function recalcAll() {
+  // Payroll (dynamic blocks)
+  let payTotal = 0;
+  payrollBlocks.forEach(block => {
+    const sum = sumTableCalc(block.id + '_body', 3, 4, 5);
+    const kpi = $('kpi_' + block.id);
+    if (kpi) kpi.textContent = fmt(sum);
+    payTotal += sum;
+  });
+  $('payGrandTotal').textContent = fmt(payTotal);
+
+  // Per Diems
+  const pdTotal = sumTableCalc('pdBody', 3, 4, 5);
+  $('kpiPD').textContent = fmt(pdTotal);
+  let pdCount = 0;
+  const pdTb = $('pdBody');
+  for (let r = 0; r < pdTb.rows.length; r++) {
+    if ((parseFloat(pdTb.rows[r].cells[3]?.querySelector('input')?.value) || 0) > 0) pdCount++;
+  }
+  $('kpiPDCount').textContent = pdCount;
+
+  // Hotel
+  const hotelTotal = sumHotel();
+  $('kpiHotel').textContent = fmt(hotelTotal);
+
+  // Flights
+  const flightTotal = sumFlights();
+  let flightCount = 0;
+  const fTb = $('flightBody');
+  for (let r = 0; r < fTb.rows.length; r++) {
+    if ((parseFloat(fTb.rows[r].cells[7]?.querySelector('input')?.value) || 0) > 0) flightCount++;
+  }
+  $('kpiFlights').textContent = fmt(flightTotal);
+  $('kpiFlightCount').textContent = flightCount;
+
+  // Ground
+  const busTotal = sumTableCalc('busBody', 2, 3, 4);
+  const localTotal = sumTableCalc('localBody', 2, 3, 4);
+  $('kpiBus').textContent = fmt(busTotal);
+  $('kpiLocal').textContent = fmt(localTotal);
+  $('kpiGround').textContent = fmt(busTotal + localTotal);
+
+  // Production
+  const prodTotal = sumGenericSection('prod', 7);
+  $('kpiProd').textContent = fmt(prodTotal);
+
+  // Startup
+  const startupTotal = sumGenericSection('startup', 5);
+  $('kpiStartup').textContent = fmt(startupTotal);
+
+  // Trucking
+  const truckA = sumTableCalc('truckABody', 1, 2, 3);
+  const truckB = sumTableCalc('truckBBody', 1, 2, 3);
+  $('kpiTruckA').textContent = fmt(truckA);
+  $('kpiTruckB').textContent = fmt(truckB);
+  $('kpiTruck').textContent = fmt(truckA + truckB);
+
+  // Insurance
+  const insurTotal = sumTableCalc('insurBody', 2, 3, 4);
+  $('kpiInsurance').textContent = fmt(insurTotal);
+
+  // Guests
+  const guestTotal = sumGuests();
+  $('kpiGuests').textContent = fmt(guestTotal);
+
+  // Savings
+  const savingsTotal = sumSavings();
+  $('kpiSavings').textContent = fmt(savingsTotal);
+
+  // === OVERVIEW ===
+  const categories = [
+    { name: 'Payroll', val: payTotal },
+    { name: 'Per Diems', val: pdTotal },
+    { name: 'Start Up & Misc.', val: startupTotal },
+    { name: 'Airfares', val: flightTotal },
+    { name: 'Ground Transport', val: busTotal + localTotal },
+    { name: 'Hotel', val: hotelTotal },
+    { name: 'Production', val: prodTotal },
+    { name: 'Special Guests', val: guestTotal },
+    { name: 'Trucking & Freight', val: truckA + truckB },
+    { name: 'Insurance', val: insurTotal },
+  ];
+
+  // Custom sections
+  customSections.forEach(sec => {
+    const val = sumTableCalc(sec.slug + '_body', 2, 3, 4);
+    const kpi = $(('kpi_' + sec.slug));
+    if (kpi) kpi.textContent = fmt(val);
+    const countEl = $('kpiCount_' + sec.slug);
+    if (countEl) {
+      const tb = $(sec.slug + '_body');
+      countEl.textContent = tb ? tb.rows.length : 0;
+    }
+    categories.push({ name: sec.name, val: val });
+  });
+
+  const subtotal = categories.reduce((s, c) => s + c.val, 0);
+  const income = parseFloat(document.querySelector('[data-field="income"]')?.value) || 0;
+  const contPct = (parseFloat($('contingencyPct').value) || 0) / 100;
+  const mgmtPct = (parseFloat($('mgmtPct').value) || 0) / 100;
+  const agentPctV = (parseFloat($('agentPct').value) || 0) / 100;
+  const bizPctV = (parseFloat($('bizPct').value) || 0) / 100;
+  const lawyerPctV = (parseFloat($('lawyerPct').value) || 0) / 100;
+
+  const contingency = subtotal * contPct;
+  const mgmt = income * mgmtPct;
+  const agent = income * agentPctV;
+  const biz = income * bizPctV;
+  const lawyer = income * lawyerPctV;
+  const grandTotal = subtotal + contingency + mgmt + agent + biz + lawyer;
+  const net = income - grandTotal;
+  const margin = income > 0 ? net / income : 0;
+
+  $('kpiSubtotal').textContent = fmt(subtotal);
+  $('kpiTotal').textContent = fmt(grandTotal);
+  $('kpiIncome').textContent = fmt(income);
+  $('kpiNet').textContent = fmt(net);
+  $('kpiNet').style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+  $('kpiMargin').textContent = (margin * 100).toFixed(1) + '% margin';
+
+  $('ovContingency').textContent = fmt(contingency);
+  $('ovMgmt').textContent = fmt(mgmt);
+  $('ovAgent').textContent = fmt(agent);
+  $('ovBiz').textContent = fmt(biz);
+  $('ovLawyer').textContent = fmt(lawyer);
+  $('ovGrandTotal').textContent = fmt(grandTotal);
+
+  // Overview table
+  const ovTb = $('overviewTable');
+  ovTb.innerHTML = '';
+  categories.forEach((c, i) => {
+    const p = subtotal > 0 ? (c.val / subtotal * 100).toFixed(1) + '%' : '—';
+    ovTb.innerHTML += `<tr><td>${i+1}</td><td>${c.name}</td><td class="r">${fmt(c.val)}</td><td class="r">${p}</td></tr>`;
+  });
+  ovTb.innerHTML += `<tr class="subtotal-row"><td></td><td>EXPENSES SUBTOTAL</td><td class="r">${fmt(subtotal)}</td><td class="r">100%</td></tr>`;
+
+  // Pie chart
+  drawPieChart(categories, subtotal);
+
+  $('kpiSavBudget').textContent = fmt(grandTotal);
+
+  // Auto-grow: if last row in a budget table is full, add a blank row
+  autoGrowTables();
+  // Auto-save project
+  scheduleAutoSave();
+}
+
+function autoGrowTables() {
+  const addFns = {
+    pdBody: () => addPDRow(),
+    hotelBody: () => addHotelRow(),
+    flightBody: () => addFlightRow(),
+    crewBody: () => addCrewRow(),
+    savingsBody: () => addSavingsRow(),
+    busBody: () => addLineRow('busBody',['text','text','num','num']),
+    localBody: () => addLineRow('localBody',['text','text','num','num']),
+    truckABody: () => addLineRow('truckABody',['text','num','num']),
+    truckBBody: () => addLineRow('truckBBody',['text','num','num']),
+    insurBody: () => addLineRow('insurBody',['text','text','num','num']),
+  };
+  // Payroll blocks
+  payrollBlocks.forEach(b => { addFns[b.id+'_body'] = () => addPayRow(b.id+'_body'); });
+  // Production & startup sections
+  for(let j=0;j<7;j++) addFns['prod_'+j] = () => addLineRow('prod_'+j,['text','text','num','num']);
+  for(let j=0;j<5;j++) addFns['startup_'+j] = () => addLineRow('startup_'+j,['text','text','num','num']);
+  // Custom sections
+  customSections.forEach(s => { addFns[s.slug+'_body'] = () => addLineRow(s.slug+'_body',['text','text','num','num']); });
+
+  Object.keys(addFns).forEach(id => {
+    const tb = $(id); if(!tb || tb.rows.length === 0) return;
+    const lastRow = tb.rows[tb.rows.length - 1];
+    // Check if the name/key input on the last row is filled
+    const nameInp = lastRow.querySelector('.name-wrap input');
+    if (nameInp) {
+      if (nameInp.value.trim()) addFns[id]();
       return;
     }
-    grid.innerHTML = budgets.map(b => {
-      const statusClass = (b.status||'draft').toLowerCase();
-      return '<div class="budget-card" onclick="openBudget(\'' + b.id + '\')">' +
-        '<h3>' + (b.title||'Untitled') + '</h3>' +
-        '<div class="card-total">' + fmt(calcBudgetTotal(b.data)) + '</div>' +
-      '<div class="card-subtitle">' + (b.subtitle||'') + '</div>' +
-        '<div class="card-meta"><span class="card-status ' + statusClass + '">' + (b.status||'draft').toUpperCase() + '</span><span>Updated ' + shortDate(b.updated_at) + '</span></div>' +
-        '<div class="card-actions"><button onclick="event.stopPropagation();duplicateBudgetById(\'' + b.id + '\')">DUPLICATE</button><button class="delete-btn" onclick="event.stopPropagation();archiveBudget(\'' + b.id + '\',\'' + (b.title||'Untitled').replace(/'/g,"\\'") + '\')">ARCHIVE</button></div>' +
-        '</div>';
-    }).join('');
-  } catch(e) {
-    grid.innerHTML = '<div class="no-budgets"><p style="color:var(--red);">Error loading budgets: ' + e.message + '</p></div>';
-  }
-}
-
-function showDashboard() { loadDashboard(); }
-
-// ============================================================
-// CREATE / OPEN / SAVE BUDGET
-// ============================================================
-async function createNewBudget() {
-  try {
-    const res = await fetch('/api/budgets/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Untitled Budget', subtitle: '', status: 'draft', data: getBlankData() })
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error);
-    openBudget(json.budget.id);
-  } catch(e) { showToast('Error creating budget: ' + e.message, 'error'); }
-}
-
-async function openBudget(id) {
-  showScreen('trackerScreen');
-  currentBudgetId = id;
-  window.location.hash = '/budget/' + id;
-  try {
-    const res = await fetch('/api/budgets/get?id=' + id, { headers: {} });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error);
-    const b = json.budget;
-    $('budgetTitle').textContent = b.title || 'Untitled Budget';
-    $('budgetSubtitle').textContent = b.subtitle || 'Click to add subtitle';
-    $('statusSelect').value = b.status || 'draft';
-    updateStatusBadge(b.status || 'draft');
-    restoreData(b.data || {});
-          buildBudgetTabs(); switchTab('overview', document.querySelector('.budget-tab'));
-    $('statSaved').textContent = shortDate(b.updated_at);
-  } catch(e) {
-    showToast('Error loading budget: ' + e.message, 'error');
-    loadDashboard();
-  }
-}
-
-function updateStatus(val) {
-  updateStatusBadge(val);
-  triggerAutoSave();
-}
-
-function updateStatusBadge(val) {
-  const badge = $('statusBadge');
-  badge.textContent = val.toUpperCase();
-  badge.className = 'status-badge status-' + val;
-}
-
-// ---- Auto-save ----
-function triggerAutoSave() {
-  if (!currentBudgetId) return;
-  clearTimeout(autoSaveTimer);
-  autoSaveTimer = setTimeout(saveToSupabase, AUTOSAVE_DELAY);
-}
-
-async function saveToSupabase() {
-  if (!currentBudgetId) return;
-  showSaveStatus('saving');
-  try {
-    const res = await fetch('/api/budgets/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: currentBudgetId,
-        title: $('budgetTitle').textContent.trim() || 'Untitled Budget',
-        subtitle: $('budgetSubtitle').textContent.trim(),
-        status: $('statusSelect').value,
-        data: getAllData()
-      })
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error);
-    showSaveStatus('saved');
-    $('statSaved').textContent = shortDate(new Date().toISOString());
-  } catch(e) {
-    showSaveStatus('error');
-    showToast('Save failed: ' + e.message, 'error');
-  }
-}
-
-// ---- Duplicate ----
-async function duplicateBudget() {
-  if (!currentBudgetId) return;
-  try {
-    const res = await fetch('/api/budgets/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: ($('budgetTitle').textContent.trim() || 'Untitled') + ' (Copy)',
-        subtitle: $('budgetSubtitle').textContent.trim(),
-        status: 'draft',
-        data: getAllData()
-      })
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error);
-    showToast('Budget duplicated!');
-    openBudget(json.budget.id);
-  } catch(e) { showToast('Duplicate failed: ' + e.message, 'error'); }
-}
-
-async function duplicateBudgetById(id) {
-  try {
-    const getRes = await fetch('/api/budgets/get?id=' + id, { headers: {} });
-    const getJson = await getRes.json();
-    if (!getRes.ok) throw new Error(getJson.error);
-    const b = getJson.budget;
-    const saveRes = await fetch('/api/budgets/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: (b.title||'Untitled') + ' (Copy)', subtitle: b.subtitle, status: 'draft', data: b.data })
-    });
-    const saveJson = await saveRes.json();
-    if (!saveRes.ok) throw new Error(saveJson.error);
-    showToast('Budget duplicated!');
-    loadDashboard();
-  } catch(e) { showToast('Duplicate failed: ' + e.message, 'error'); }
-}
-
-// ---- Archive ----
-function archiveBudget(id, title) {
-  pendingAction = async () => {
-    try {
-      const res = await fetch('/api/budgets/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      showToast('Budget archived');
-      loadDashboard();
-    } catch(e) { showToast('Archive failed: ' + e.message, 'error'); }
-  };
-  $('confirmMsg').textContent = 'Archive "' + title + '"? It can be restored later.';
-  $('confirmModal').classList.add('active');
-}
-
-function confirmAction() { closeModal(); if (pendingAction) { pendingAction(); pendingAction = null; } }
-function closeModal() { $('confirmModal').classList.remove('active'); }
-
-// ============================================================
-// TRACKER â SECTIONS & LINE ITEMS
-// ============================================================
-function getBlankData() {
-  return { sections: [{ name: 'New Section', rows: [{ desc:'', vendor:'', qty:1, rate:0, unit:'flat' }] }], notes: '' };
-}
-
-function restoreData(data) {
-  const container = $('sectionsContainer');
-  container.innerHTML = '';
-  const sections = data.sections || [];
-  sections.forEach(sec => {
-    const secEl = buildSection(sec.name || 'Section');
-    const tbody = secEl.querySelector('tbody');
-    (sec.rows || []).forEach(row => {
-      tbody.appendChild(buildRow(row));
-    });
-    container.appendChild(secEl);
+    // For tables without a name-wrap (line items), check first text input
+    const firstInp = lastRow.querySelector('input[type="text"]');
+    if (firstInp && firstInp.value.trim()) addFns[id]();
   });
-  $('notesArea').value = data.notes || '';
-  recalcAll();
 }
 
-function addSection(name) {
-  const secEl = buildSection(name || 'New Section');
-  secEl.querySelector('tbody').appendChild(buildRow());
-  $('sectionsContainer').appendChild(secEl);
-  recalcAll();
-  triggerAutoSave();
-}
-
-function buildSection(name) {
-  const sec = document.createElement('div');
-  sec.className = 'section';
-  sec.innerHTML =
-    '<div class="section-header" onclick="toggleSection(this)">' +
-      '<h3 contenteditable="true" spellcheck="false" onclick="event.stopPropagation()" oninput="triggerAutoSave()">' + name + '</h3>' +
-      '<div style="display:flex;align-items:center;gap:12px;">' +
-        '<span class="section-total">$0.00</span>' +
-        '<span class="toggle-icon">&#x25BC;</span>' +
-        '<button class="btn-remove" onclick="event.stopPropagation();removeSection(this)" title="Remove section">&times;</button>' +
-      '</div>' +
-    '</div>' +
-    '<div class="section-body">' +
-      '<table class="budget-table"><thead><tr>' +
-        '<th class="col-drag"></th>' +
-        '<th class="col-desc">Description</th>' +
-        '<th class="col-vendor">Vendor</th>' +
-        '<th class="col-qty">Qty</th>' +
-        '<th class="col-rate">Rate</th>' +
-        '<th class="col-unit">Unit</th>' +
-        '<th class="col-total">Total</th>' +
-        '<th class="col-actions"></th>' +
-      '</tr></thead><tbody></tbody></table>' +
-      '<button class="btn-add-row" onclick="addRow(this)">+ Add Line Item</button>' +
-    '</div>';
-  return sec;
-}
-
-function toggleSection(header) {
-  const body = header.nextElementSibling;
-  const icon = header.querySelector('.toggle-icon');
-  body.classList.toggle('collapsed');
-  icon.classList.toggle('collapsed');
-}
-
-function removeSection(btn) {
-  const sec = btn.closest('.section');
-  sec.remove();
-  recalcAll();
-  triggerAutoSave();
-}
-
-function addRow(btn) {
-  const tbody = btn.previousElementSibling.querySelector('tbody');
-  tbody.appendChild(buildRow());
-  recalcAll();
-  triggerAutoSave();
-}
-
-function buildRow(data) {
-  const d = data || {};
-  const tr = document.createElement('tr');
-  tr.innerHTML =
-    '<td class="col-drag">&#x2630;</td>' +
-    '<td class="col-desc">' + makeInput('text', d.desc||'', 'Description') + '</td>' +
-    '<td class="col-vendor">' + makeInput('text', d.vendor||'', 'Vendor') + '</td>' +
-    '<td class="col-qty">' + makeInput('number', d.qty===undefined?1:d.qty, 'Qty') + '</td>' +
-    '<td class="col-rate">' + makeInput('number', d.rate||0, 'Rate') + '</td>' +
-    '<td class="col-unit"><select onchange="recalcAll();triggerAutoSave()"><option value="flat"' + (d.unit==='flat'?' selected':'') + '>Flat</option><option value="hourly"' + (d.unit==='hourly'?' selected':'') + '>Hourly</option><option value="daily"' + (d.unit==='daily'?' selected':'') + '>Daily</option><option value="weekly"' + (d.unit==='weekly'?' selected':'') + '>Weekly</option><option value="each"' + (d.unit==='each'?' selected':'') + '>Each</option></select></td>' +
-    '<td class="row-total">$0.00</td>' +
-    '<td class="col-actions"><button class="btn-remove" onclick="removeRow(this)">&times;</button></td>';
-  return tr;
-}
-
-function makeInput(type, val, placeholder) {
-  const inp = document.createElement('input');
-  inp.type = type;
-  inp.setAttribute('value', val);
-  inp.placeholder = placeholder || '';
-  if (type === 'number') { inp.step = 'any'; inp.min = '0'; }
-  inp.addEventListener('input', () => { recalcAll(); triggerAutoSave(); });
-  // Return outerHTML
-  const wrap = document.createElement('div');
-  wrap.appendChild(inp);
-  return wrap.innerHTML;
-}
-
-function removeRow(btn) {
-  btn.closest('tr').remove();
-  recalcAll();
-  triggerAutoSave();
-}
-
-// ============================================================
-// CALCULATIONS
-// ============================================================
-function recalcAll() {
-  let grandTotal = 0;
-  let totalItems = 0;
-  const sections = document.querySelectorAll('.section');
-  sections.forEach(sec => {
-    let secTotal = 0;
-    const rows = sec.querySelectorAll('tbody tr');
-    rows.forEach(tr => {
-      const inputs = tr.querySelectorAll('input');
-      const qty = parseFloat(inputs[2]?.value) || 0;
-      const rate = parseFloat(inputs[3]?.value) || 0;
-      const total = qty * rate;
-      const totalCell = tr.querySelector('.row-total');
-      if (totalCell) totalCell.textContent = fmt(total);
-      secTotal += total;
-      totalItems++;
-    });
-    const secTotalEl = sec.querySelector('.section-total');
-    if (secTotalEl) secTotalEl.textContent = fmt(secTotal);
-    grandTotal += secTotal;
-  });
-  $('statTotal').textContent = fmt(grandTotal);
-  $('statSections').textContent = sections.length;
-  $('statItems').textContent = totalItems;
-      if (document.getElementById("overviewView").style.display !== "none") renderOverview();
-}
-
-// ============================================================
-// DATA SERIALIZATION
-// ============================================================
+// ============ SAVE / LOAD ============
 function getAllData() {
-  const sections = [];
-  document.querySelectorAll('.section').forEach(sec => {
-    const name = sec.querySelector('.section-header h3').textContent.trim();
+  const data = { meta: {}, tables: {}, settings: {} };
+  // Meta fields
+  ['heroSubtitle','heroTitle','metaType','metaDates','metaLocation','metaDuration','metaCrew','metaStatus'].forEach(id => {
+    data.meta[id] = $(id).value;
+  });
+  data.settings.income = document.querySelector('[data-field="income"]').value;
+  ['contingencyPct','mgmtPct','agentPct','bizPct','lawyerPct','pdDefaultRate','hotelTax','hotelDefaultRooms'].forEach(id => {
+    data.settings[id] = $(id).value;
+  });
+  // Payroll blocks
+  data.payrollBlocks = payrollBlocks;
+  data.payBlockCounter = payBlockCounter;
+  // All table bodies
+  const bodyIds = ['pdBody','hotelBody','flightBody','busBody','localBody',
+    'truckABody','truckBBody','insurBody','savingsBody','crewBody'];
+  payrollBlocks.forEach(b => bodyIds.push(b.id + '_body'));
+  for (let i = 0; i < 7; i++) bodyIds.push('prod_' + i);
+  for (let i = 0; i < 5; i++) bodyIds.push('startup_' + i);
+  // Include custom sections before serializing
+  customSections.forEach(sec => bodyIds.push(sec.slug + '_body'));
+  bodyIds.forEach(id => {
+    const tb = $(id); if (!tb) return;
     const rows = [];
-    sec.querySelectorAll('tbody tr').forEach(tr => {
-      const inputs = tr.querySelectorAll('input');
-      const select = tr.querySelector('select');
-      rows.push({
-        desc: inputs[0]?.value || '',
-        vendor: inputs[1]?.value || '',
-        qty: parseFloat(inputs[2]?.value) || 0,
-        rate: parseFloat(inputs[3]?.value) || 0,
-        unit: select?.value || 'flat'
-      });
-    });
-    sections.push({ name, rows });
+    for (let r = 0; r < tb.rows.length; r++) {
+      const cells = [];
+      tb.rows[r].querySelectorAll('input').forEach(inp => cells.push(inp.value));
+      rows.push(cells);
+    }
+    data.tables[id] = rows;
   });
-  return { sections, notes: $('notesArea').value };
-}
+  data.customSections = customSections.map(s => ({ slug: s.slug, name: s.name }));
+  // Track which built-in tabs are visible
+  data.activeTabs = [];
+  document.querySelectorAll('.tab[data-tab]').forEach(t => {
+    if (t.style.display !== 'none') data.activeTabs.push(t.dataset.tab);
+  });
 
-// ============================================================
-// EXPORT
-// ============================================================
-function exportJSON() {
-  const data = {
-    title: $('budgetTitle').textContent.trim(),
-    subtitle: $('budgetSubtitle').textContent.trim(),
-    status: $('statusSelect').value,
-    exported: new Date().toISOString(),
-    ...getAllData()
-  };
-  downloadFile(JSON.stringify(data, null, 2), (data.title || 'budget') + '.json', 'application/json');
-}
-
-function exportCSV() {
-  const allData = getAllData();
-  let csv = 'Section,Description,Vendor,Qty,Rate,Unit,Total\n';
-  allData.sections.forEach(sec => {
-    sec.rows.forEach(r => {
-      const total = (r.qty||0) * (r.rate||0);
-      csv += [sec.name, r.desc, r.vendor, r.qty, r.rate, r.unit, total.toFixed(2)].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',') + '\n';
+  // Guests
+  data.guests = [];
+  $$('.guest-card').forEach(card => {
+    const title = card.querySelector('.editable')?.value || '';
+    const expenses = [];
+    card.querySelectorAll('.guest-expense').forEach(inp => expenses.push(inp.value));
+    data.guests.push({ title, expenses });
+  });
+  // Schedule
+  data.schedule = getSchedData();
+  // Notes & Comms
+  data.notes = $('eventNotes')?.value || '';
+  data.contacts = [];
+  Array.from($('contactsBody').rows).forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    data.contacts.push([...inputs].map(i => i.value));
+  });
+  data.links = [];
+  Array.from($('linksBody').rows).forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const sel = tr.querySelector('select');
+    data.links.push({ date: inputs[0]?.value||'', label: inputs[1]?.value||'', type: sel?.value||'', url: inputs[2]?.value||'' });
+  });
+  data.emailLog = [];
+  $('emailLogContainer').querySelectorAll('.email-log-card').forEach(card => {
+    const inputs = card.querySelectorAll('input');
+    const ta = card.querySelector('textarea');
+    data.emailLog.push({
+      date: inputs[0]?.value || '',
+      from: inputs[1]?.value || '',
+      to: inputs[2]?.value || '',
+      subject: inputs[3]?.value || '',
+      body: ta?.value || ''
     });
   });
-  downloadFile(csv, ($('budgetTitle').textContent.trim() || 'budget') + '.csv', 'text/csv');
+  return data;
 }
 
-function downloadFile(content, filename, type) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
+function saveToJSON() {
+  const data = getAllData();
+  if (currentProjectId) data._projectId = currentProjectId;
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  a.href = URL.createObjectURL(blob);
+  a.download = ($('heroTitle').value || 'budget').replace(/\s+/g, '-').toLowerCase() + '-budget.json';
+  a.click();
 }
 
-// ============================================================
-// INIT TRACKER (blank state)
-// ============================================================
+function loadFromJSON() { $('importFile').click(); }
 
-    /* ---- Overview / Tab switching ---- */
-// ========== DYNAMIC BUDGET TAB SYSTEM ==========
-    var currentTab = 'overview';
-    var currentSectionIdx = -1;
-    var PIE_COLORS = ['#c8b88a','#4a6fa5','#4caf50','#ff9800','#9c27b0','#e53935','#fdd835','#00897b','#78909c','#d81b60'];
-
-    function buildBudgetTabs() {
-      var tabs = document.getElementById('budgetTabs');
-      if(!tabs) return;
-      var data = getAllData();
-      var sections = data.sections || [];
-      var html = '<button class="budget-tab active" onclick="switchTab(\'overview\', this)">Overview</button>';
-      html += '<button class="budget-tab" onclick="switchTab(\'costbreakdown\', this)">Cost Breakdown</button>';
-      sections.forEach(function(s, i) {
-        var name = (s.name || 'Section ' + (i+1));
-        html += '<button class="budget-tab" onclick="switchTab(\'section-' + i + '\', this)" data-section="' + i + '">' + name + '</button>';
-      });
-      html += '<button class="budget-tab" onclick="switchTab(\'detail\', this)">All Detail</button>';
-      tabs.innerHTML = html;
+// ============ SPREADSHEET IMPORT (XLSX / CSV) ============
+const sectionMatchers = [
+  { id: 'payroll', get bodyId(){ return payrollBlocks[0].id + '_body'; }, keywords: ['payroll','pay','salary','wages'],
+    detect: h => h.some(c => /day\s*rate|daily\s*rate/i.test(c)) && h.some(c => /position|role|title/i.test(c)),
+    addRow: id => addPayRow(id),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('position','role','title'), get('name'), get('day'), get('rate')];
     }
-
-    function switchTab(tab, btn) {
-      var allTabs = document.querySelectorAll('.budget-tab');
-      allTabs.forEach(function(t) { t.classList.remove('active'); });
-      if(btn) btn.classList.add('active');
-      currentTab = tab;
-      ['overviewView','costBreakdownView','sectionDetailView','detailView'].forEach(function(id) {
-        var el = document.getElementById(id);
-        if(el) el.style.display = 'none';
-      });
-      if(tab === 'overview') { document.getElementById('overviewView').style.display = 'block'; renderOverview(); }
-      else if(tab === 'costbreakdown') { document.getElementById('costBreakdownView').style.display = 'block'; renderCostBreakdown(); }
-      else if(tab.startsWith('section-')) { currentSectionIdx = parseInt(tab.split('-')[1]); document.getElementById('sectionDetailView').style.display = 'block'; renderSectionView(currentSectionIdx); }
-      else if(tab === 'detail') { document.getElementById('detailView').style.display = 'block'; }
+  },
+  { id: 'perdiems', bodyId: 'pdBody', keywords: ['per diem','perdiem','per-diem','daily allowance'],
+    detect: h => h.some(c => /per\s*diem|pd\s*rate|daily\s*allowance/i.test(c)),
+    addRow: () => addPDRow(),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('position','role','title'), get('name'), get('day'), get('rate','per diem','pd','allowance')];
     }
-
-    function renderCostBreakdown() {
-      var data = getAllData(); var sections = data.sections || [];
-      var grid = document.getElementById('cbGrid'); var totalEl = document.getElementById('cbTotal');
-      var grandTotal = 0; var sectionTotals = [];
-      sections.forEach(function(s, i) {
-        var total = 0;
-        (s.rows || []).forEach(function(r) { total += (parseFloat(r.qty)||0) * (parseFloat(r.rate)||0); });
-        sectionTotals.push({ name: s.name || 'Section '+(i+1), total: total, idx: i });
-        grandTotal += total;
-      });
-      var sorted = sectionTotals.slice().sort(function(a,b){return b.total-a.total;});
-      var html = '';
-      sorted.forEach(function(s) {
-        var pct = grandTotal > 0 ? (s.total/grandTotal*100) : 0;
-        var color = PIE_COLORS[s.idx % PIE_COLORS.length];
-        html += '<div class="cb-card" onclick="switchToSection('+s.idx+')">';
-        html += '<div class="cb-name">'+s.name+'</div><div class="cb-amount">'+fmt(s.total)+'</div>';
-        html += '<div class="cb-pct">'+pct.toFixed(1)+'% of expenses</div>';
-        html += '<div class="cb-bar" style="width:'+Math.max(pct,2)+'%;background:'+color+';"></div></div>';
-      });
-      grid.innerHTML = html;
-      totalEl.textContent = fmt(grandTotal);
+  },
+  { id: 'hotel', bodyId: 'hotelBody', keywords: ['hotel','lodging','accommodation','rooms'],
+    detect: h => h.some(c => /room/i.test(c)) && h.some(c => /night|rate/i.test(c)),
+    addRow: () => addHotelRow(),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('date'), get('city','location'), get('guest','name','passenger'), get('dob','birth','birthday'), get('loyalty','rewards','member'), get('note','description','memo'), get('room'), get('night'), get('rate','price','cost')];
     }
-
-    function switchToSection(idx) {
-      var tabs = document.querySelectorAll('.budget-tab[data-section]');
-      tabs.forEach(function(t) {
-        if(parseInt(t.getAttribute('data-section')) === idx) switchTab('section-'+idx, t);
-      });
+  },
+  { id: 'airfares', bodyId: 'flightBody', keywords: ['airfare','flight','air','airline','flights'],
+    detect: h => h.some(c => /flight|airline|air/i.test(c)) || (h.some(c => /class|cabin/i.test(c)) && h.some(c => /price|cost|fare/i.test(c))),
+    addRow: () => addFlightRow(),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('date'), get('flight','route','itinerary'), get('name','passenger','pax'), get('dob','birth','birthday'), get('skymiles','sky miles','frequent flyer','ff'), get('class','cabin'), get('price','cost','fare'), get('qty','quantity','pax','count'), get('bag','luggage')];
     }
-
-    function renderSectionView(idx) {
-      var data = getAllData(); var sections = data.sections || [];
-      if(idx < 0 || idx >= sections.length) return;
-      var section = sections[idx];
-      document.getElementById('sectionViewTitle').textContent = section.name || 'Section '+(idx+1);
-      var rows = section.rows || []; var sectionTotal = 0;
-      var html = '<table class="sv-table"><thead><tr>';
-      ['DESCRIPTION','VENDOR','QTY','RATE','UNIT','TOTAL',''].forEach(function(h){
-        var align = (h==='QTY'||h==='UNIT')?'center':(h==='RATE'||h==='TOTAL')?'right':'left';
-        html += '<th style="text-align:'+align+'">'+h+'</th>';
-      });
-      html += '</tr></thead><tbody>';
-      rows.forEach(function(r, ri) {
-        var lt = (parseFloat(r.qty)||0)*(parseFloat(r.rate)||0); sectionTotal += lt;
-        html += '<tr>';
-        html += '<td><input class="sv-inp" value="'+(r.desc||'').replace(/"/g,'&quot;')+'" data-s="'+idx+'" data-r="'+ri+'" data-f="desc" onchange="updateSectionRow(this)"></td>';
-        html += '<td><input class="sv-inp" value="'+(r.vendor||'').replace(/"/g,'&quot;')+'" data-s="'+idx+'" data-r="'+ri+'" data-f="vendor" onchange="updateSectionRow(this)"></td>';
-        html += '<td><input class="sv-inp sv-inp-sm" type="number" value="'+(r.qty||1)+'" data-s="'+idx+'" data-r="'+ri+'" data-f="qty" onchange="updateSectionRow(this)"></td>';
-        html += '<td><input class="sv-inp sv-inp-rate" type="number" value="'+(r.rate||0)+'" data-s="'+idx+'" data-r="'+ri+'" data-f="rate" onchange="updateSectionRow(this)"></td>';
-        html += '<td style="text-align:center;"><select class="sv-inp" style="width:80px;" data-s="'+idx+'" data-r="'+ri+'" data-f="unit" onchange="updateSectionRow(this)">';
-        ['flat','day','week','hour'].forEach(function(u){ html += '<option value="'+u+'"'+(r.unit===u?' selected':'')+'>'+u.charAt(0).toUpperCase()+u.slice(1)+'</option>'; });
-        html += '</select></td>';
-        html += '<td style="text-align:right;color:var(--accent);font-family:var(--font-body);">'+fmt(lt)+'</td>';
-        html += '<td><button onclick="removeSectionRow('+idx+','+ri+')" style="background:none;border:none;color:var(--red-dim);cursor:pointer;font-size:16px;">&times;</button></td>';
-        html += '</tr>';
-      });
-      html += '</tbody></table>';
-      document.getElementById('sectionViewContent').innerHTML = html;
-      document.getElementById('sectionViewTotal').textContent = fmt(sectionTotal);
+  },
+  { id: 'ground', bodyId: 'busBody', keywords: ['ground','transport','bus','shuttle','sprinter','vehicle'],
+    detect: h => h.some(c => /bus|sprinter|vehicle|transport|ground/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('equipment','item','description','vehicle'), get('vendor','company','provider'), get('rate','cost','price'), get('day','qty','quantity')];
     }
-
-    function updateSectionRow(el) {
-        var si=parseInt(el.getAttribute('data-s')), ri=parseInt(el.getAttribute('data-r')), f=el.getAttribute('data-f');
-        var val = el.value;
-        var data = getAllData();
-        if(!data.sections || !data.sections[si] || !data.sections[si].rows[ri]) return;
-        var row = data.sections[si].rows[ri];
-        if(f==='desc') row.desc=val;
-        else if(f==='vendor') row.vendor=val;
-        else if(f==='qty') row.qty=parseFloat(val)||0;
-        else if(f==='rate') row.rate=parseFloat(val)||0;
-        else if(f==='unit') row.unit=val;
-        restoreData(data);
-        recalcAll(); renderSectionView(si); triggerAutoSave();
+  },
+  { id: 'trucking', bodyId: 'truckABody', keywords: ['trucking','freight','truck','hauling'],
+    detect: h => h.some(c => /truck|freight|haul/i.test(c)),
+    addRow: id => addLineRow(id, ['text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('vendor','description','item'), get('rate','cost','price'), get('qty','quantity','count')];
     }
-
-    function addRowToCurrentSection() {
-        if(currentSectionIdx < 0) return;
-        var data = getAllData();
-        if(!data.sections || !data.sections[currentSectionIdx]) return;
-        data.sections[currentSectionIdx].rows.push({desc:'',vendor:'',qty:0,rate:0,unit:'Flat'});
-        restoreData(data);
-        recalcAll(); renderSectionView(currentSectionIdx); triggerAutoSave();
+  },
+  { id: 'insurance', bodyId: 'insurBody', keywords: ['insurance','liability','coverage','policy'],
+    detect: h => h.some(c => /insurance|policy|coverage|liability/i.test(c)),
+    addRow: id => addLineRow(id, ['text','text','num','num']),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','type','coverage'), get('vendor','provider','carrier'), get('rate','cost','premium','price'), get('qty','quantity','count')];
     }
-
-    function removeSectionRow(si, ri) {
-        var data = getAllData();
-        if(!data.sections || !data.sections[si]) return;
-        data.sections[si].rows.splice(ri, 1);
-        restoreData(data);
-        recalcAll(); renderSectionView(si); triggerAutoSave();
+  },
+  { id: 'crew', bodyId: 'crewBody', keywords: ['crew','roster','team','staff','personnel'],
+    detect: h => h.some(c => /phone|email/i.test(c)) && h.some(c => /name/i.test(c)) && h.some(c => /position|role|title/i.test(c)),
+    addRow: () => addCrewRow(),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('position','role','title'), get('name'), get('phone','mobile','cell'), get('email','e-mail'), get('status','note')];
     }
-    function renderOverview() {
-      var data = getAllData(); var sections = data.sections || [];
-      var total=0, itemCount=0, sectionTotals=[], allItems=[];
-      sections.forEach(function(s, i) {
-        var st = 0;
-        (s.rows||[]).forEach(function(r) {
-          var lt = (parseFloat(r.qty)||0)*(parseFloat(r.rate)||0); st += lt; itemCount++;
-          if(lt > 0) allItems.push({name:r.desc||'Unnamed',total:lt,color:PIE_COLORS[i%PIE_COLORS.length]});
-        });
-        total += st;
-        sectionTotals.push({name:s.name||'Section '+(i+1),total:st,color:PIE_COLORS[i%PIE_COLORS.length]});
-      });
-      var e = function(id){return document.getElementById(id);};
-      if(e('finTotal')) e('finTotal').textContent = fmt(total);
-      if(e('finSections')) e('finSections').textContent = sections.length;
-      if(e('finItems')) e('finItems').textContent = itemCount;
-      var sorted = sectionTotals.slice().sort(function(a,b){return b.total-a.total;});
-      if(sorted.length>0) { if(e('finLargest')) e('finLargest').textContent=fmt(sorted[0].total); if(e('finLargestName')) e('finLargestName').textContent=sorted[0].name; }
-      if(e('ovTotal')) e('ovTotal').textContent = fmt(total);
-      if(e('ovSections')) e('ovSections').textContent = sections.length;
-      if(e('ovItems')) e('ovItems').textContent = itemCount;
-      renderPieChart(sectionTotals, total);
-      allItems.sort(function(a,b){return b.total-a.total;});
-      renderBarChart(allItems.slice(0,8));
-      renderSectionBars(sectionTotals, total);
-      var ovN=e('ovNotes'),nA=e('notesArea');
-      if(ovN&&nA) ovN.textContent = nA.value||'No notes yet.';
+  },
+  { id: 'savings', bodyId: 'savingsBody', keywords: ['saving','savings','cost reduction','optimization'],
+    detect: h => h.some(c => /saving|idea|optimization/i.test(c)),
+    addRow: () => addSavingsRow(),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('idea','description','item','suggestion'), get('saving','amount','est','value'), get('status','note')];
     }
+  },
+];
 
-    function renderPieChart(sectionTotals, total) {
-      var svg=document.getElementById('pieChart'),legend=document.getElementById('pieLegend');
-      if(!svg||!legend) return;
-      if(total===0){svg.innerHTML='<text x="100" y="105" text-anchor="middle" fill="var(--muted)" font-size="12">No data</text>';legend.innerHTML='';return;}
-      var cx=100,cy=100,r=80,ir=50,angle=-Math.PI/2,paths='';
-      sectionTotals.forEach(function(s){
-        if(s.total<=0) return;
-        var pct=s.total/total,a1=angle,a2=angle+pct*2*Math.PI,lg=pct>0.5?1:0;
-        var x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1),x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);
-        var ix1=cx+ir*Math.cos(a2),iy1=cy+ir*Math.sin(a2),ix2=cx+ir*Math.cos(a1),iy2=cy+ir*Math.sin(a1);
-        paths+='<path d="M'+x1+' '+y1+' A'+r+' '+r+' 0 '+lg+' 1 '+x2+' '+y2+' L'+ix1+' '+iy1+' A'+ir+' '+ir+' 0 '+lg+' 0 '+ix2+' '+iy2+' Z" fill="'+s.color+'"/>';
-        angle=a2;
-      });
-      var tk=total>=1000?'$'+Math.round(total/1000)+'K':fmt(total);
-      paths+='<text x="100" y="95" text-anchor="middle" class="donut-center" font-size="10" fill="var(--muted)">TOTAL</text>';
-      paths+='<text x="100" y="112" text-anchor="middle" class="donut-center" font-size="16" font-weight="bold">'+tk+'</text>';
-      svg.innerHTML=paths;
-      var lh='';
-      sectionTotals.forEach(function(s){if(s.total<=0)return;var p=(s.total/total*100).toFixed(1);lh+='<div class="legend-item"><span class="legend-dot" style="background:'+s.color+'"></span><span class="legend-label">'+s.name+'</span><span class="legend-val">'+fmt(s.total)+' ('+p+'%)</span></div>';});
-      legend.innerHTML=lh;
-    }
-
-    function renderBarChart(items) {
-      var el=document.getElementById('barChart'); if(!el) return;
-      if(!items.length){el.innerHTML='<div style="color:var(--muted);font-size:12px;">No items</div>';return;}
-      var mx=items[0].total,h='';
-      items.forEach(function(it){var p=mx>0?(it.total/mx*100):0;h+='<div class="bar-row"><span class="bar-label">'+it.name+'</span><div class="bar-track"><div class="bar-fill" style="width:'+p+'%;background:'+it.color+'"></div></div><span class="bar-amount">'+fmt(it.total)+'</span></div>';});
-      el.innerHTML=h;
-    }
-
-    function renderSectionBars(st, total) {
-      var el=document.getElementById('sectionBars'); if(!el) return;
-      var mx=0; st.forEach(function(s){if(s.total>mx)mx=s.total;});
-      var h='';
-      st.forEach(function(s){var p=mx>0?(s.total/mx*100):0;h+='<div class="bar-row"><span class="bar-label">'+s.name+'</span><div class="bar-track"><div class="bar-fill" style="width:'+p+'%;background:'+s.color+'"></div></div><span class="bar-amount">'+fmt(s.total)+'</span></div>';});
-      el.innerHTML=h;
-    }
-
-    function initTracker() {
-  $('sectionsContainer').innerHTML = '';
-  $('budgetTitle').textContent = 'UNTITLED BUDGET';
-  $('budgetSubtitle').textContent = 'Click to add subtitle';
-  $('statusSelect').value = 'draft';
-  updateStatusBadge('draft');
-  $('notesArea').value = '';
-  addSection('Production');
-  addSection('Talent');
-  addSection('Travel & Logistics');
-  addSection('Marketing');
+// Match a sheet name to a built-in section
+function matchSheetToSection(sheetName) {
+  const name = sheetName.toLowerCase().trim();
+  for (const sec of sectionMatchers) {
+    if (sec.keywords.some(kw => name.includes(kw))) return sec;
+  }
+  // Try matching the tab id directly
+  for (const sec of sectionMatchers) {
+    if (name === sec.id) return sec;
+  }
+  return null;
 }
 
-// ============================================================
-// APP INIT
-// ============================================================
-async function appInit() {
-    // No auth required - public access
-    const hash = window.location.hash;
-    if (hash.startsWith('#/budget/')) {
-      const id = hash.replace('#/budget/', '');
-      openBudget(id);
-    } else {
-      loadDashboard();
-    }
+// Match by column headers when sheet name doesn't match
+function detectSectionByHeaders(headers) {
+  for (const sec of sectionMatchers) {
+    if (sec.detect(headers)) return sec;
+  }
+  return null;
+}
 
-    // Handle hash changes
-  window.addEventListener('hashchange', () => {
-    const hash = window.location.hash;
-    if (hash.startsWith('#/budget/') && currentUser) {
-      const id = hash.replace('#/budget/', '');
-      if (id !== currentBudgetId) openBudget(id);
-    } else if (hash === '' && currentUser) {
-      loadDashboard();
-    }
+// Import a single sheet's data into a section
+function importSheetToSection(sec, rows, headers) {
+  const tb = $(sec.bodyId); if (!tb) return 0;
+  tb.innerHTML = ''; // clear existing rows
+  let count = 0;
+  rows.forEach(row => {
+    // Skip empty rows
+    if (row.every(c => c === '' || c == null)) return;
+    sec.addRow(sec.bodyId);
+    const lastRow = tb.rows[tb.rows.length - 1];
+    const inputs = lastRow.querySelectorAll('input');
+    const mapped = sec.map(row, headers);
+    mapped.forEach((v, i) => { if (inputs[i]) inputs[i].value = v != null ? String(v) : ''; });
+    count++;
   });
- 
-  // Title/subtitle editing triggers auto-save
-  $('budgetTitle').addEventListener('input', triggerAutoSave);
-  $('budgetSubtitle').addEventListener('input', triggerAutoSave);
-
-  // Update footer timestamp
-  $('footerTimestamp').textContent = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  return count;
 }
 
-// Kick it off
-appInit();
+// Import a sheet as a custom section
+function importSheetAsCustom(name, rows, headers) {
+  const slug = 'custom_' + customSections.length;
+  customSections.push({ slug, name: name.trim() });
+
+  const addBtn = document.querySelector('.tab-add');
+  const tabBtn = document.createElement('button');
+  tabBtn.className = 'tab';
+  tabBtn.setAttribute('data-tab', slug);
+  tabBtn.textContent = name.trim().toUpperCase();
+  tabBtn.onclick = function() { showTab(slug, tabBtn); };
+  addCloseBtn(tabBtn);
+  addBtn.parentNode.insertBefore(tabBtn, addBtn);
+
+  const panel = document.createElement('div');
+  panel.id = slug;
+  panel.className = 'tab-panel';
+  panel.innerHTML = `
+    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div class="kpi-card accent"><div class="kpi-label">${name.trim().toUpperCase()} TOTAL</div><div class="kpi-value" id="kpi_${slug}">$0</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">LINE ITEMS</div><div class="kpi-value" id="kpiCount_${slug}">0</div></div>
+    </div>
+    <div class="sub-header">${name.trim().toUpperCase()}</div>
+    <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
+    <tbody id="${slug}_body"></tbody></table>
+    <button class="add-row-btn" onclick="addLineRow('${slug}_body',['text','text','num','num'])">+ ADD ROW</button>`;
+  document.querySelector('.content').appendChild(panel);
+
+  const bodyId = slug + '_body';
+  let count = 0;
+  rows.forEach(row => {
+    if (row.every(c => c === '' || c == null)) return;
+    addLineRow(bodyId, ['text','text','num','num']);
+    const tb = $(bodyId);
+    const lastRow = tb.rows[tb.rows.length - 1];
+    const inputs = lastRow.querySelectorAll('input');
+    // Map first 4 non-empty columns to Description, Vendor, Rate, Qty
+    let vals = row.slice(0, 4);
+    vals.forEach((v, i) => { if (inputs[i]) inputs[i].value = v != null ? String(v) : ''; });
+    count++;
+  });
+  return { slug, count };
+}
+
+// Main spreadsheet import handler
+function importSpreadsheet(file) {
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const results = [];
+      const activatedTabs = [];
+
+      wb.SheetNames.forEach(sheetName => {
+        const ws = wb.Sheets[sheetName];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (raw.length < 2) return; // need at least header + 1 data row
+
+        const headers = raw[0].map(h => String(h).trim());
+        const dataRows = raw.slice(1);
+
+        // Try matching by sheet name first, then by headers
+        let sec = matchSheetToSection(sheetName);
+        if (!sec) sec = detectSectionByHeaders(headers);
+
+        if (sec) {
+          // Activate the built-in tab
+          const tabBtn = document.querySelector(`.tab[data-tab="${sec.id}"]`);
+          if (tabBtn) {
+            tabBtn.style.display = '';
+            addCloseBtn(tabBtn);
+            activatedTabs.push(tabBtn);
+          }
+          const count = importSheetToSection(sec, dataRows, headers);
+          results.push(`${sec.id.charAt(0).toUpperCase() + sec.id.slice(1)} (${count} rows)`);
+        } else {
+          // Import as custom section
+          const name = sheetName === 'Sheet1' && wb.SheetNames.length === 1
+            ? file.name.replace(/\.[^.]+$/, '') : sheetName;
+          const res = importSheetAsCustom(name, dataRows, headers);
+          results.push(`${name} (${res.count} rows, custom)`);
+          activatedTabs.push(document.querySelector(`.tab[data-tab="${res.slug}"]`));
+        }
+      });
+
+      recalcAll();
+
+      // Show the first imported tab
+      if (activatedTabs.length > 0 && activatedTabs[0]) {
+        showTab(activatedTabs[0].dataset.tab, activatedTabs[0]);
+      }
+
+      alert('Imported ' + results.length + ' section' + (results.length !== 1 ? 's' : '') + ':\n' + results.join('\n'));
+    } catch (err) { alert('Error importing spreadsheet: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function handleImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  // Route by file type
+  if (ext === 'xlsx' || ext === 'xls' || ext === 'csv' || ext === 'tsv') {
+    importSpreadsheet(file);
+    e.target.value = ''; // reset so same file can be re-imported
+    return;
+  }
+
+  // JSON import
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      restoreFromData(data);
+      recalcAll();
+    } catch (err) { alert('Error loading file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // reset
+}
+
+function restoreFromData(data) {
+  _suppressAutoSave = true;
+  try {
+    // Restore meta
+    Object.keys(data.meta || {}).forEach(id => { if ($(id)) $(id).value = data.meta[id]; });
+    Object.keys(data.settings || {}).forEach(id => {
+      if (id === 'income') { document.querySelector('[data-field="income"]').value = data.settings[id]; }
+      else if ($(id)) $(id).value = data.settings[id];
+    });
+    // Restore visible built-in tabs + close buttons
+    if (data.activeTabs) {
+      document.querySelectorAll('.tab[data-tab]').forEach(t => {
+        const id = t.dataset.tab;
+        if (id === 'overview' || id === 'notescomms') return; // always visible
+        const visible = data.activeTabs.includes(id);
+        t.style.display = visible ? '' : 'none';
+        if (visible) addCloseBtn(t);
+      });
+    }
+
+    // Restore custom sections first (so their table bodies exist)
+    customSections = [];
+    document.querySelectorAll('[id^="custom_"]').forEach(el => el.remove());
+    document.querySelectorAll('.tab').forEach(t => { if (t.textContent && t.onclick && String(t.onclick).includes('custom_')) t.remove(); });
+    (data.customSections || []).forEach(sec => {
+      customSections.push(sec);
+      const addBtn = document.querySelector('.tab-add');
+      const tabBtn = document.createElement('button');
+      tabBtn.className = 'tab';
+      tabBtn.setAttribute('data-tab', sec.slug);
+      tabBtn.textContent = sec.name.toUpperCase();
+      tabBtn.onclick = function() { showTab(sec.slug, tabBtn); };
+      addCloseBtn(tabBtn);
+      addBtn.parentNode.insertBefore(tabBtn, addBtn);
+      const panel = document.createElement('div');
+      panel.id = sec.slug;
+      panel.className = 'tab-panel';
+      panel.innerHTML = `
+        <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+          <div class="kpi-card accent"><div class="kpi-label">${sec.name.toUpperCase()} TOTAL</div><div class="kpi-value" id="kpi_${sec.slug}">$0</div></div>
+          <div class="kpi-card blue"><div class="kpi-label">LINE ITEMS</div><div class="kpi-value" id="kpiCount_${sec.slug}">0</div></div>
+        </div>
+        <div class="sub-header">${sec.name.toUpperCase()}</div>
+        <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
+        <tbody id="${sec.slug}_body"></tbody></table>
+        <button class="add-row-btn" onclick="addLineRow('${sec.slug}_body',['text','text','num','num'])">+ ADD ROW</button>`;
+      document.querySelector('.content').appendChild(panel);
+    });
+
+    // Restore payroll blocks
+    if (data.payrollBlocks) {
+      payrollBlocks = data.payrollBlocks;
+      payBlockCounter = data.payBlockCounter || payrollBlocks.length;
+    } else {
+      payrollBlocks = [
+        { id: 'pay_0', name: 'SHOW DAYS' },
+        { id: 'pay_1', name: 'REHEARSAL BLOCK 1' },
+        { id: 'pay_2', name: 'REHEARSAL BLOCK 2' }
+      ];
+      payBlockCounter = 3;
+    }
+    buildPayrollUI();
+
+    // Migrate old-format payroll table keys to new IDs
+    const oldPayMap = { payShowBody: 'pay_0_body', payReh1Body: 'pay_1_body', payReh2Body: 'pay_2_body' };
+    if (data.tables) {
+      Object.keys(oldPayMap).forEach(oldKey => {
+        if (data.tables[oldKey] && !data.tables[oldPayMap[oldKey]]) {
+          data.tables[oldPayMap[oldKey]] = data.tables[oldKey];
+          delete data.tables[oldKey];
+        }
+      });
+    }
+
+    // Restore tables
+    const payBlockIds = payrollBlocks.map(b => b.id + '_body');
+    Object.keys(data.tables || {}).forEach(id => {
+      const tb = $(id); if (!tb) return;
+      tb.innerHTML = '';
+      data.tables[id].forEach(cells => {
+        if (payBlockIds.includes(id)) { addPayRow(id); }
+        else if (id === 'pdBody') { addPDRow(); }
+        else if (id === 'hotelBody') { addHotelRow(); }
+        else if (id === 'flightBody') { addFlightRow(); }
+        else if (id === 'crewBody') { addCrewRow(); }
+        else if (id === 'savingsBody') { addSavingsRow(); }
+        else if (id.startsWith('bus') || id.startsWith('local') || id.startsWith('insur')) { addLineRow(id, ['text','text','num','num']); }
+        else if (id.startsWith('truckA') || id.startsWith('truckB')) { addLineRow(id, ['text','num','num']); }
+        else if (id.startsWith('prod_') || id.startsWith('startup_')) { addLineRow(id, ['text','text','num','num']); }
+        const lastRow = tb.rows[tb.rows.length - 1];
+        const inputs = lastRow.querySelectorAll('input');
+        cells.forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
+      });
+    });
+    // Restore guests
+    $('guestCards').innerHTML = ''; guestCount = 0;
+    (data.guests || []).forEach(g => {
+      addGuestCard();
+      const card = $$('.guest-card')[$$('.guest-card').length - 1];
+      card.querySelector('.editable').value = g.title;
+      const exps = card.querySelectorAll('.guest-expense');
+      g.expenses.forEach((v, i) => { if (exps[i]) exps[i].value = v; });
+    });
+    // Restore schedule
+    loadSchedData(data.schedule);
+    // Restore notes & comms
+    if (data.notes) $('eventNotes').value = data.notes;
+    $('contactsBody').innerHTML = '';
+    (data.contacts || []).forEach(cells => {
+      addContactRow();
+      const tr = $('contactsBody').rows[$('contactsBody').rows.length - 1];
+      const inputs = tr.querySelectorAll('input');
+      cells.forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
+    });
+    $('linksBody').innerHTML = '';
+    (data.links || []).forEach(link => {
+      addLinkRow();
+      const tr = $('linksBody').rows[$('linksBody').rows.length - 1];
+      const inputs = tr.querySelectorAll('input');
+      const sel = tr.querySelector('select');
+      if (inputs[0]) inputs[0].value = link.date || '';
+      if (inputs[1]) inputs[1].value = link.label || '';
+      if (sel) sel.value = link.type || 'Tech Package';
+      if (inputs[2]) inputs[2].value = link.url || '';
+    });
+    // Restore email log
+    $('emailLogContainer').innerHTML = '';
+    (data.emailLog || []).forEach(entry => {
+      addEmailLogEntry(entry);
+    });
+  } finally {
+    _suppressAutoSave = false;
+  }
+}
+
+function resetAll() {
+  if (!confirm('Reset all data for this project? This cannot be undone.')) return;
+  if (currentProjectId) {
+    localStorage.removeItem('nbl_project_' + currentProjectId);
+  }
+  location.reload();
+}
+
+// ============ INIT ============
+function initBlankForm() {
+  // Add starter rows for a fresh project
+  buildPayrollUI();
+  payrollBlocks.forEach(b => { for (let i = 0; i < 3; i++) addPayRow(b.id + '_body'); });
+  for (let i = 0; i < 5; i++) addPDRow();
+  for (let i = 0; i < 5; i++) addHotelRow();
+  for (let i = 0; i < 3; i++) addFlightRow();
+  for (let i = 0; i < 3; i++) addLineRow('busBody', ['text','text','num','num']);
+  for (let i = 0; i < 2; i++) addLineRow('localBody', ['text','text','num','num']);
+  for (let j = 0; j < 7; j++) for (let i = 0; i < 2; i++) addLineRow('prod_' + j, ['text','text','num','num']);
+  for (let j = 0; j < 5; j++) for (let i = 0; i < 2; i++) addLineRow('startup_' + j, ['text','text','num','num']);
+  for (let i = 0; i < 2; i++) addLineRow('truckABody', ['text','num','num']);
+  for (let i = 0; i < 1; i++) addLineRow('truckBBody', ['text','num','num']);
+  for (let i = 0; i < 2; i++) addLineRow('insurBody', ['text','text','num','num']);
+  for (let i = 0; i < 5; i++) addCrewRow();
+  for (let i = 0; i < 2; i++) addSavingsRow();
+  for (let i = 0; i < 4; i++) addGuestCard();
+  // Schedule timeline
+  const today = new Date();
+  const schedEndDate = new Date(today); schedEndDate.setDate(schedEndDate.getDate() + 6);
+  $('schedStart').value = today.toISOString().slice(0,10);
+  $('schedEnd').value = schedEndDate.toISOString().slice(0,10);
+  buildTimeline({ people: ['Artist','Band','Crew'] });
+  // Notes & Comms starter rows
+  for (let i = 0; i < 3; i++) addContactRow();
+  for (let i = 0; i < 2; i++) addLinkRow();
+  addEmailLogEntry();
+}
+
+function init() {
+  // Parse project ID from URL
+  const params = new URLSearchParams(window.location.search);
+  let id = params.get('id');
+  const isExample = (id === 'example');
+
+  if (!id || isExample) {
+    if (!isExample) {
+      // No ID — create a new project and update URL
+      id = ProjectStore.create();
+      window.history.replaceState({}, '', 'budget.html?id=' + encodeURIComponent(id));
+    }
+  }
+  currentProjectId = isExample ? null : id; // null prevents auto-save for example
+
+  // Build UI scaffolding (needed whether loading or fresh)
+  buildPicker();
+  buildProdSections();
+  buildStartupSections();
+
+  if (isExample) {
+    // Load read-only example data
+    _suppressAutoSave = true;
+    restoreFromData(EXAMPLE_DATA);
+    _suppressAutoSave = true; // keep suppressed permanently
+    document.getElementById('exampleBanner').style.display = '';
+  } else {
+    // Try loading saved project data
+    const savedData = ProjectStore.load(id);
+    if (savedData) {
+      restoreFromData(savedData);
+    } else {
+      initBlankForm();
+    }
+  }
+
+  buildPresetsUI();
+
+  // Wire hero/meta fields and notes to auto-save (these don't trigger recalcAll)
+  ['heroTitle','heroSubtitle','metaType','metaDates','metaLocation',
+   'metaDuration','metaCrew','metaStatus'].forEach(fieldId => {
+    const el = $(fieldId);
+    if (el) el.addEventListener('input', scheduleAutoSave);
+  });
+  const notesEl = $('eventNotes');
+  if (notesEl) notesEl.addEventListener('input', scheduleAutoSave);
+
+  $('footerDate').textContent = 'GENERATED ' + new Date().toLocaleDateString('en-US', {month:'short', year:'numeric'}).toUpperCase();
+  recalcAll();
+}
+
+init();
 </script>
 </body>
 </html>

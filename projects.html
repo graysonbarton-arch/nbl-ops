@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nappy Boy Live — Budget Projects</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="project-store.js"></script>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0a; --surface: #1a1a1a; --surface-2: #222222;
+    --border: #333333; --border-light: #444444; --muted: #666666;
+    --text: #f5f5f0; --text-dim: #999999; --accent: #c8b88a;
+    --red: #d32f2f; --red-dim: #4a1a1a; --green: #4caf50; --green-dim: #1a3a1a;
+    --blue: #42a5f5; --blue-dim: #1a2a3a; --orange: #ff9800; --orange-dim: #3a2a0a;
+    --yellow: #fdd835; --purple: #ce93d8;
+    --font-display: 'Bebas Neue', sans-serif; --font-body: 'DM Mono', monospace;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:12px; line-height:1.5; min-height:100vh; }
+
+  /* Ticker */
+  .ticker { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 0; overflow:hidden; white-space:nowrap; }
+  .ticker-inner { display:inline-block; animation:marquee 30s linear infinite; color:var(--muted); font-size:10px; letter-spacing:2px; text-transform:uppercase; }
+  @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+  /* Nav */
+  .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 40px; border-bottom:1px solid var(--border); }
+  .nav-logo { width:40px; height:40px; border:2px solid var(--text); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:14px; letter-spacing:1px; text-decoration:none; color:var(--text); }
+  .nav-links { display:flex; gap:24px; }
+  .nav-links a { color:var(--muted); text-decoration:none; font-size:10px; letter-spacing:2px; text-transform:uppercase; transition:color .2s; cursor:pointer; }
+  .nav-links a:hover, .nav-links a.active { color:var(--text); text-decoration:underline; text-underline-offset:6px; }
+
+  /* Hero */
+  .hero { padding:48px 40px 24px; text-align:center; }
+  .hero-title { font-family:var(--font-display); font-size:72px; letter-spacing:4px; line-height:1; margin-bottom:4px; }
+  .hero-subtitle { font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--muted); }
+
+  /* Action Bar */
+  .action-bar { display:flex; justify-content:center; gap:12px; padding:0 40px 32px; }
+  .action-btn {
+    padding:10px 28px; font-family:var(--font-body); font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; cursor:pointer; border:1px solid var(--border);
+    background:var(--surface); color:var(--text-dim); transition:all .2s;
+  }
+  .action-btn:hover { border-color:var(--accent); color:var(--text); }
+  .action-btn.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:500; }
+  .action-btn.primary:hover { background:#d4c490; }
+
+  /* Project Grid */
+  .project-grid {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
+    gap:16px; padding:0 40px 48px;
+  }
+
+  /* Project Card */
+  .project-card {
+    background:var(--surface); border:1px solid var(--border); padding:20px;
+    cursor:pointer; transition:border-color .2s, transform .1s; position:relative; overflow:hidden;
+  }
+  .project-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .project-card::before {
+    content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:var(--muted);
+  }
+  .project-card[data-status="confirmed"]::before { background:var(--green); }
+  .project-card[data-status="draft"]::before { background:var(--muted); }
+  .project-card[data-status="hold"]::before { background:var(--orange); }
+  .project-card[data-status="pre-production"]::before { background:var(--blue); }
+  .project-card[data-status="in-progress"]::before { background:var(--blue); }
+  .project-card[data-status="cancelled"]::before { background:var(--red); }
+  .project-card[data-status="completed"]::before { background:var(--green); }
+  .project-card[data-status="wrap"]::before { background:var(--purple); }
+
+  .card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+  .card-artist { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); }
+  .card-delete {
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px;
+    padding:0 4px; opacity:0; transition:opacity .15s, color .15s; line-height:1;
+  }
+  .project-card:hover .card-delete { opacity:1; }
+  .card-delete:hover { color:var(--red); }
+
+  .card-title { font-family:var(--font-display); font-size:28px; letter-spacing:2px; line-height:1.1; margin-bottom:10px; }
+
+  .card-meta { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .card-meta span { font-size:10px; color:var(--text-dim); letter-spacing:1px; }
+
+  .badge {
+    font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:2px 8px;
+    border:1px solid var(--border); color:var(--text-dim);
+  }
+  .badge-confirmed { border-color:var(--green); color:var(--green); }
+  .badge-draft { border-color:var(--muted); color:var(--muted); }
+  .badge-hold { border-color:var(--orange); color:var(--orange); }
+  .badge-pre-production, .badge-in-progress { border-color:var(--blue); color:var(--blue); }
+  .badge-cancelled { border-color:var(--red); color:var(--red); }
+  .badge-completed { border-color:var(--green); color:var(--green); }
+  .badge-wrap { border-color:var(--purple); color:var(--purple); }
+
+  .card-footer { display:flex; justify-content:space-between; align-items:baseline; border-top:1px solid var(--border); padding-top:10px; }
+  .card-budget { font-family:var(--font-display); font-size:22px; letter-spacing:1px; }
+  .card-modified { font-size:9px; color:var(--muted); letter-spacing:1px; }
+
+  /* Example Card */
+  .project-card.example-card { border-style:dashed; opacity:.7; }
+  .project-card.example-card:hover { opacity:1; }
+  .project-card.example-card::before { background:var(--accent); }
+  .example-badge { font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:2px 8px; border:1px solid var(--accent); color:var(--accent); }
+
+  /* Empty State */
+  .empty-state {
+    grid-column:1/-1; text-align:center; padding:80px 20px;
+    color:var(--muted); font-size:13px; letter-spacing:1px;
+  }
+  .empty-state-icon { font-size:48px; margin-bottom:16px; opacity:.4; }
+  .empty-state-text { margin-bottom:24px; }
+
+  /* Footer */
+  .footer {
+    display:flex; justify-content:space-between; padding:20px 40px;
+    border-top:1px solid var(--border); color:var(--muted); font-size:9px; letter-spacing:2px; text-transform:uppercase;
+  }
+
+  /* Hidden file input */
+  #importFile { display:none; }
+
+  @media (max-width:768px) {
+    .hero-title { font-size:48px; }
+    .project-grid { grid-template-columns:1fr; padding:0 20px 32px; }
+    .nav { padding:16px 20px; }
+    .action-bar { padding:0 20px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner">
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; BUDGET DASHBOARD &nbsp;&bull;&nbsp; ALL PROJECTS &nbsp;&bull;&nbsp; SELECT OR CREATE &nbsp;&bull;&nbsp;
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; BUDGET DASHBOARD &nbsp;&bull;&nbsp; ALL PROJECTS &nbsp;&bull;&nbsp; SELECT OR CREATE &nbsp;&bull;&nbsp;
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="projects.html" class="nav-logo">NBL</a>
+  <div class="nav-links">
+    <a href="projects.html" class="active">PROJECTS</a>
+    <a href="/">PROJECT INTAKE</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-title">NAPPY BOY LIVE</div>
+  <div class="hero-subtitle">BUDGET PROJECTS</div>
+</div>
+
+<!-- ACTION BAR -->
+<div class="action-bar">
+  <button class="action-btn primary" onclick="newProject()">+ NEW PROJECT</button>
+  <button class="action-btn" onclick="document.getElementById('importFile').click()">IMPORT JSON</button>
+  <input type="file" id="importFile" accept=".json" onchange="importAsProject(event)">
+</div>
+
+<!-- PROJECT GRID -->
+<div class="project-grid" id="projectGrid"></div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span>NAPPY BOY LIVE &mdash; BUDGET DASHBOARD</span>
+  <span id="projectCount"></span>
+  <span id="footerDate"></span>
+</div>
+
+<script>
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmt(n) {
+  if (isNaN(n) || n === 0) return '$0';
+  const neg = n < 0;
+  const abs = Math.abs(n);
+  const str = '$' + abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return neg ? '(' + str + ')' : str;
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  const months = Math.floor(days / 30);
+  return months + 'mo ago';
+}
+
+function statusSlug(status) {
+  return (status || 'draft').toLowerCase().replace(/[^a-z0-9]/g, '-');
+}
+
+const EXAMPLE_CARD = `
+  <div class="project-card example-card" onclick="openProject('example')">
+    <div class="card-header">
+      <span class="card-artist">SAMPLE ARTIST</span>
+    </div>
+    <div class="card-title">SUMMER SHOWCASE 2026</div>
+    <div class="card-meta">
+      <span>JUN 12-14, 2026</span>
+      <span class="example-badge">EXAMPLE</span>
+    </div>
+    <div class="card-footer">
+      <span class="card-budget">$75,000</span>
+      <span class="card-modified">Read-only reference</span>
+    </div>
+  </div>`;
+
+function renderProjects() {
+  const projects = ProjectStore.list();
+  const grid = document.getElementById('projectGrid');
+  const counter = document.getElementById('projectCount');
+
+  counter.textContent = projects.length + ' PROJECT' + (projects.length !== 1 ? 'S' : '');
+
+  let html = '';
+  if (projects.length === 0) {
+    html = `
+      <div class="empty-state">
+        <div class="empty-state-icon"></div>
+        <div class="empty-state-text">No projects yet.<br>Click <strong>+ NEW PROJECT</strong> to get started.</div>
+      </div>`;
+  } else {
+    html = projects.map(p => {
+      const slug = statusSlug(p.status);
+      return `
+        <div class="project-card" data-id="${escHtml(p.id)}" data-status="${slug}"
+             onclick="openProject('${escHtml(p.id)}')">
+          <div class="card-header">
+            <span class="card-artist">${escHtml(p.artist || 'NO ARTIST')}</span>
+            <button class="card-delete" onclick="event.stopPropagation(); deleteProject('${escHtml(p.id)}')"
+                    title="Delete project">&times;</button>
+          </div>
+          <div class="card-title">${escHtml(p.title || 'UNTITLED')}</div>
+          <div class="card-meta">
+            <span>${escHtml(p.dates || 'TBD')}</span>
+            <span class="badge badge-${slug}">${escHtml(p.status || 'Draft')}</span>
+          </div>
+          <div class="card-footer">
+            <span class="card-budget">${fmt(p.budgetTotal || 0)}</span>
+            <span class="card-modified">${timeAgo(p.lastModified)}</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // Always append the example card
+  grid.innerHTML = html + EXAMPLE_CARD;
+}
+
+function openProject(id) {
+  window.location.href = 'budget.html?id=' + encodeURIComponent(id);
+}
+
+function newProject() {
+  const id = ProjectStore.create();
+  window.location.href = 'budget.html?id=' + encodeURIComponent(id);
+}
+
+function deleteProject(id) {
+  const project = ProjectStore.list().find(p => p.id === id);
+  if (!confirm('Delete "' + (project?.title || 'this project') + '"?\nThis cannot be undone.')) return;
+  ProjectStore.delete(id);
+  renderProjects();
+}
+
+function importAsProject(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      const id = ProjectStore.create();
+      const meta = {
+        title:       data.meta?.heroTitle     || file.name.replace(/\.json$/i, ''),
+        artist:      data.meta?.heroSubtitle  || '',
+        dates:       data.meta?.metaDates     || 'TBD',
+        status:      data.meta?.metaStatus    || 'Draft',
+        budgetTotal: 0,
+      };
+      ProjectStore.save(id, data, meta);
+      window.location.href = 'budget.html?id=' + encodeURIComponent(id);
+    } catch (err) {
+      alert('Error importing file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// Init
+document.getElementById('footerDate').textContent =
+  new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' }).toUpperCase();
+renderProjects();
+</script>
+</body>
+</html>
