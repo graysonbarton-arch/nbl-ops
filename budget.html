@@ -1337,7 +1337,7 @@ function saveSavedRoster(list) {
   updateRosterDatalist();
   // Sync to cloud
   if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-    authFetch('/api/roster/save', { method: 'POST', body: JSON.stringify({ roster: list }) })
+    authFetch('/api/roster', { method: 'POST', body: JSON.stringify({ roster: list }) })
       .catch(e => console.warn('Roster cloud sync failed:', e));
   }
 }
@@ -1398,7 +1398,7 @@ function saveSavedVenues(list) {
   buildPresetsUI();
   // Sync to cloud
   if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-    authFetch('/api/venues/save', { method: 'POST', body: JSON.stringify({ venues: list }) })
+    authFetch('/api/venues', { method: 'POST', body: JSON.stringify({ venues: list }) })
       .catch(e => console.warn('Venues cloud sync failed:', e));
   }
 }
@@ -3036,7 +3036,7 @@ function onAuthChanged(user) {
 
 async function syncRosterFromCloud() {
   try {
-    const res = await authFetch('/api/roster/list');
+    const res = await authFetch('/api/roster');
     if (res.ok) {
       const cloud = await res.json();
       if (cloud.length > 0) {
@@ -3053,7 +3053,7 @@ async function syncRosterFromCloud() {
         // Cloud is empty — push local roster up
         const local = loadSavedRoster();
         if (local.length > 0) {
-          authFetch('/api/roster/save', { method: 'POST', body: JSON.stringify({ roster: local }) }).catch(() => {});
+          authFetch('/api/roster', { method: 'POST', body: JSON.stringify({ roster: local }) }).catch(() => {});
         }
       }
     }
@@ -3062,7 +3062,7 @@ async function syncRosterFromCloud() {
 
 async function syncVenuesFromCloud() {
   try {
-    const res = await authFetch('/api/venues/list');
+    const res = await authFetch('/api/venues');
     if (res.ok) {
       const cloud = await res.json();
       if (cloud.length > 0) {
@@ -3074,7 +3074,7 @@ async function syncVenuesFromCloud() {
         // Cloud is empty — push local venues up
         const local = loadSavedVenues();
         if (local.length > 0) {
-          authFetch('/api/venues/save', { method: 'POST', body: JSON.stringify({ venues: local }) }).catch(() => {});
+          authFetch('/api/venues', { method: 'POST', body: JSON.stringify({ venues: local }) }).catch(() => {});
         }
       }
     }
