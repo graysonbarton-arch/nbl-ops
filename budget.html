@@ -680,7 +680,7 @@ function showTab(id, el) {
 function makeInput(type, val, cls, extra) {
   const inp = document.createElement('input');
   inp.className = 'editable' + (cls ? ' ' + cls : '');
-  inp.type = type === 'num' ? 'number' : 'text';
+  inp.type = type === 'num' ? 'number' : type === 'date' ? 'date' : 'text';
   inp.value = val || '';
   inp.step = type === 'num' ? 'any' : undefined;
   inp.addEventListener('input', recalcAll);
@@ -956,7 +956,7 @@ function addHotelRow() {
   const tb = $('hotelBody'); const defRooms = $('hotelDefaultRooms').value || 14;
   const tr = tb.insertRow();
   tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
-  tr.cells[0].appendChild(makeInput('text',''));
+  tr.cells[0].appendChild(makeInput('date',''));
   tr.cells[1].appendChild(makeInput('text',''));
   tr.cells[2].appendChild(makeNameInput(tr, autofillHotelProfile));
   tr.cells[3].appendChild(makeInput('text',''));  // DOB (auto-filled)
