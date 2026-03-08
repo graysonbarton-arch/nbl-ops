@@ -161,8 +161,8 @@
 <!-- ACTION BAR -->
 <div class="action-bar">
   <button class="action-btn primary" onclick="newProject()">+ NEW PROJECT</button>
-  <button class="action-btn" onclick="document.getElementById('importFile').click()">IMPORT JSON</button>
-  <input type="file" id="importFile" accept=".json" onchange="importAsProject(event)">
+  <button class="action-btn" onclick="document.getElementById('importFile').click()">IMPORT FILE</button>
+  <input type="file" id="importFile" accept=".json,.xlsx,.xls,.csv,.tsv" onchange="importAsProject(event)">
 </div>
 
 <!-- PROJECT GRID -->
@@ -283,6 +283,30 @@ function deleteProject(id) {
 function importAsProject(e) {
   const file = e.target.files[0];
   if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  // Spreadsheet files — create project, stash file, open in budget.html
+  if (ext === 'xlsx' || ext === 'xls' || ext === 'csv' || ext === 'tsv') {
+    const id = ProjectStore.create();
+    const meta = {
+      title:  file.name.replace(/\.(xlsx|xls|csv|tsv)$/i, '').replace(/[-_]/g, ' ').toUpperCase(),
+      artist: '', dates: 'TBD', status: 'Draft', budgetTotal: 0,
+    };
+    ProjectStore.save(id, {}, meta);
+
+    // Stash the file in sessionStorage so budget.html can auto-import it
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      sessionStorage.setItem('pendingImportFile', ev.target.result);
+      sessionStorage.setItem('pendingImportName', file.name);
+      window.location.href = 'budget.html?id=' + encodeURIComponent(id) + '&pendingImport=1';
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+    return;
+  }
+
+  // JSON import
   const reader = new FileReader();
   reader.onload = function(ev) {
     try {

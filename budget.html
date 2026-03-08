@@ -2619,6 +2619,21 @@ function init() {
 
   $('footerDate').textContent = 'GENERATED ' + new Date().toLocaleDateString('en-US', {month:'short', year:'numeric'}).toUpperCase();
   recalcAll();
+
+  // Check for pending spreadsheet import from projects.html
+  if (params.get('pendingImport') && sessionStorage.getItem('pendingImportFile')) {
+    const dataUrl = sessionStorage.getItem('pendingImportFile');
+    const fileName = sessionStorage.getItem('pendingImportName') || 'import.xlsx';
+    sessionStorage.removeItem('pendingImportFile');
+    sessionStorage.removeItem('pendingImportName');
+    // Convert data URL back to File object
+    fetch(dataUrl).then(r => r.blob()).then(blob => {
+      const file = new File([blob], fileName, { type: blob.type });
+      importSpreadsheet(file);
+    }).catch(err => alert('Error importing file: ' + err.message));
+    // Clean URL
+    window.history.replaceState({}, '', 'budget.html?id=' + encodeURIComponent(currentProjectId));
+  }
 }
 
 init();
