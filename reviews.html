@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nappy Boy Live — Post-Event Reviews</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="project-store.js"></script>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0a; --surface: #1a1a1a; --surface-2: #222222;
+    --border: #333333; --border-light: #444444; --muted: #666666;
+    --text: #f5f5f0; --text-dim: #999999; --accent: #c8b88a;
+    --red: #d32f2f; --red-dim: #4a1a1a; --green: #4caf50; --green-dim: #1a3a1a;
+    --blue: #42a5f5; --blue-dim: #1a2a3a; --orange: #ff9800; --orange-dim: #3a2a0a;
+    --yellow: #fdd835; --purple: #ce93d8;
+    --font-display: 'Bebas Neue', sans-serif; --font-body: 'DM Mono', monospace;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:12px; line-height:1.5; min-height:100vh; }
+
+  /* Ticker */
+  .ticker { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 0; overflow:hidden; white-space:nowrap; }
+  .ticker-inner { display:inline-block; animation:marquee 30s linear infinite; color:var(--muted); font-size:10px; letter-spacing:2px; text-transform:uppercase; }
+  @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+  /* Nav */
+  .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 40px; border-bottom:1px solid var(--border); }
+  .nav-logo { width:40px; height:40px; border:2px solid var(--text); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:14px; letter-spacing:1px; text-decoration:none; color:var(--text); }
+  .nav-links { display:flex; gap:24px; }
+  .nav-links a { color:var(--muted); text-decoration:none; font-size:10px; letter-spacing:2px; text-transform:uppercase; transition:color .2s; cursor:pointer; }
+  .nav-links a:hover, .nav-links a.active { color:var(--text); text-decoration:underline; text-underline-offset:6px; }
+
+  /* Hero */
+  .hero { padding:48px 40px 24px; text-align:center; }
+  .hero-title { font-family:var(--font-display); font-size:72px; letter-spacing:4px; line-height:1; margin-bottom:4px; }
+  .hero-subtitle { font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--muted); }
+
+  /* Filter Bar */
+  .filter-bar { display:flex; justify-content:center; gap:8px; padding:0 40px 32px; flex-wrap:wrap; }
+  .filter-btn {
+    padding:8px 20px; font-family:var(--font-body); font-size:10px; letter-spacing:2px;
+    text-transform:uppercase; cursor:pointer; border:1px solid var(--border);
+    background:var(--surface); color:var(--text-dim); transition:all .2s;
+  }
+  .filter-btn:hover { border-color:var(--accent); color:var(--text); }
+  .filter-btn.active { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:500; }
+
+  /* Project Grid */
+  .project-grid {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
+    gap:16px; padding:0 40px 48px;
+  }
+
+  /* Project Card */
+  .project-card {
+    background:var(--surface); border:1px solid var(--border); padding:20px;
+    cursor:pointer; transition:border-color .2s, transform .1s; position:relative; overflow:hidden;
+  }
+  .project-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .project-card::before {
+    content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:var(--muted);
+  }
+  .project-card[data-review="pending"]::before { background:var(--orange); }
+  .project-card[data-review="overdue"]::before { background:var(--red); }
+  .project-card[data-review="completed"]::before { background:var(--green); }
+
+  .card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+  .card-artist { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); }
+  .card-venue { font-size:10px; letter-spacing:1px; color:var(--text-dim); }
+
+  .card-title { font-family:var(--font-display); font-size:28px; letter-spacing:2px; line-height:1.1; margin-bottom:10px; }
+
+  .card-meta { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .card-meta span { font-size:10px; color:var(--text-dim); letter-spacing:1px; }
+
+  .badge {
+    font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:2px 8px;
+    border:1px solid var(--border); color:var(--text-dim);
+  }
+  .badge-pending { border-color:var(--orange); color:var(--orange); }
+  .badge-overdue { border-color:var(--red); color:var(--red); }
+  .badge-completed { border-color:var(--green); color:var(--green); }
+
+  .card-footer { display:flex; justify-content:space-between; align-items:baseline; border-top:1px solid var(--border); padding-top:10px; }
+  .card-deadline { font-size:10px; letter-spacing:1px; }
+  .card-deadline.overdue { color:var(--red); }
+  .card-deadline.due-soon { color:var(--orange); }
+  .card-deadline.ok { color:var(--muted); }
+  .card-deadline.done { color:var(--green); }
+  .card-budget { font-family:var(--font-display); font-size:22px; letter-spacing:1px; }
+
+  /* Example Card */
+  .project-card.example-card { border-style:dashed; opacity:.7; }
+  .project-card.example-card:hover { opacity:1; }
+  .project-card.example-card::before { background:var(--accent); }
+  .example-badge { font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:2px 8px; border:1px solid var(--accent); color:var(--accent); }
+
+  /* Empty State */
+  .empty-state {
+    grid-column:1/-1; text-align:center; padding:80px 20px;
+    color:var(--muted); font-size:13px; letter-spacing:1px;
+  }
+  .empty-state-icon { font-size:48px; margin-bottom:16px; opacity:.4; }
+  .empty-state-text { margin-bottom:24px; }
+
+  /* Footer */
+  .footer {
+    display:flex; justify-content:space-between; padding:20px 40px;
+    border-top:1px solid var(--border); color:var(--muted); font-size:9px; letter-spacing:2px; text-transform:uppercase;
+  }
+
+  @media (max-width:768px) {
+    .hero-title { font-size:48px; }
+    .project-grid { grid-template-columns:1fr; padding:0 20px 32px; }
+    .nav { padding:16px 20px; }
+    .filter-bar { padding:0 20px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner">
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; POST-EVENT REVIEWS &nbsp;&bull;&nbsp; EVERY EVENT GETS REVIEWED &nbsp;&bull;&nbsp; LESSONS NOT DOCUMENTED WILL BE REPEATED &nbsp;&bull;&nbsp;
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; POST-EVENT REVIEWS &nbsp;&bull;&nbsp; EVERY EVENT GETS REVIEWED &nbsp;&bull;&nbsp; LESSONS NOT DOCUMENTED WILL BE REPEATED &nbsp;&bull;&nbsp;
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="/" class="nav-logo">NBL</a>
+  <div class="nav-links">
+    <a href="/">INTAKE</a>
+    <a href="projects.html">BUDGET</a>
+    <a href="reviews.html" class="active">REVIEWS</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-title">POST-EVENT REVIEWS</div>
+  <div class="hero-subtitle">If it is not reviewed post-event, we failed</div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <button class="filter-btn active" onclick="setFilter('all', this)">ALL</button>
+  <button class="filter-btn" onclick="setFilter('overdue', this)">OVERDUE</button>
+  <button class="filter-btn" onclick="setFilter('pending', this)">PENDING</button>
+  <button class="filter-btn" onclick="setFilter('completed', this)">COMPLETED</button>
+</div>
+
+<!-- PROJECT GRID -->
+<div class="project-grid" id="reviewGrid"></div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span>NAPPY BOY LIVE &mdash; POST-EVENT REVIEWS</span>
+  <span id="reviewCount"></span>
+  <span id="footerDate"></span>
+</div>
+
+<script>
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmt(n) {
+  if (isNaN(n) || n === 0) return '$0';
+  const neg = n < 0;
+  const abs = Math.abs(n);
+  const str = '$' + abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return neg ? '(' + str + ')' : str;
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  const months = Math.floor(days / 30);
+  return months + 'mo ago';
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return 'TBD';
+  const d = new Date(dateStr + 'T12:00:00');
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(dateStr + 'T23:59:59');
+  const now = new Date();
+  return Math.ceil((target - now) / 86400000);
+}
+
+function addDays(dateStr, days) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+/**
+ * Extract the event date from project data.
+ * Tries schedule.startDate, then parses meta.metaDates, then index dates.
+ */
+function getEventDate(projectData, indexEntry) {
+  if (!projectData) return null;
+  // Try schedule
+  if (projectData.schedule && projectData.schedule.startDate) {
+    return projectData.schedule.startDate;
+  }
+  // Try parsing from meta.metaDates (format: "Mar 15, 2026 – Mar 18, 2026" or single date)
+  if (projectData.meta && projectData.meta.metaDates && projectData.meta.metaDates !== 'TBD') {
+    const raw = projectData.meta.metaDates;
+    // Try to extract a date-like string from the start
+    const match = raw.match(/([A-Za-z]+\s+\d+,?\s*\d{4})/);
+    if (match) {
+      const parsed = new Date(match[1]);
+      if (!isNaN(parsed)) {
+        return parsed.toISOString().split('T')[0];
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Determine review status for a project.
+ * Returns { status: 'completed'|'overdue'|'pending', deadline, daysLeft }
+ */
+function getReviewStatus(projectData, indexEntry) {
+  const hasReview = projectData && projectData.review;
+  const eventDate = getEventDate(projectData, indexEntry);
+  const deadline = eventDate ? addDays(eventDate, 7) : null;
+  const daysLeft = deadline ? daysUntil(deadline) : null;
+
+  if (hasReview) {
+    return { status: 'completed', deadline, daysLeft };
+  }
+  if (deadline && daysLeft !== null && daysLeft < 0) {
+    return { status: 'overdue', deadline, daysLeft };
+  }
+  return { status: 'pending', deadline, daysLeft };
+}
+
+// ─── State ──────────────────────────────────────────────────────────────────
+
+let currentFilter = 'all';
+
+const EXAMPLE_CARD = `
+  <div class="project-card example-card" data-review="completed" onclick="openReview('example')">
+    <div class="card-header">
+      <span class="card-artist">SAMPLE ARTIST</span>
+      <span class="card-venue">State Farm Arena, Atlanta, GA</span>
+    </div>
+    <div class="card-title">SUMMER SHOWCASE 2026</div>
+    <div class="card-meta">
+      <span>JUN 12-14, 2026</span>
+      <span class="example-badge">EXAMPLE</span>
+    </div>
+    <div class="card-footer">
+      <span class="card-deadline done">\u2713 REVIEW SUBMITTED</span>
+      <span class="card-budget">$75,000</span>
+    </div>
+  </div>`;
+
+// ─── Filter ─────────────────────────────────────────────────────────────────
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReviews();
+}
+
+// ─── Render ─────────────────────────────────────────────────────────────────
+
+function renderReviews() {
+  const allProjects = ProjectStore.list();
+  const grid = document.getElementById('reviewGrid');
+  const counter = document.getElementById('reviewCount');
+
+  // Filter out drafts and cancelled — only show projects that went through intake
+  const eligible = allProjects.filter(p => {
+    const s = (p.status || '').toLowerCase();
+    return s !== 'draft' && s !== 'cancelled';
+  });
+
+  // Build cards with review status
+  const cards = eligible.map(p => {
+    const data = ProjectStore.load(p.id);
+    const reviewInfo = getReviewStatus(data, p);
+    return { index: p, data, ...reviewInfo };
+  });
+
+  // Apply filter
+  const filtered = currentFilter === 'all'
+    ? cards
+    : cards.filter(c => c.status === currentFilter);
+
+  // Sort: overdue first, then pending, then completed
+  const order = { overdue: 0, pending: 1, completed: 2 };
+  filtered.sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3));
+
+  counter.textContent = filtered.length + ' REVIEW' + (filtered.length !== 1 ? 'S' : '');
+
+  const showExample = (currentFilter === 'all' || currentFilter === 'completed');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon"></div>
+        <div class="empty-state-text">
+          ${currentFilter === 'all'
+            ? 'No projects to review yet.<br>Submit a <strong>Project Intake</strong> to get started.'
+            : 'No ' + currentFilter + ' reviews found.'}
+        </div>
+      </div>` + (showExample ? EXAMPLE_CARD : '');
+    return;
+  }
+
+  grid.innerHTML = filtered.map(c => {
+    const p = c.index;
+    const venue = c.data?.meta?.metaLocation || '';
+    const budget = c.data?.settings?.income || p.budgetTotal || 0;
+
+    // Deadline display
+    let deadlineHtml = '';
+    let deadlineClass = 'ok';
+    if (c.status === 'completed') {
+      deadlineClass = 'done';
+      deadlineHtml = '✓ REVIEW SUBMITTED';
+    } else if (c.deadline) {
+      if (c.daysLeft < 0) {
+        deadlineClass = 'overdue';
+        deadlineHtml = 'OVERDUE BY ' + Math.abs(c.daysLeft) + ' DAY' + (Math.abs(c.daysLeft) !== 1 ? 'S' : '');
+      } else if (c.daysLeft <= 2) {
+        deadlineClass = 'due-soon';
+        deadlineHtml = 'DUE IN ' + c.daysLeft + ' DAY' + (c.daysLeft !== 1 ? 'S' : '');
+      } else {
+        deadlineHtml = 'DUE ' + formatDate(c.deadline) + ' (' + c.daysLeft + 'd)';
+      }
+    } else {
+      deadlineHtml = 'NO DEADLINE SET';
+    }
+
+    return `
+      <div class="project-card" data-id="${escHtml(p.id)}" data-review="${c.status}"
+           onclick="openReview('${escHtml(p.id)}')">
+        <div class="card-header">
+          <span class="card-artist">${escHtml(p.artist || 'NO ARTIST')}</span>
+          <span class="card-venue">${escHtml(venue)}</span>
+        </div>
+        <div class="card-title">${escHtml(p.title || 'UNTITLED')}</div>
+        <div class="card-meta">
+          <span>${escHtml(p.dates || 'TBD')}</span>
+          <span class="badge badge-${c.status}">${c.status.toUpperCase()}</span>
+        </div>
+        <div class="card-footer">
+          <span class="card-deadline ${deadlineClass}">${deadlineHtml}</span>
+          <span class="card-budget">${fmt(Number(budget))}</span>
+        </div>
+      </div>`;
+  }).join('') + (showExample ? EXAMPLE_CARD : '');
+}
+
+// ─── Actions ────────────────────────────────────────────────────────────────
+
+function openReview(id) {
+  window.location.href = 'index.html?review=' + encodeURIComponent(id);
+}
+
+// ─── Init ───────────────────────────────────────────────────────────────────
+
+document.getElementById('footerDate').textContent =
+  new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' }).toUpperCase();
+renderReviews();
+</script>
+</body>
+</html>
