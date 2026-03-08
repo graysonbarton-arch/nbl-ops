@@ -1277,14 +1277,22 @@ function loadSchedData(data) {
 }
 
 // Saved presets (localStorage)
+const DEFAULT_ROSTER = [
+  {name:'Chris Gibson', position:'Production Manager', payType:'day', rate:'', dob:'', skyMiles:'', ktn:'', hilton:'', marriott:'', shirtSize:'', email:'Chris@nappyboyent.com', phone:''},
+  {name:'Bobby Hightower', position:'A2 Monitor Engineer', payType:'day', rate:'500', dob:'', skyMiles:'', ktn:'', hilton:'', marriott:'', shirtSize:'', email:'', phone:''},
+  {name:'Grayson Barton', position:'A1 FOH Audio Engineer', payType:'day', rate:'', dob:'03/21/1986', skyMiles:'', ktn:'', hilton:'', marriott:'', shirtSize:'', email:'Grayson@nappyboyent.com', phone:'256-375-5753'},
+];
 function loadSavedRoster() {
   try {
-    const raw = JSON.parse(localStorage.getItem('nbl_saved_roster'))||[];
-    return raw.map(r => {
-      if(typeof r === 'string') return {name:r,position:'',payType:'day',rate:'',dob:'',skyMiles:'',ktn:'',hilton:'',marriott:'',shirtSize:'',email:'',phone:''};
-      if(!r.position) r.position=''; if(!r.payType) r.payType='day'; if(!r.rate) r.rate=''; if(!r.shirtSize) r.shirtSize=''; if(!r.email) r.email=''; if(!r.phone) r.phone=''; return r;
-    });
-  } catch { return []; }
+    const raw = JSON.parse(localStorage.getItem('nbl_saved_roster'));
+    if (raw && raw.length) {
+      return raw.map(r => {
+        if(typeof r === 'string') return {name:r,position:'',payType:'day',rate:'',dob:'',skyMiles:'',ktn:'',hilton:'',marriott:'',shirtSize:'',email:'',phone:''};
+        if(!r.position) r.position=''; if(!r.payType) r.payType='day'; if(!r.rate) r.rate=''; if(!r.shirtSize) r.shirtSize=''; if(!r.email) r.email=''; if(!r.phone) r.phone=''; return r;
+      });
+    }
+    return DEFAULT_ROSTER.map(r => ({...r})); // seed with defaults on first load
+  } catch { return DEFAULT_ROSTER.map(r => ({...r})); }
 }
 function saveSavedRoster(list) { localStorage.setItem('nbl_saved_roster',JSON.stringify(list)); updateRosterDatalist(); }
 const DEFAULT_VENUES = [
