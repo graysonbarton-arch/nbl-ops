@@ -230,7 +230,11 @@ function getEventDate(projectData, indexEntry) {
   if (projectData.schedule && projectData.schedule.startDate) {
     return projectData.schedule.startDate;
   }
-  // Try parsing from meta.metaDates (format: "Mar 15, 2026 – Mar 18, 2026" or single date)
+  // Try new metaDateStart (YYYY-MM-DD format)
+  if (projectData.meta && projectData.meta.metaDateStart) {
+    return projectData.meta.metaDateStart;
+  }
+  // Fallback: try parsing from legacy meta.metaDates (format: "Mar 15, 2026 – Mar 18, 2026" or single date)
   if (projectData.meta && projectData.meta.metaDates && projectData.meta.metaDates !== 'TBD') {
     const raw = projectData.meta.metaDates;
     // Try to extract a date-like string from the start

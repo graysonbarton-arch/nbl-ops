@@ -340,7 +340,7 @@
   <input class="editable editable-lg" id="heroTitle" value="PROJECT TITLE" style="width:100%; display:block;">
   <div class="hero-meta" style="margin-top:20px">
     <div class="meta-item"><span class="meta-label">PROJECT TYPE</span><input class="editable editable-meta" id="metaType" value="Tour / Live Event" style="width:160px"></div>
-    <div class="meta-item"><span class="meta-label">DATES</span><input class="editable editable-meta" id="metaDates" value="TBD" style="width:200px"></div>
+    <div class="meta-item"><span class="meta-label">DATES</span><input type="date" class="editable editable-meta" id="metaDateStart" style="width:130px"><span style="color:var(--muted); margin:0 6px">—</span><input type="date" class="editable editable-meta" id="metaDateEnd" style="width:130px"></div>
     <div class="meta-item"><span class="meta-label">LOCATION</span><input class="editable editable-meta" id="metaLocation" value="TBD" style="width:160px"></div>
     <div class="meta-item"><span class="meta-label">DURATION</span><input class="editable editable-meta" id="metaDuration" value="— DAYS" style="width:100px"></div>
     <div class="meta-item"><span class="meta-label">CREW SIZE</span><input class="editable editable-meta" id="metaCrew" value="— MEMBERS" style="width:120px"></div>
@@ -645,7 +645,9 @@ function autoSave() {
   const meta = {
     title:       $('heroTitle')?.value     || 'UNTITLED',
     artist:      $('heroSubtitle')?.value  || '',
-    dates:       $('metaDates')?.value     || 'TBD',
+    dates:       ($('metaDateStart')?.value && $('metaDateEnd')?.value)
+                   ? $('metaDateStart').value + ' — ' + $('metaDateEnd').value
+                   : ($('metaDateStart')?.value || $('metaDateEnd')?.value || 'TBD'),
     status:      $('metaStatus')?.value    || 'Draft',
     budgetTotal: parseFloat(($('kpiTotal')?.textContent || '0').replace(/[$,()]/g, '')) || 0,
   };
@@ -2074,7 +2076,7 @@ function autoGrowTables() {
 function getAllData() {
   const data = { meta: {}, tables: {}, settings: {} };
   // Meta fields
-  ['heroSubtitle','heroTitle','metaType','metaDates','metaLocation','metaDuration','metaCrew','metaStatus'].forEach(id => {
+  ['heroSubtitle','heroTitle','metaType','metaDateStart','metaDateEnd','metaLocation','metaDuration','metaCrew','metaStatus'].forEach(id => {
     data.meta[id] = $(id).value;
   });
   data.settings.income = document.querySelector('[data-field="income"]').value;
@@ -2690,6 +2692,15 @@ function restoreFromData(data) {
   _suppressAutoSave = true;
   try {
     // Restore meta
+    // Migrate old metaDates field to new metaDateStart/metaDateEnd
+    if (data.meta?.metaDates && !data.meta.metaDateStart) {
+      const parts = data.meta.metaDates.split(/\s*[—–-]\s*/);
+      if (parts[0] && /^\d{4}-\d{2}-\d{2}$/.test(parts[0].trim())) {
+        data.meta.metaDateStart = parts[0].trim();
+        if (parts[1] && /^\d{4}-\d{2}-\d{2}$/.test(parts[1].trim())) data.meta.metaDateEnd = parts[1].trim();
+      }
+      delete data.meta.metaDates;
+    }
     Object.keys(data.meta || {}).forEach(id => { if ($(id)) $(id).value = data.meta[id]; });
     Object.keys(data.settings || {}).forEach(id => {
       if (id === 'income') { document.querySelector('[data-field="income"]').value = data.settings[id]; }
@@ -2839,7 +2850,7 @@ function initBlankForm() {
   for (let i = 0; i < 3; i++) addFlightRow();
   for (let i = 0; i < 3; i++) addLineRow('busBody', ['text','text','num','num']);
   for (let i = 0; i < 2; i++) addLineRow('localBody', ['text','text','num','num']);
-  for (let j = 0; j < 7; j++) for (let i = 0; i < 2; i++) addLineRow('prod_' + j, ['text','text','num','num']);
+  for (let j = 0; j < 7; j++) addLineRow('prod_' + j, ['text','text','num','num']);
   for (let j = 0; j < 5; j++) for (let i = 0; i < 2; i++) addLineRow('startup_' + j, ['text','text','num','num']);
   for (let i = 0; i < 2; i++) addLineRow('truckABody', ['text','num','num']);
   for (let i = 0; i < 1; i++) addLineRow('truckBBody', ['text','num','num']);
@@ -2898,7 +2909,7 @@ function init() {
   buildPresetsUI();
 
   // Wire hero/meta fields and notes to auto-save (these don't trigger recalcAll)
-  ['heroTitle','heroSubtitle','metaType','metaDates','metaLocation',
+  ['heroTitle','heroSubtitle','metaType','metaDateStart','metaDateEnd','metaLocation',
    'metaDuration','metaCrew','metaStatus'].forEach(fieldId => {
     const el = $(fieldId);
     if (el) el.addEventListener('input', scheduleAutoSave);

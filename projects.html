@@ -315,7 +315,9 @@ function importAsProject(e) {
       const meta = {
         title:       data.meta?.heroTitle     || file.name.replace(/\.json$/i, ''),
         artist:      data.meta?.heroSubtitle  || '',
-        dates:       data.meta?.metaDates     || 'TBD',
+        dates:       (data.meta?.metaDateStart && data.meta?.metaDateEnd)
+                       ? data.meta.metaDateStart + ' — ' + data.meta.metaDateEnd
+                       : (data.meta?.metaDateStart || data.meta?.metaDates || 'TBD'),
         status:      data.meta?.metaStatus    || 'Draft',
         budgetTotal: 0,
       };

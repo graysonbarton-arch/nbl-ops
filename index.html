@@ -1561,7 +1561,8 @@
               heroSubtitle: clientName || 'ARTIST / CLIENT NAME',
               heroTitle: eventName || 'PROJECT TITLE',
               metaType: eventType || 'Live Event',
-              metaDates: datesStr,
+              metaDateStart: loadinDate || eventDateRaw || '',
+              metaDateEnd: loadoutDate || eventDateRaw || '',
               metaLocation: venue || 'TBD',
               metaDuration: durationDays + ' DAYS',
               metaCrew: '— MEMBERS',
@@ -1621,7 +1622,7 @@
           const meta = {
             title: eventName || 'UNTITLED PROJECT',
             artist: clientName || '',
-            dates: datesStr,
+            dates: datesStr || 'TBD',
             status: 'PRE-PRODUCTION',
             budgetTotal: 0,
             source: 'intake'
@@ -1778,7 +1779,9 @@
     const title = data.meta?.heroTitle || 'UNTITLED PROJECT';
     const artist = data.meta?.heroSubtitle || '';
     const venue = data.meta?.metaLocation || '';
-    const dates = data.meta?.metaDates || '';
+    const dates = (data.meta?.metaDateStart && data.meta?.metaDateEnd)
+                    ? data.meta.metaDateStart + ' — ' + data.meta.metaDateEnd
+                    : (data.meta?.metaDateStart || data.meta?.metaDates || '');
     banner.style.display = 'block';
     document.getElementById('review-context-title').textContent = title + (artist ? ' — ' + artist : '');
     document.getElementById('review-context-meta').textContent = [dates, venue].filter(Boolean).join(' · ');
@@ -1792,6 +1795,8 @@
     let eventDate = '';
     if (data.schedule && data.schedule.startDate) {
       eventDate = data.schedule.startDate;
+    } else if (data.meta?.metaDateStart) {
+      eventDate = data.meta.metaDateStart;
     } else if (data.meta?.metaDates && data.meta.metaDates !== 'TBD') {
       const match = data.meta.metaDates.match(/([A-Za-z]+\s+\d+,?\s*\d{4})/);
       if (match) {
