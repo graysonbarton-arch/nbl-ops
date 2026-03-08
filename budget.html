@@ -153,6 +153,11 @@
   .section-body { overflow:hidden; transition:max-height .3s ease, opacity .2s ease; }
   .section-body.collapsed { max-height:0 !important; opacity:0; margin:0; padding:0; }
   .sub-header { font-family:var(--font-display); font-size:18px; letter-spacing:2px; color:var(--accent); margin:24px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+  .sub-header.collapsible { cursor:pointer; user-select:none; display:flex; align-items:center; gap:8px; }
+  .sub-header.collapsible .collapse-arrow { font-size:10px; color:var(--muted); transition:transform .2s; margin-left:auto; }
+  .sub-header.collapsible.collapsed .collapse-arrow { transform:rotate(-90deg); }
+  .sub-body { overflow:hidden; transition:max-height .3s ease, opacity .2s ease; }
+  .sub-body.collapsed { max-height:0 !important; opacity:0; margin:0; padding:0; }
 
   /* Tables */
   .budget-table { width:100%; border-collapse:collapse; margin-bottom:24px; }
@@ -663,6 +668,15 @@ function toggleSection(header) {
   header.classList.toggle('collapsed');
   const body = header.nextElementSibling;
   if (body && body.classList.contains('section-body')) {
+    body.classList.toggle('collapsed');
+    if (!body.classList.contains('collapsed')) body.style.maxHeight = body.scrollHeight + 'px';
+  }
+}
+
+function toggleSubSection(header) {
+  header.classList.toggle('collapsed');
+  const body = header.nextElementSibling;
+  if (body && body.classList.contains('sub-body')) {
     body.classList.toggle('collapsed');
     if (!body.classList.contains('collapsed')) body.style.maxHeight = body.scrollHeight + 'px';
   }
@@ -1731,10 +1745,12 @@ function buildProdSections() {
   const container = $('prodSections');
   sections.forEach((sec, i) => {
     const id = 'prod_' + i;
-    let html = `<div class="sub-header">${sec}</div>
+    let html = `<div class="sub-header collapsible" onclick="toggleSubSection(this)">${sec}<span class="collapse-arrow">&#9660;</span></div>
+      <div class="sub-body">
       <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
       <tbody id="${id}"></tbody></table>
-      <button class="add-row-btn" onclick="addLineRow('${id}',['text','text','num','num'])">+ ADD ROW</button>`;
+      <button class="add-row-btn" onclick="addLineRow('${id}',['text','text','num','num'])">+ ADD ROW</button>
+      </div>`;
     container.innerHTML += html;
   });
 }
@@ -1745,10 +1761,12 @@ function buildStartupSections() {
   const container = $('startupSections');
   sections.forEach((sec, i) => {
     const id = 'startup_' + i;
-    let html = `<div class="sub-header">${sec}</div>
+    let html = `<div class="sub-header collapsible" onclick="toggleSubSection(this)">${sec}<span class="collapse-arrow">&#9660;</span></div>
+      <div class="sub-body">
       <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">RATE</th><th class="r">QTY</th><th class="r">TOTAL</th><th></th></tr></thead>
       <tbody id="${id}"></tbody></table>
-      <button class="add-row-btn" onclick="addLineRow('${id}',['text','text','num','num'])">+ ADD ROW</button>`;
+      <button class="add-row-btn" onclick="addLineRow('${id}',['text','text','num','num'])">+ ADD ROW</button>
+      </div>`;
     container.innerHTML += html;
   });
 }
