@@ -1306,6 +1306,8 @@
   <button onclick="closeSuccess()">Back to Forms</button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="auth.js"></script>
 <script src="project-store.js"></script>
 <script>
   // ─── STORAGE KEY ───────────────────────────────────────────────────────────
@@ -1853,6 +1855,7 @@
   }
 
   // ─── INIT ──────────────────────────────────────────────────────────────────
+  initAuth();
   const today = new Date().toISOString().split('T')[0];
   // Only auto-set submission date fields, not event date fields
   const submittedDateFields = document.querySelectorAll('input[type="date"]:not(#intake-event-date):not(#intake-show-date):not(#intake-loadin-date):not(#intake-loadout-date)');

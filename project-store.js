@@ -1,13 +1,13 @@
 /**
- * ProjectStore — localStorage abstraction for multi-project budget system.
+ * ProjectStore — Hybrid local + cloud storage for multi-project budget system.
  *
- * Wraps localStorage now, structured for a clean swap to fetch() API calls later.
- * When migrating to a backend, replace each method body with a fetch() call —
- * the external API (list, load, save, create, delete, duplicate) stays identical.
+ * Uses localStorage for instant reads and offline fallback.
+ * Syncs to Supabase via API when user is authenticated.
+ * The external API (list, load, save, create, delete, duplicate) stays identical.
  */
 const ProjectStore = {
 
-  // ---- Private helpers (localStorage-specific, disappear on backend migration) ----
+  // ---- Private helpers (localStorage) ----
 
   _getIndex() {
     try { return JSON.parse(localStorage.getItem('nbl_projects_index') || '[]'); }
@@ -27,6 +27,50 @@ const ProjectStore = {
     );
   },
 
+  /** Async: fetch cloud projects and merge with local */
+  async listCloud() {
+    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+      try {
+        const res = await authFetch('/api/budgets/list');
+        if (res.ok) {
+          const cloud = await res.json();
+          this._mergeCloudIndex(cloud);
+        }
+      } catch (e) { console.warn('Cloud list failed, using local:', e); }
+    }
+    return this.list();
+  },
+
+  /** Merge cloud projects into local index */
+  _mergeCloudIndex(cloudProjects) {
+    const index = this._getIndex();
+    cloudProjects.forEach(cp => {
+      const existing = index.findIndex(p => p.id === cp.id);
+      const entry = {
+        id: cp.id,
+        title: cp.title || 'UNTITLED',
+        artist: cp.subtitle || '',
+        dates: 'TBD',
+        status: cp.status || 'Draft',
+        budgetTotal: 0,
+        source: cp.source || '',
+        lastModified: cp.updated_at || cp.created_at || new Date().toISOString(),
+        createdAt: cp.created_at || new Date().toISOString(),
+        _cloud: true,
+      };
+      if (existing >= 0) {
+        // Cloud is newer? Update local
+        if (new Date(entry.lastModified) >= new Date(index[existing].lastModified)) {
+          index[existing] = { ...index[existing], ...entry };
+        }
+        index[existing]._cloud = true;
+      } else {
+        index.push(entry);
+      }
+    });
+    this._setIndex(index);
+  },
+
   /** Returns the full project data blob, or null if not found */
   load(id) {
     try {
@@ -35,14 +79,32 @@ const ProjectStore = {
     } catch { return null; }
   },
 
+  /** Async: try loading from cloud first, fall back to local */
+  async loadCloud(id) {
+    // Try local first for speed
+    let data = this.load(id);
+    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+      try {
+        const res = await authFetch('/api/budgets/get?id=' + encodeURIComponent(id));
+        if (res.ok) {
+          const cloud = await res.json();
+          if (cloud && cloud.data) {
+            // Save cloud data locally for caching
+            localStorage.setItem('nbl_project_' + id, JSON.stringify(cloud.data));
+            data = cloud.data;
+          }
+        }
+      } catch (e) { console.warn('Cloud load failed, using local:', e); }
+    }
+    return data;
+  },
+
   /**
    * Saves full project data blob AND updates the index entry.
-   * @param {string} id - Project ID
-   * @param {object} fullData - The complete getAllData() blob
-   * @param {object} meta - Dashboard-visible fields: { title, artist, dates, status, budgetTotal }
-   * @returns {object} The updated index entry
+   * Also syncs to cloud in background if authenticated.
    */
   save(id, fullData, meta) {
+    // Always write locally first (instant)
     localStorage.setItem('nbl_project_' + id, JSON.stringify(fullData));
 
     const index = this._getIndex();
@@ -59,6 +121,7 @@ const ProjectStore = {
       source:      meta.source      || existing.source || '',
       lastModified: now,
       createdAt:   existingIdx >= 0 ? existing.createdAt : now,
+      _cloud:      existing._cloud  || false,
     };
 
     if (existingIdx >= 0) {
@@ -67,7 +130,28 @@ const ProjectStore = {
       index.push(entry);
     }
     this._setIndex(index);
+
+    // Background cloud sync
+    this._syncToCloud(id, fullData, entry);
+
     return entry;
+  },
+
+  /** Background sync to cloud (fire and forget) */
+  async _syncToCloud(id, fullData, meta) {
+    if (typeof isLoggedIn !== 'function' || !isLoggedIn()) return;
+    try {
+      await authFetch('/api/budgets/save', {
+        method: 'POST',
+        body: JSON.stringify({
+          id,
+          title: meta.title,
+          subtitle: meta.artist,
+          status: meta.status,
+          data: fullData,
+        }),
+      });
+    } catch (e) { console.warn('Cloud save failed:', e); }
   },
 
   /**
@@ -94,18 +178,24 @@ const ProjectStore = {
 
   /**
    * Deletes a project: removes both the data blob and the index entry.
-   * @param {string} id - Project ID to delete
+   * Also deletes from cloud if authenticated.
    */
   delete(id) {
     localStorage.removeItem('nbl_project_' + id);
     const index = this._getIndex().filter(p => p.id !== id);
     this._setIndex(index);
+
+    // Cloud delete
+    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+      authFetch('/api/budgets/delete', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      }).catch(e => console.warn('Cloud delete failed:', e));
+    }
   },
 
   /**
    * Duplicates an existing project with a new ID.
-   * @param {string} id - Source project ID
-   * @returns {string|null} The new project ID, or null if source not found
    */
   duplicate(id) {
     const data = this.load(id);
@@ -124,6 +214,32 @@ const ProjectStore = {
     index.push(entry);
     this._setIndex(index);
     localStorage.setItem('nbl_project_' + newId, JSON.stringify(data));
+
+    // Sync duplicate to cloud
+    this._syncToCloud(newId, data, entry);
+
     return newId;
+  },
+
+  /**
+   * Push all local-only projects to cloud.
+   * Call after login to sync existing local data up.
+   */
+  async syncAllToCloud() {
+    if (typeof isLoggedIn !== 'function' || !isLoggedIn()) return;
+    const index = this._getIndex();
+    let synced = 0;
+    for (const entry of index) {
+      if (!entry._cloud) {
+        const data = this.load(entry.id);
+        if (data) {
+          await this._syncToCloud(entry.id, data, entry);
+          entry._cloud = true;
+          synced++;
+        }
+      }
+    }
+    if (synced > 0) this._setIndex(index);
+    return synced;
   },
 };

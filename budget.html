@@ -6,6 +6,8 @@
 <title>Nappy Boy Live — Budget Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="auth.js"></script>
 <script src="project-store.js"></script>
 <script src="example-data.js"></script>
 <style>
@@ -1330,7 +1332,15 @@ function loadSavedRoster() {
     return DEFAULT_ROSTER.map(r => ({...r})); // seed with defaults on first load
   } catch { return DEFAULT_ROSTER.map(r => ({...r})); }
 }
-function saveSavedRoster(list) { localStorage.setItem('nbl_saved_roster',JSON.stringify(list)); updateRosterDatalist(); }
+function saveSavedRoster(list) {
+  localStorage.setItem('nbl_saved_roster',JSON.stringify(list));
+  updateRosterDatalist();
+  // Sync to cloud
+  if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+    authFetch('/api/roster/save', { method: 'POST', body: JSON.stringify({ roster: list }) })
+      .catch(e => console.warn('Roster cloud sync failed:', e));
+  }
+}
 const DEFAULT_VENUES = [
   {city:'New York, NY',venue:'Madison Square Garden'},{city:'New York, NY',venue:'Barclays Center'},{city:'New York, NY',venue:'Radio City Music Hall'},
   {city:'New York, NY',venue:'Terminal 5'},{city:'New York, NY',venue:'Irving Plaza'},{city:'New York, NY',venue:'Brooklyn Steel'},
@@ -1382,7 +1392,16 @@ function loadSavedVenues() {
     return DEFAULT_VENUES.slice(); // seed with defaults on first load
   } catch { return DEFAULT_VENUES.slice(); }
 }
-function saveSavedVenues(list) { localStorage.setItem('nbl_saved_venues',JSON.stringify(list)); updateVenueDatalist(); buildPresetsUI(); }
+function saveSavedVenues(list) {
+  localStorage.setItem('nbl_saved_venues',JSON.stringify(list));
+  updateVenueDatalist();
+  buildPresetsUI();
+  // Sync to cloud
+  if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+    authFetch('/api/venues/save', { method: 'POST', body: JSON.stringify({ venues: list }) })
+      .catch(e => console.warn('Venues cloud sync failed:', e));
+  }
+}
 
 function updateRosterDatalist() {
   const dl=$('dlRoster'); if(!dl) return;
@@ -3006,7 +3025,63 @@ function init() {
   }
 }
 
-init();
+// Auth callback — sync local projects, roster, and venues to cloud on login
+function onAuthChanged(user) {
+  if (user) {
+    ProjectStore.syncAllToCloud();
+    syncRosterFromCloud();
+    syncVenuesFromCloud();
+  }
+}
+
+async function syncRosterFromCloud() {
+  try {
+    const res = await authFetch('/api/roster/list');
+    if (res.ok) {
+      const cloud = await res.json();
+      if (cloud.length > 0) {
+        const roster = cloud.map(r => ({
+          name: r.name, position: r.position, payType: r.pay_type,
+          rate: r.rate, dob: r.dob, skyMiles: r.sky_miles, ktn: r.ktn,
+          hilton: r.hilton, marriott: r.marriott, shirtSize: r.shirt_size,
+          email: r.email, phone: r.phone,
+        }));
+        localStorage.setItem('nbl_saved_roster', JSON.stringify(roster));
+        updateRosterDatalist();
+        buildPresetsUI();
+      } else {
+        // Cloud is empty — push local roster up
+        const local = loadSavedRoster();
+        if (local.length > 0) {
+          authFetch('/api/roster/save', { method: 'POST', body: JSON.stringify({ roster: local }) }).catch(() => {});
+        }
+      }
+    }
+  } catch (e) { console.warn('Roster cloud sync failed:', e); }
+}
+
+async function syncVenuesFromCloud() {
+  try {
+    const res = await authFetch('/api/venues/list');
+    if (res.ok) {
+      const cloud = await res.json();
+      if (cloud.length > 0) {
+        const venues = cloud.map(v => ({ city: v.city, venue: v.venue }));
+        localStorage.setItem('nbl_saved_venues', JSON.stringify(venues));
+        updateVenueDatalist();
+        buildPresetsUI();
+      } else {
+        // Cloud is empty — push local venues up
+        const local = loadSavedVenues();
+        if (local.length > 0) {
+          authFetch('/api/venues/save', { method: 'POST', body: JSON.stringify({ venues: local }) }).catch(() => {});
+        }
+      }
+    }
+  } catch (e) { console.warn('Venues cloud sync failed:', e); }
+}
+
+initAuth().then(() => init());
 </script>
 </body>
 </html>
