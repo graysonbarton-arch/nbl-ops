@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vercel", "dev"],
       "port": 3000
+    },
+    {
+      "name": "local-server",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", "/Users/graysonbarton/Documents/GitHub/nbl-ops", "-p", "8080", "-c-1"],
+      "port": 8080
     }
   ]
 }
