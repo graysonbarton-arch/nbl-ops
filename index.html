@@ -634,7 +634,7 @@
 
   <section class="hero">
     <div class="hero-left">
-      <h1><span>Internal Operations</span>Project<br>Control</h1>
+      <h1><span>Internal Operations</span>Project<br>Intake</h1>
       <p class="hero-desc">Every project begins with documentation. Every event ends with a review. Nothing moves forward without written scope. This is operational law.</p>
     </div>
     <div class="hero-right">
@@ -654,6 +654,53 @@
 
     <div class="section-header">
       <span class="section-num">01</span>
+      <span class="section-title">Production Scope</span>
+    </div>
+    <div class="field-grid full">
+      <div class="field">
+        <label>Which Pillar Does This Fall Under? <span class="req">*</span></label>
+        <div class="radio-group" style="flex-direction:row; gap:8px;">
+          <label class="radio-item" onclick="selectRadio(this)" style="flex:1;"><input type="radio" name="pillar"><div class="radio-dot"></div><span class="radio-label">Full-Service Production</span></label>
+          <label class="radio-item" onclick="selectRadio(this)" style="flex:1;"><input type="radio" name="pillar"><div class="radio-dot"></div><span class="radio-label">Production Rentals Only</span></label>
+          <label class="radio-item" onclick="selectRadio(this)" style="flex:1;"><input type="radio" name="pillar"><div class="radio-dot"></div><span class="radio-label">Internal NBE / T-Pain Show</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="field-grid full">
+      <div class="field">
+        <label>Services Requested <span class="req">*</span> — Select all that apply</label>
+        <div class="checkbox-grid">
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Full Show Design &amp; Production</span></label>
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Stage Design / Scenic Build</span></label>
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Lighting Design &amp; Programming</span></label>
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Audio System Planning &amp; Execution</span></label>
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Music Sequencing &amp; Transitions</span></label>
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Stage Effects (fog, haze, CO2)</span></label>
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Technical Direction</span></label>
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Equipment Rental Only</span></label>
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Live Stream / Broadcast</span></label>
+          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Other</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="field-grid">
+      <div class="field">
+        <label>Number of Performers / Artists <span class="req">*</span></label>
+        <input type="text" placeholder="e.g. Solo artist + 4-piece band" required="">
+      </div>
+      <div class="field">
+        <label>Dancers / Additional Stage Performers?</label>
+        <select>
+          <option value="">— Select</option>
+          <option>Yes</option>
+          <option>No</option>
+          <option>Unknown</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-num">02</span>
       <span class="section-title">Submitted By</span>
     </div>
     <div class="field-grid">
@@ -686,7 +733,7 @@
     </div>
 
     <div class="section-header">
-      <span class="section-num">02</span>
+      <span class="section-num">03</span>
       <span class="section-title">Client &amp; Event Info</span>
     </div>
     <div class="field-grid">
@@ -696,15 +743,15 @@
       </div>
       <div class="field">
         <label>Client Contact Name <span class="req">*</span></label>
-        <input type="text" placeholder="Primary point of contact" required="">
+        <input type="text" id="intake-client-contact" placeholder="Primary point of contact" required="">
       </div>
       <div class="field">
         <label>Client Email <span class="req">*</span></label>
-        <input type="email" placeholder="client@email.com" required="">
+        <input type="email" id="intake-client-email" placeholder="client@email.com" required="">
       </div>
       <div class="field">
         <label>Client Phone <span class="req">*</span></label>
-        <input type="tel" placeholder="+1 (000) 000-0000" required="">
+        <input type="tel" id="intake-client-phone" placeholder="+1 (000) 000-0000" required="">
       </div>
       <div class="field">
         <label>Event Name / Working Title <span class="req">*</span></label>
@@ -732,7 +779,7 @@
     </div>
 
     <div class="section-header">
-      <span class="section-num">03</span>
+      <span class="section-num">04</span>
       <span class="section-title">Venue &amp; Location</span>
     </div>
     <div class="field-grid">
@@ -770,7 +817,7 @@
     </div>
 
     <div class="section-header">
-      <span class="section-num">04</span>
+      <span class="section-num">05</span>
       <span class="section-title">Technical Site Info</span>
     </div>
     <div class="field-grid three">
@@ -826,53 +873,6 @@
     </div>
 
     <div class="section-header">
-      <span class="section-num">05</span>
-      <span class="section-title">Production Scope</span>
-    </div>
-    <div class="field-grid full">
-      <div class="field">
-        <label>Which Pillar Does This Fall Under? <span class="req">*</span></label>
-        <div class="radio-group" style="flex-direction:row; gap:8px;">
-          <label class="radio-item" onclick="selectRadio(this)" style="flex:1;"><input type="radio" name="pillar"><div class="radio-dot"></div><span class="radio-label">Full-Service Production</span></label>
-          <label class="radio-item" onclick="selectRadio(this)" style="flex:1;"><input type="radio" name="pillar"><div class="radio-dot"></div><span class="radio-label">Production Rentals Only</span></label>
-          <label class="radio-item" onclick="selectRadio(this)" style="flex:1;"><input type="radio" name="pillar"><div class="radio-dot"></div><span class="radio-label">Internal NBE / T-Pain Show</span></label>
-        </div>
-      </div>
-    </div>
-    <div class="field-grid full">
-      <div class="field">
-        <label>Services Requested <span class="req">*</span> — Select all that apply</label>
-        <div class="checkbox-grid">
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Full Show Design &amp; Production</span></label>
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Stage Design / Scenic Build</span></label>
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Lighting Design &amp; Programming</span></label>
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Audio System Planning &amp; Execution</span></label>
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Music Sequencing &amp; Transitions</span></label>
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Stage Effects (fog, haze, CO2)</span></label>
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Technical Direction</span></label>
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Equipment Rental Only</span></label>
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Live Stream / Broadcast</span></label>
-          <label class="checkbox-item" onclick="toggleCheck(this)"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Other</span></label>
-        </div>
-      </div>
-    </div>
-    <div class="field-grid">
-      <div class="field">
-        <label>Number of Performers / Artists <span class="req">*</span></label>
-        <input type="text" placeholder="e.g. Solo artist + 4-piece band" required="">
-      </div>
-      <div class="field">
-        <label>Dancers / Additional Stage Performers?</label>
-        <select>
-          <option value="">— Select</option>
-          <option>Yes</option>
-          <option>No</option>
-          <option>Unknown</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="section-header">
       <span class="section-num">06</span>
       <span class="section-title">Creative Direction</span>
     </div>
@@ -892,6 +892,13 @@
           <option>Not applicable</option>
         </select>
       </div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-num">07</span>
+      <span class="section-title">Sponsors &amp; Obligations</span>
+    </div>
+    <div class="field-grid">
       <div class="field">
         <label>Known Sponsor Obligations?</label>
         <select>
@@ -900,6 +907,10 @@
           <option>No</option>
           <option>Unknown</option>
         </select>
+      </div>
+      <div class="field">
+        <label>Sponsor Name(s)</label>
+        <input type="text" placeholder="e.g. Nike, Red Bull, Cash App...">
       </div>
     </div>
     <div class="field-grid full">
@@ -910,21 +921,22 @@
     </div>
 
     <div class="section-header">
-      <span class="section-num">07</span>
+      <span class="section-num">08</span>
       <span class="section-title">Budget</span>
     </div>
     <div class="field-grid">
       <div class="field">
         <label>Client's Stated Budget Range <span class="req">*</span></label>
-        <select required="">
+        <select id="intake-budget-range" required="">
           <option value="">— Select range</option>
-          <option>Under 0,000</option>
-          <option>0,000 – 5,000</option>
-          <option>5,000 – 0,000</option>
-          <option>0,000 – 00,000</option>
-          <option>00,000 – 50,000</option>
-          <option>50,000+</option>
-          <option>Unknown / Not disclosed</option>
+          <option value="10000">Under $10,000</option>
+          <option value="12500">$10,000 – $15,000</option>
+          <option value="17500">$15,000 – $20,000</option>
+          <option value="35000">$20,000 – $50,000</option>
+          <option value="75000">$50,000 – $100,000</option>
+          <option value="125000">$100,000 – $150,000</option>
+          <option value="200000">$150,000+</option>
+          <option value="0">Unknown / Not disclosed</option>
         </select>
       </div>
       <div class="field">
@@ -945,7 +957,7 @@
     </div>
 
     <div class="section-header">
-      <span class="section-num">08</span>
+      <span class="section-num">09</span>
       <span class="section-title">Timeline &amp; Urgency</span>
     </div>
     <div class="field-grid three">
@@ -1359,6 +1371,7 @@
   <button onclick="closeSuccess()">Back to Forms</button>
 </div>
 
+<script src="project-store.js"></script>
 <script>
   // ─── STORAGE KEY ───────────────────────────────────────────────────────────
   const STORAGE_KEY = 'nbl_pending_reviews';
@@ -1545,9 +1558,21 @@
       const venueName = document.getElementById('intake-venue-name').value.trim();
       const venueCity = document.getElementById('intake-venue-city').value.trim();
       const clientName = document.getElementById('intake-client-name').value.trim();
+      const clientContact = document.getElementById('intake-client-contact').value.trim();
+      const clientEmail = document.getElementById('intake-client-email').value.trim();
+      const clientPhone = document.getElementById('intake-client-phone').value.trim();
       const submitterName = document.getElementById('intake-name').value.trim();
       const submitterRole = document.getElementById('intake-role').value;
       const submitterEmail = document.getElementById('intake-email').value.trim();
+      const budgetRange = document.getElementById('intake-budget-range').value;
+      const loadinDate = document.getElementById('intake-loadin-date').value;
+      const showDate = document.getElementById('intake-show-date').value;
+      const loadoutDate = document.getElementById('intake-loadout-date').value;
+      const venue = [venueName, venueCity].filter(Boolean).join(', ');
+
+      // Get selected event type from radio group
+      const eventTypeRadio = document.querySelector('input[name="event_type"]:checked');
+      const eventType = eventTypeRadio ? eventTypeRadio.closest('.radio-item').querySelector('.radio-label').textContent.trim() : '';
 
       if (eventName && eventDateRaw) {
         const deadline = addDays(eventDateRaw, 7);
@@ -1556,8 +1581,7 @@
         const pending = getPendingReviews();
         pending.push({
           eventName, eventDate: eventDateRaw, deadline,
-          venue: [venueName, venueCity].filter(Boolean).join(', '),
-          clientName, submitterName, submitterRole, completed: false,
+          venue, clientName, submitterName, submitterRole, completed: false,
           submittedAt: new Date().toISOString()
         });
         savePendingReviews(pending);
@@ -1574,10 +1598,114 @@
             })
           }).catch(err => console.warn('API submit failed:', err));
         }
-      }
 
-      document.getElementById('successMsg').innerHTML =
-        `Project Intake submitted for review.<br><span style="font-size:11px; letter-spacing:0.1em; color:var(--dim);">Post-event review due ${eventDateRaw ? formatDate(addDays(eventDateRaw, 7)) : 'within 7 days of event'}. A confirmation has been sent to your email.</span>`;
+        // ─── Auto-create budget project ─────────────────────────────────────
+        try {
+          const projectId = ProjectStore.create();
+
+          // Build dates string from load-in to load-out
+          let datesStr = 'TBD';
+          if (loadinDate && loadoutDate) {
+            const fmt = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            datesStr = fmt(loadinDate) + ' – ' + fmt(loadoutDate);
+          } else if (eventDateRaw) {
+            datesStr = new Date(eventDateRaw + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          }
+
+          // Calculate duration in days
+          let durationDays = '—';
+          if (loadinDate && loadoutDate) {
+            const d1 = new Date(loadinDate + 'T12:00:00');
+            const d2 = new Date(loadoutDate + 'T12:00:00');
+            durationDays = Math.round((d2 - d1) / 86400000) + 1;
+          }
+
+          // Build budget project data blob matching budget.html's getAllData() format
+          const projectData = {
+            meta: {
+              heroSubtitle: clientName || 'ARTIST / CLIENT NAME',
+              heroTitle: eventName || 'PROJECT TITLE',
+              metaType: eventType || 'Live Event',
+              metaDates: datesStr,
+              metaLocation: venue || 'TBD',
+              metaDuration: durationDays + ' DAYS',
+              metaCrew: '— MEMBERS',
+              metaStatus: 'PRE-PRODUCTION'
+            },
+            settings: {
+              income: budgetRange || '0',
+              contingencyPct: '5',
+              mgmtPct: '10',
+              agentPct: '10',
+              bizPct: '5',
+              lawyerPct: '5',
+              pdDefaultRate: '50',
+              hotelTax: '10',
+              hotelDefaultRooms: '14'
+            },
+            tables: {},
+            payrollBlocks: [
+              { id: 'pay_0', name: 'SHOW DAYS' }
+            ],
+            payBlockCounter: 1,
+            customSections: [],
+            activeTabs: ['overview', 'notescomms', 'payroll', 'perdiems', 'hotel', 'airfares', 'ground', 'production', 'startup', 'trucking', 'insurance', 'guests', 'schedule', 'crew', 'savings'],
+            guests: [
+              { title: 'SPECIAL GUEST 1', expenses: ['0','0','0','0','0','0'] }
+            ],
+            schedule: showDate ? {
+              startDate: loadinDate || showDate,
+              endDate: loadoutDate || showDate,
+              people: ['Artist', 'Band', 'Crew'],
+              venues: {},
+              assignments: { 'Artist': {}, 'Band': {}, 'Crew': {} }
+            } : null,
+            notes: 'INTAKE SUBMITTED: ' + new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) +
+                   '\nSUBMITTED BY: ' + submitterName + (submitterRole ? ' (' + submitterRole + ')' : '') +
+                   '\n\nCLIENT: ' + (clientName || '—') +
+                   '\nEVENT: ' + (eventName || '—') +
+                   '\nVENUE: ' + (venue || '—') +
+                   '\nEVENT TYPE: ' + (eventType || '—') +
+                   '\nDATES: ' + datesStr +
+                   '\n\n— Auto-generated from Project Intake form —',
+            contacts: [
+              ['Client / Promoter', clientContact || clientName || '', clientPhone || '', clientEmail || ''],
+              [submitterRole || 'Submitter', submitterName || '', '', submitterEmail || ''],
+              ['', '', '', '']
+            ],
+            links: [
+              { date: '', label: '', type: 'Tech Package', url: '' }
+            ],
+            emailLog: [
+              { date: '', from: '', to: '', subject: '', body: '' }
+            ],
+            _projectId: projectId
+          };
+
+          // Save to ProjectStore
+          const meta = {
+            title: eventName || 'UNTITLED PROJECT',
+            artist: clientName || '',
+            dates: datesStr,
+            status: 'PRE-PRODUCTION',
+            budgetTotal: 0
+          };
+          ProjectStore.save(projectId, projectData, meta);
+
+          // Update success message with link to budget
+          document.getElementById('successMsg').innerHTML =
+            `Project Intake submitted for review.<br>` +
+            `<span style="font-size:11px; letter-spacing:0.1em; color:var(--dim);">Post-event review due ${formatDate(addDays(eventDateRaw, 7))}. A confirmation has been sent to your email.</span><br><br>` +
+            `<a href="budget.html?id=${encodeURIComponent(projectId)}" style="display:inline-block; background:var(--white); color:var(--black); text-decoration:none; padding:12px 32px; font-size:12px; letter-spacing:0.15em; text-transform:uppercase; font-weight:bold;">Open Budget Tracker</a>`;
+        } catch (err) {
+          console.warn('Failed to create budget project:', err);
+          document.getElementById('successMsg').innerHTML =
+            `Project Intake submitted for review.<br><span style="font-size:11px; letter-spacing:0.1em; color:var(--dim);">Post-event review due ${formatDate(addDays(eventDateRaw, 7))}. A confirmation has been sent to your email.</span>`;
+        }
+      } else {
+        document.getElementById('successMsg').innerHTML =
+          `Project Intake submitted for review.<br><span style="font-size:11px; letter-spacing:0.1em; color:var(--dim);">Post-event review due within 7 days of event. A confirmation has been sent to your email.</span>`;
+      }
     } else {
       document.getElementById('successMsg').textContent =
         'Post-Event Review submitted. Leadership will review shortly.';
