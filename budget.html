@@ -448,7 +448,7 @@
     <div class="kpi-card blue"><div class="kpi-label">TAX RATE</div><div class="kpi-value"><input class="editable" id="hotelTax" type="number" value="10" style="width:50px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()">%</div></div>
     <div class="kpi-card orange"><div class="kpi-label">DEFAULT ROOMS/NIGHT</div><div class="kpi-value"><input class="editable" id="hotelDefaultRooms" type="number" value="14" style="width:50px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()"></div></div>
   </div>
-  <table class="budget-table"><thead><tr><th>DATE</th><th>CITY</th><th style="min-width:140px">GUEST</th><th>DOB</th><th>LOYALTY #</th><th>NOTE</th><th class="r">ROOMS</th><th class="r">NIGHTS</th><th class="r">RATE</th><th class="r">TOTAL</th><th></th></tr></thead>
+  <table class="budget-table"><thead><tr><th>CHECK-IN</th><th>CHECK-OUT</th><th>CITY</th><th style="min-width:140px">GUEST</th><th>DOB</th><th>LOYALTY #</th><th>NOTE</th><th class="r">ROOMS</th><th class="r">NIGHTS</th><th class="r">RATE</th><th class="r">TOTAL</th><th></th></tr></thead>
     <tbody id="hotelBody"></tbody>
   </table>
   <button class="add-row-btn" onclick="addHotelRow()">+ ADD ROW</button>
@@ -954,18 +954,38 @@ function addPDRow() {
 
 function addHotelRow() {
   const tb = $('hotelBody'); const defRooms = $('hotelDefaultRooms').value || 14;
+  const defIn = $('metaDateStart')?.value || '';
+  const defOut = $('metaDateEnd')?.value || '';
   const tr = tb.insertRow();
-  tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
-  tr.cells[0].appendChild(makeInput('date',''));
-  tr.cells[1].appendChild(makeInput('text',''));
-  tr.cells[2].appendChild(makeNameInput(tr, autofillHotelProfile));
-  tr.cells[3].appendChild(makeInput('text',''));  // DOB (auto-filled)
-  tr.cells[4].appendChild(makeInput('text',''));  // Loyalty # (auto-filled)
-  tr.cells[5].appendChild(makeInput('text',''));  // Note
-  tr.cells[6].appendChild(makeInput('num', defRooms,'editable-num'));
-  tr.cells[7].appendChild(makeInput('num','1','editable-num'));
-  tr.cells[8].appendChild(makeInput('num','0','editable-num'));
+  tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r calc-field"></td>`;
+  const ciInp = makeInput('date', defIn); ciInp.addEventListener('change', () => calcHotelNights(tr));
+  const coInp = makeInput('date', defOut); coInp.addEventListener('change', () => calcHotelNights(tr));
+  tr.cells[0].appendChild(ciInp);   // Check-in
+  tr.cells[1].appendChild(coInp);   // Check-out
+  tr.cells[2].appendChild(makeInput('text',''));  // City
+  tr.cells[3].appendChild(makeNameInput(tr, autofillHotelProfile));
+  tr.cells[4].appendChild(makeInput('text',''));  // DOB (auto-filled)
+  tr.cells[5].appendChild(makeInput('text',''));  // Loyalty # (auto-filled)
+  tr.cells[6].appendChild(makeInput('text',''));  // Note
+  tr.cells[7].appendChild(makeInput('num', defRooms,'editable-num'));
+  const nightsInp = makeInput('num','0','editable-num'); nightsInp.readOnly = true; nightsInp.style.opacity = '0.6';
+  tr.cells[8].appendChild(nightsInp);  // Nights (auto-calculated)
+  tr.cells[9].appendChild(makeInput('num','0','editable-num'));
   tr.appendChild(makeDeleteCell());
+  calcHotelNights(tr);
+  recalcAll();
+}
+
+function calcHotelNights(tr) {
+  const ci = tr.cells[0]?.querySelector('input')?.value;
+  const co = tr.cells[1]?.querySelector('input')?.value;
+  const nightsInp = tr.cells[8]?.querySelector('input');
+  if (ci && co && nightsInp) {
+    const days = Math.round((new Date(co+'T12:00:00') - new Date(ci+'T12:00:00')) / 86400000);
+    nightsInp.value = days > 0 ? days : 0;
+  } else if (nightsInp) {
+    nightsInp.value = 0;
+  }
   recalcAll();
 }
 
@@ -1769,11 +1789,11 @@ function sumHotel() {
   let sum = 0;
   for (let r = 0; r < tb.rows.length; r++) {
     const row = tb.rows[r];
-    const rooms = parseFloat(row.cells[6]?.querySelector('input')?.value) || 0;
-    const nights = parseFloat(row.cells[7]?.querySelector('input')?.value) || 0;
-    const rate = parseFloat(row.cells[8]?.querySelector('input')?.value) || 0;
+    const rooms = parseFloat(row.cells[7]?.querySelector('input')?.value) || 0;
+    const nights = parseFloat(row.cells[8]?.querySelector('input')?.value) || 0;
+    const rate = parseFloat(row.cells[9]?.querySelector('input')?.value) || 0;
     const total = rooms * nights * rate * (1 + taxRate);
-    if (row.cells[9]) row.cells[9].textContent = fmt(total);
+    if (row.cells[10]) row.cells[10].textContent = fmt(total);
     sum += total;
   }
   return sum;
@@ -2184,7 +2204,7 @@ const sectionMatchers = [
     addRow: () => addHotelRow(),
     map: (row, headers) => {
       const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
-      return [get('date'), get('city','location'), get('guest','name','passenger'), get('dob','birth','birthday'), get('loyalty','rewards','member'), get('note','description','memo'), get('room'), get('night'), get('rate','price','cost')];
+      return [get('check-in','check in','start','date'), get('check-out','check out','end','checkout'), get('city','location'), get('guest','name','passenger'), get('dob','birth','birthday'), get('loyalty','rewards','member'), get('note','description','memo'), get('room'), get('night'), get('rate','price','cost')];
     }
   },
   { id: 'airfares', bodyId: 'flightBody', keywords: ['airfare','flight','air','airline','flights'],
@@ -2409,11 +2429,10 @@ const ROW_ROUTES = [
   { test: /hotel|lodging|room block|accommodation/i, tabId: 'hotel', bodyId: 'hotelBody',
     addRow: () => addHotelRow(),
     fill: (inputs, desc, rate, qty) => {
-      // hotel inputs: [date, city, guest, dob, loyalty#, note, rooms, nights, rate]
-      if (inputs[5]) inputs[5].value = desc;
-      if (inputs[6]) inputs[6].value = '1';
-      if (inputs[7]) inputs[7].value = qty || '1';
-      if (inputs[8]) inputs[8].value = rate || '0';
+      // hotel inputs: [checkin, checkout, city, guest, dob, loyalty#, note, rooms, nights(ro), rate]
+      if (inputs[6]) inputs[6].value = desc;
+      if (inputs[7]) inputs[7].value = '1';
+      if (inputs[9]) inputs[9].value = rate || '0';
     }
   },
   { test: /per diem|perdiem|per-diem|daily allowance|meal allowance/i, tabId: 'perdiems', bodyId: 'pdBody',
@@ -2794,7 +2813,17 @@ function restoreFromData(data) {
         else if (id.startsWith('prod_') || id.startsWith('startup_')) { addLineRow(id, ['text','text','num','num']); }
         const lastRow = tb.rows[tb.rows.length - 1];
         const inputs = lastRow.querySelectorAll('input');
-        cells.forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
+        // Migrate old hotel data (9 inputs: date,city,guest,dob,loyalty,note,rooms,nights,rate)
+        // to new format (10 inputs: checkin,checkout,city,guest,dob,loyalty,note,rooms,nights,rate)
+        if (id === 'hotelBody' && cells.length === 9 && inputs.length === 10) {
+          inputs[0].value = cells[0] || '';  // old date → check-in
+          // cells[1..8] → inputs[2..9] (skip checkout)
+          for (let ci = 1; ci < cells.length; ci++) { if (inputs[ci + 1]) inputs[ci + 1].value = cells[ci]; }
+          calcHotelNights(lastRow);
+        } else {
+          cells.forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
+          if (id === 'hotelBody') calcHotelNights(lastRow);
+        }
       });
     });
     // Restore guests
