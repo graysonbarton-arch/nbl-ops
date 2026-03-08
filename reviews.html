@@ -65,8 +65,8 @@
   .project-card[data-review="overdue"]::before { background:var(--red); }
   .project-card[data-review="completed"]::before { background:var(--green); }
 
-  .card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
-  .card-artist { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); }
+  .card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; flex-wrap:wrap; }
+  .card-artist { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); flex:1; }
   .card-venue { font-size:10px; letter-spacing:1px; color:var(--text-dim); }
 
   .card-title { font-family:var(--font-display); font-size:28px; letter-spacing:2px; line-height:1.1; margin-bottom:10px; }
@@ -89,6 +89,14 @@
   .card-deadline.ok { color:var(--muted); }
   .card-deadline.done { color:var(--green); }
   .card-budget { font-family:var(--font-display); font-size:22px; letter-spacing:1px; }
+
+  /* Delete Button */
+  .card-delete {
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px;
+    padding:0 4px; opacity:0; transition:opacity .15s, color .15s; line-height:1;
+  }
+  .project-card:hover .card-delete { opacity:1; }
+  .card-delete:hover { color:var(--red, #e74c3c); }
 
   /* Example Card */
   .project-card.example-card { border-style:dashed; opacity:.7; }
@@ -293,11 +301,8 @@ function renderReviews() {
   const grid = document.getElementById('reviewGrid');
   const counter = document.getElementById('reviewCount');
 
-  // Filter out drafts and cancelled — only show projects that went through intake
-  const eligible = allProjects.filter(p => {
-    const s = (p.status || '').toLowerCase();
-    return s !== 'draft' && s !== 'cancelled';
-  });
+  // Only show projects created via the intake form
+  const eligible = allProjects.filter(p => p.source === 'intake');
 
   // Build cards with review status
   const cards = eligible.map(p => {
@@ -362,6 +367,7 @@ function renderReviews() {
            onclick="openReview('${escHtml(p.id)}')">
         <div class="card-header">
           <span class="card-artist">${escHtml(p.artist || 'NO ARTIST')}</span>
+          <button class="card-delete" onclick="event.stopPropagation(); deleteReview('${escHtml(p.id)}')" title="Delete project">&times;</button>
           <span class="card-venue">${escHtml(venue)}</span>
         </div>
         <div class="card-title">${escHtml(p.title || 'UNTITLED')}</div>
@@ -381,6 +387,13 @@ function renderReviews() {
 
 function openReview(id) {
   window.location.href = 'index.html?review=' + encodeURIComponent(id);
+}
+
+function deleteReview(id) {
+  const project = ProjectStore.list().find(p => p.id === id);
+  if (!confirm('Delete "' + (project?.title || 'this project') + '"?\nThis cannot be undone.')) return;
+  ProjectStore.delete(id);
+  renderReviews();
 }
 
 // ─── Init ───────────────────────────────────────────────────────────────────

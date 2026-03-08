@@ -48,6 +48,7 @@ const ProjectStore = {
     const index = this._getIndex();
     const now = new Date().toISOString();
     const existingIdx = index.findIndex(p => p.id === id);
+    const existing = existingIdx >= 0 ? index[existingIdx] : {};
     const entry = {
       id,
       title:       meta.title       || 'UNTITLED',
@@ -55,8 +56,9 @@ const ProjectStore = {
       dates:       meta.dates       || 'TBD',
       status:      meta.status      || 'Draft',
       budgetTotal: meta.budgetTotal || 0,
+      source:      meta.source      || existing.source || '',
       lastModified: now,
-      createdAt:   existingIdx >= 0 ? index[existingIdx].createdAt : now,
+      createdAt:   existingIdx >= 0 ? existing.createdAt : now,
     };
 
     if (existingIdx >= 0) {
