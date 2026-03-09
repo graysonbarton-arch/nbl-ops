@@ -4,45 +4,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nappy Boy Live — Internal Operations</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
 <style>
-  :root {
-    --black: #0a0a0a;
-    --white: #f5f5f0;
-    --text: #f5f5f0;
-    --grey: #1a1a1a;
-    --mid: #2a2a2a;
-    --border: #333;
-    --accent: #f5f5f0;
-    --red: #c0392b;
-    --dim: #666;
-    --font-display: 'Bebas Neue', sans-serif;
-    --font-body: 'DM Mono', monospace;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--black);
-    color: var(--white);
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* TICKER */
-  .ticker { background:var(--grey); border-bottom:1px solid var(--border); padding:8px 0; overflow:hidden; white-space:nowrap; }
-  .ticker-inner { display:inline-block; animation:marquee 30s linear infinite; color:var(--dim); font-size:10px; letter-spacing:2px; text-transform:uppercase; }
-  @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
-
-  /* NAV */
-  .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 40px; border-bottom:1px solid var(--border); }
-  .nav-logo { width:40px; height:40px; border:2px solid var(--text); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:14px; letter-spacing:1px; text-decoration:none; color:var(--text); }
-  .nav-links { display:flex; gap:24px; }
-  .nav-links a { color:var(--dim); text-decoration:none; font-size:10px; letter-spacing:2px; text-transform:uppercase; transition:color .2s; cursor:pointer; }
-  .nav-links a:hover, .nav-links a.active { color:var(--white); text-decoration:underline; text-underline-offset:6px; }
+  /* Index.html overrides — keep white accent for intake form */
+  :root { --accent: #f5f5f0; }
+  body { font-size: 13px; overflow-x: hidden; }
 
   /* MAIN LAYOUT */
   main {
@@ -552,14 +518,7 @@
 </div>
 
 <!-- NAV -->
-<nav class="nav">
-  <a href="/" class="nav-logo">NBL</a>
-  <div class="nav-links">
-    <a href="/" class="active" onclick="event.preventDefault(); showForm('intake')">INTAKE</a>
-    <a href="projects.html">BUDGET</a>
-    <a href="reviews.html">REVIEWS</a>
-  </div>
-</nav>
+<nav class="nav" id="main-nav"></nav>
 
 <main>
   <section class="hero">
@@ -1308,8 +1267,12 @@
   <button onclick="closeSuccess()">Back to Forms</button>
 </div>
 
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="save-indicator.js"></script>
+<script src="toast.js"></script>
 <script src="project-store.js"></script>
 <script>
   // ─── STORAGE KEY ───────────────────────────────────────────────────────────

@@ -151,7 +151,10 @@ const ProjectStore = {
           data: fullData,
         }),
       });
-    } catch (e) { console.warn('Cloud save failed:', e); }
+    } catch (e) {
+      console.warn('Cloud save failed:', e);
+      if (typeof SaveIndicator !== 'undefined') SaveIndicator.offline();
+    }
   },
 
   /**

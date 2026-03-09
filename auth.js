@@ -1,16 +1,14 @@
 /**
  * NBL-Ops Auth Module
  * Handles Supabase authentication via magic link (email OTP).
- * Include this script on every page before other scripts.
+ * Requires config.js and Supabase CDN to be loaded first.
  */
-const SUPABASE_URL = 'https://nbkvnzahngrzxmznvofa.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_SR-RzIkH7CrIZaciVzq9Gw_O7PiLKJt';
 
 // ─── Supabase client (browser) ────────────────────────────────
 let _supabase = null;
 function getSupabase() {
   if (_supabase) return _supabase;
-  _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  _supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
   return _supabase;
 }
 

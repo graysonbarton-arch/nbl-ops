@@ -5,25 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nappy Boy Live — Budget Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="config.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="save-indicator.js"></script>
+<script src="toast.js"></script>
 <script src="project-store.js"></script>
 <script src="example-data.js"></script>
 <style>
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-  :root {
-    --bg: #0a0a0a; --surface: #1a1a1a; --surface-2: #222222;
-    --border: #333333; --border-light: #444444; --muted: #666666;
-    --text: #f5f5f0; --text-dim: #999999; --accent: #c8b88a;
-    --red: #d32f2f; --red-dim: #4a1a1a; --green: #4caf50; --green-dim: #1a3a1a;
-    --blue: #42a5f5; --blue-dim: #1a2a3a; --orange: #ff9800; --orange-dim: #3a2a0a;
-    --yellow: #fdd835; --purple: #ce93d8;
-    --font-display: 'Bebas Neue', sans-serif; --font-body: 'DM Mono', monospace;
-  }
-  body { background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:12px; line-height:1.5; min-height:100vh; }
-
-  /* Ticker */
   /* Example banner */
   .example-banner {
     background:var(--blue-dim); border-bottom:2px solid var(--blue); padding:10px 40px;
@@ -47,17 +39,6 @@
   .pie-legend-label { flex:1; color:var(--text-dim); }
   .pie-legend-val { font-weight:500; color:var(--text); }
   .pie-legend-pct { color:var(--muted); width:44px; text-align:right; }
-
-  .ticker { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 0; overflow:hidden; white-space:nowrap; }
-  .ticker-inner { display:inline-block; animation:marquee 30s linear infinite; color:var(--muted); font-size:10px; letter-spacing:2px; text-transform:uppercase; }
-  @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
-
-  /* Nav */
-  .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 40px; border-bottom:1px solid var(--border); }
-  .nav-logo { width:40px; height:40px; border:2px solid var(--text); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:14px; letter-spacing:1px; }
-  .nav-links { display:flex; gap:24px; }
-  .nav-links a { color:var(--muted); text-decoration:none; font-size:10px; letter-spacing:2px; text-transform:uppercase; transition:color .2s; cursor:pointer; }
-  .nav-links a:hover, .nav-links a.active { color:var(--text); text-decoration:underline; text-underline-offset:6px; }
 
   /* Hero */
   .hero { padding:60px 40px 40px; background:linear-gradient(180deg,var(--surface) 0%,var(--bg) 100%); }
@@ -306,6 +287,53 @@
     .hero-title,.editable-lg { font-size:48px!important; }
     .guest-grid { grid-template-columns:1fr; }
   }
+
+  /* ─── Print / PDF styles ──────────────────────────────────── */
+  @media print {
+    /* Hide UI chrome */
+    .ticker, .nav, .export-bar, .example-banner, #authBar,
+    .toast-container, .top-progress, .save-indicator,
+    .footer, .tab-bar, .add-row-btn, .section-toggle,
+    .guest-controls, .guest-presets, button, input[type="file"] { display:none!important; }
+
+    /* Expand everything */
+    body { background:#fff!important; color:#000!important; font-size:11px; }
+    .hero { background:#fff!important; padding:24px 0!important; }
+    .hero input, .hero .editable { color:#000!important; border:none!important; background:none!important; -webkit-text-fill-color:#000!important; }
+    .editable-lg { font-size:28pt!important; }
+    .editable-md { font-size:14pt!important; }
+
+    /* KPI cards */
+    .kpi-grid { grid-template-columns:repeat(4,1fr)!important; gap:8px!important; }
+    .kpi-card { background:#f5f5f5!important; border:1px solid #ccc!important; color:#000!important; padding:10px!important; break-inside:avoid; }
+    .kpi-label { color:#333!important; }
+    .kpi-value { color:#000!important; font-size:18px!important; }
+
+    /* Sections */
+    .section { break-inside:avoid; margin:12px 0!important; background:none!important; border:1px solid #ccc!important; }
+    .section-header { background:#eee!important; color:#000!important; padding:8px 12px!important; }
+    .section-body { max-height:none!important; opacity:1!important; overflow:visible!important; padding:8px 12px!important; }
+    .sub-body { max-height:none!important; opacity:1!important; overflow:visible!important; }
+    .collapsible { max-height:none!important; }
+
+    /* Tables */
+    .budget-table { width:100%; border-collapse:collapse; font-size:10px; }
+    .budget-table th, .budget-table td { border:1px solid #ccc!important; padding:4px 6px!important; color:#000!important; background:#fff!important; }
+    .budget-table th { background:#eee!important; font-weight:600; }
+    .budget-table input, .budget-table select { border:none!important; background:none!important; color:#000!important; -webkit-text-fill-color:#000!important; padding:0!important; font-size:10px; }
+    .budget-table .total-cell { font-weight:700; background:#f0f0f0!important; }
+
+    /* Tab panels - show all */
+    .tab-panel { display:block!important; }
+
+    /* Category grid */
+    .category-grid { grid-template-columns:1fr 1fr!important; gap:8px!important; }
+    .category-card { background:#f9f9f9!important; border:1px solid #ccc!important; color:#000!important; break-inside:avoid; }
+
+    /* Page layout */
+    * { box-shadow:none!important; }
+    a { color:#000!important; text-decoration:none!important; }
+  }
 </style>
 </head>
 <body>
@@ -325,20 +353,15 @@
 </div>
 
 <!-- NAV -->
-<nav class="nav">
-  <a href="projects.html" class="nav-logo" style="text-decoration:none; color:var(--text)">NBL</a>
-  <div class="nav-links">
-    <a href="/">INTAKE</a>
-    <a href="projects.html" class="active">BUDGET</a>
-    <a href="reviews.html">REVIEWS</a>
-  </div>
-</nav>
+<nav class="nav" id="main-nav"></nav>
 
 <!-- EXPORT BAR -->
 <div class="export-bar">
   <span class="export-label">Template Tools:</span>
-  <button class="export-btn" onclick="saveToJSON()">EXPORT DATA (JSON)</button>
-  <button class="export-btn secondary" onclick="loadFromJSON()">IMPORT DATA (JSON / XLSX / CSV)</button>
+  <button class="export-btn" onclick="exportToXLSX()">EXPORT XLSX</button>
+  <button class="export-btn" onclick="printBudget()">PRINT / PDF</button>
+  <button class="export-btn secondary" onclick="saveToJSON()">EXPORT JSON</button>
+  <button class="export-btn secondary" onclick="loadFromJSON()">IMPORT DATA</button>
   <button class="export-btn secondary" onclick="resetAll()">RESET ALL</button>
   <input type="file" id="importFile" accept=".json,.xlsx,.xls,.csv,.tsv" style="display:none" onchange="handleImport(event)">
 </div>
@@ -644,12 +667,14 @@ let _suppressAutoSave = false;
 
 function scheduleAutoSave() {
   if (!currentProjectId || _suppressAutoSave) return;
+  if (typeof SaveIndicator !== 'undefined') SaveIndicator.unsaved();
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(autoSave, 1000);
 }
 
 function autoSave() {
   if (!currentProjectId || _suppressAutoSave) return;
+  if (typeof SaveIndicator !== 'undefined') SaveIndicator.saving();
   const data = getAllData();
   const meta = {
     title:       $('heroTitle')?.value     || 'UNTITLED',
@@ -661,6 +686,7 @@ function autoSave() {
     budgetTotal: parseFloat(($('kpiTotal')?.textContent || '0').replace(/[$,()]/g, '')) || 0,
   };
   ProjectStore.save(currentProjectId, data, meta);
+  if (typeof SaveIndicator !== 'undefined') SaveIndicator.saved();
 }
 
 window.addEventListener('beforeunload', () => {
@@ -2218,6 +2244,127 @@ function saveToJSON() {
   a.click();
 }
 
+function exportToXLSX() {
+  if (typeof XLSX === 'undefined') { alert('SheetJS not loaded'); return; }
+  const wb = XLSX.utils.book_new();
+  const title = ($('heroTitle').value || 'Budget').replace(/\s+/g, '-');
+
+  // Helper: extract table data as array-of-arrays with headers
+  function tableToAoA(tableEl) {
+    if (!tableEl) return [];
+    var table = tableEl.closest('table') || tableEl.parentElement;
+    var rows = [];
+    // Headers from <thead>
+    var thead = table.querySelector('thead');
+    if (thead) {
+      var hrow = [];
+      thead.querySelectorAll('th').forEach(function(th) { hrow.push(th.textContent.trim()); });
+      if (hrow.length) rows.push(hrow);
+    }
+    // Data from <tbody>
+    var tbody = tableEl.tagName === 'TBODY' ? tableEl : table.querySelector('tbody');
+    if (tbody) {
+      for (var r = 0; r < tbody.rows.length; r++) {
+        var crow = [];
+        tbody.rows[r].querySelectorAll('input, select').forEach(function(inp) {
+          var v = inp.value;
+          var n = parseFloat(v.replace(/[$,]/g, ''));
+          crow.push(isNaN(n) ? v : n);
+        });
+        if (crow.some(function(c) { return c !== '' && c !== 0; })) rows.push(crow);
+      }
+    }
+    return rows;
+  }
+
+  // Summary sheet
+  var summary = [
+    ['PROJECT BUDGET SUMMARY'],
+    ['Project', $('heroTitle').value],
+    ['Artist', $('heroSubtitle').value],
+    ['Dates', ($('metaDateStart').value || '') + ' - ' + ($('metaDateEnd').value || '')],
+    ['Status', $('metaStatus').value],
+    [],
+    ['CATEGORY', 'TOTAL'],
+  ];
+  document.querySelectorAll('.kpi-card').forEach(function(card) {
+    var label = card.querySelector('.kpi-label');
+    var value = card.querySelector('.kpi-value');
+    if (label && value) summary.push([label.textContent.trim(), value.textContent.trim()]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(summary);
+  XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+
+  // Section sheets — iterate visible budget tables
+  var sectionMap = {
+    'pdBody': 'Per Diems', 'hotelBody': 'Hotel', 'flightBody': 'Airfares',
+    'busBody': 'Busses', 'localBody': 'Local Transport',
+    'truckABody': 'Trucking', 'truckBBody': 'Internal Moves',
+    'insurBody': 'Insurance', 'savingsBody': 'Savings Ideas', 'crewBody': 'Crew Roster',
+  };
+  // Payroll blocks
+  payrollBlocks.forEach(function(b) {
+    var aoa = tableToAoA($(b.id + '_body'));
+    if (aoa.length > 1) {
+      var name = (b.label || 'Payroll').substring(0, 31);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name);
+    }
+  });
+  // Named sections
+  Object.keys(sectionMap).forEach(function(id) {
+    var aoa = tableToAoA($(id));
+    if (aoa.length > 1) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), sectionMap[id].substring(0, 31));
+  });
+  // Production subsections
+  var prodNames = ['Sound', 'Lights', 'Backline', 'Radios', 'Video', 'Staging', 'SFX'];
+  for (var i = 0; i < 7; i++) {
+    var aoa = tableToAoA($('prod_' + i));
+    if (aoa && aoa.length > 1) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), prodNames[i]);
+  }
+  // Startup subsections
+  var startNames = ['Design', 'Rehearsal', 'Equipment', 'Prod Rehearsal', 'Misc'];
+  for (var j = 0; j < 5; j++) {
+    var aoa = tableToAoA($('startup_' + j));
+    if (aoa && aoa.length > 1) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), startNames[j]);
+  }
+  // Custom sections
+  customSections.forEach(function(sec) {
+    var aoa = tableToAoA($(sec.slug + '_body'));
+    if (aoa && aoa.length > 1) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), sec.name.substring(0, 31));
+  });
+
+  XLSX.writeFile(wb, title.toLowerCase() + '-budget.xlsx');
+  if (typeof Toast !== 'undefined') Toast.success('XLSX exported');
+}
+
+function printBudget() {
+  // Expand all collapsed sections before printing
+  document.querySelectorAll('.section-body').forEach(function(el) {
+    el.style.maxHeight = 'none'; el.style.opacity = '1';
+  });
+  document.querySelectorAll('.sub-body').forEach(function(el) {
+    el.style.maxHeight = 'none'; el.style.opacity = '1';
+  });
+  document.querySelectorAll('.collapsible.collapsed').forEach(function(el) {
+    el.classList.remove('collapsed');
+  });
+  // Show all tab panels
+  document.querySelectorAll('.tab-panel').forEach(function(el) {
+    el.dataset.origDisplay = el.style.display;
+    el.style.display = 'block';
+  });
+  window.print();
+  // Restore after print
+  setTimeout(function() {
+    document.querySelectorAll('.tab-panel').forEach(function(el) {
+      if (el.dataset.origDisplay !== undefined) {
+        el.style.display = el.dataset.origDisplay;
+        delete el.dataset.origDisplay;
+      }
+    });
+  }, 500);
+}
+
 function loadFromJSON() { $('importFile').click(); }
 
 // ============ SPREADSHEET IMPORT (XLSX / CSV) ============
@@ -2726,10 +2873,14 @@ function handleImport(e) {
   const file = e.target.files[0]; if (!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
 
+  if (typeof TopProgress !== 'undefined') TopProgress.show();
+
   // Route by file type
   if (ext === 'xlsx' || ext === 'xls' || ext === 'csv' || ext === 'tsv') {
     importSpreadsheet(file);
-    e.target.value = ''; // reset so same file can be re-imported
+    if (typeof TopProgress !== 'undefined') TopProgress.done();
+    if (typeof Toast !== 'undefined') Toast.success('Spreadsheet imported');
+    e.target.value = '';
     return;
   }
 
@@ -2740,10 +2891,15 @@ function handleImport(e) {
       const data = JSON.parse(ev.target.result);
       restoreFromData(data);
       recalcAll();
-    } catch (err) { alert('Error loading file: ' + err.message); }
+      if (typeof TopProgress !== 'undefined') TopProgress.done();
+      if (typeof Toast !== 'undefined') Toast.success('JSON data imported');
+    } catch (err) {
+      if (typeof TopProgress !== 'undefined') TopProgress.done();
+      alert('Error loading file: ' + err.message);
+    }
   };
   reader.readAsText(file);
-  e.target.value = ''; // reset
+  e.target.value = '';
 }
 
 function restoreFromData(data) {
@@ -3040,6 +3196,16 @@ function init() {
   recalcAll();
   initColumnResize();
 
+  // Wrap budget tables for mobile horizontal scroll
+  document.querySelectorAll('.budget-table').forEach(function(table) {
+    if (!table.parentElement.classList.contains('table-scroll-wrapper')) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-scroll-wrapper';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    }
+  });
+
   // Check for pending spreadsheet import from projects.html
   if (params.get('pendingImport') && sessionStorage.getItem('pendingImportFile')) {
     const dataUrl = sessionStorage.getItem('pendingImportFile');
@@ -3062,11 +3228,61 @@ function onAuthChanged(user) {
     ProjectStore.syncAllToCloud();
     syncRosterFromCloud();
     syncVenuesFromCloud();
+    initRealtimeSync();
   }
+}
+
+// ─── Supabase Realtime subscriptions ────────────────────────
+let _realtimeChannel = null;
+function initRealtimeSync() {
+  if (_realtimeChannel) return; // already subscribed
+  try {
+    const sb = getSupabase();
+    _realtimeChannel = sb.channel('nbl-ops-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets' }, payload => {
+        // Only notify if the change is to the currently-open project and from another user
+        if (currentProjectId && payload.new && payload.new.id === currentProjectId) {
+          const updatedBy = payload.new.updated_by;
+          const myId = getCurrentUser()?.id;
+          if (updatedBy && updatedBy !== myId) {
+            showRealtimeBanner('Budget updated by another user — click to reload');
+          }
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_roster' }, () => {
+        if (typeof Toast !== 'undefined') Toast.info('Roster updated — refreshing…', 2500);
+        syncRosterFromCloud();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_venues' }, () => {
+        if (typeof Toast !== 'undefined') Toast.info('Venues updated — refreshing…', 2500);
+        syncVenuesFromCloud();
+      })
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') console.log('Realtime connected');
+      });
+  } catch (e) {
+    console.warn('Realtime init failed:', e);
+  }
+}
+
+function showRealtimeBanner(msg) {
+  if (document.getElementById('realtimeBanner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'realtimeBanner';
+  banner.style.cssText = 'position:fixed; top:0; left:0; right:0; z-index:9998; background:#2a1a00; border-bottom:2px solid var(--accent,#c8b88a); padding:10px 20px; text-align:center; font-family:var(--font-body); font-size:12px; color:#fdd835; cursor:pointer; letter-spacing:0.5px;';
+  banner.textContent = msg;
+  banner.onclick = function() {
+    banner.remove();
+    location.reload();
+  };
+  document.body.prepend(banner);
+  // Auto-dismiss after 15s
+  setTimeout(function() { if (banner.parentNode) banner.remove(); }, 15000);
 }
 
 async function syncRosterFromCloud() {
   try {
+    if (typeof Toast !== 'undefined') Toast.info('Syncing roster\u2026', 2000);
     const res = await authFetch('/api/roster');
     if (res.ok) {
       const cloud = await res.json();
@@ -3081,18 +3297,21 @@ async function syncRosterFromCloud() {
         updateRosterDatalist();
         buildPresetsUI();
       } else {
-        // Cloud is empty — push local roster up
         const local = loadSavedRoster();
         if (local.length > 0) {
           authFetch('/api/roster', { method: 'POST', body: JSON.stringify({ roster: local }) }).catch(() => {});
         }
       }
     }
-  } catch (e) { console.warn('Roster cloud sync failed:', e); }
+  } catch (e) {
+    console.warn('Roster cloud sync failed:', e);
+    if (typeof Toast !== 'undefined') Toast.error('Roster sync failed');
+  }
 }
 
 async function syncVenuesFromCloud() {
   try {
+    if (typeof Toast !== 'undefined') Toast.info('Syncing venues\u2026', 2000);
     const res = await authFetch('/api/venues');
     if (res.ok) {
       const cloud = await res.json();
@@ -3102,14 +3321,16 @@ async function syncVenuesFromCloud() {
         updateVenueDatalist();
         buildPresetsUI();
       } else {
-        // Cloud is empty — push local venues up
         const local = loadSavedVenues();
         if (local.length > 0) {
           authFetch('/api/venues', { method: 'POST', body: JSON.stringify({ venues: local }) }).catch(() => {});
         }
       }
     }
-  } catch (e) { console.warn('Venues cloud sync failed:', e); }
+  } catch (e) {
+    console.warn('Venues cloud sync failed:', e);
+    if (typeof Toast !== 'undefined') Toast.error('Venues sync failed');
+  }
 }
 
 initAuth().then(() => init());

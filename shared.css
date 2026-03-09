@@ -1,0 +1,96 @@
+/* ═══════════════════════════════════════════════════════════
+   NBL-OPS SHARED STYLES
+   Common variables, reset, nav, ticker, toast, save indicator
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Variables ──────────────────────────────────────────── */
+:root {
+  --bg: #0a0a0a; --surface: #1a1a1a; --surface-2: #222222;
+  --border: #333333; --border-light: #444444; --muted: #666666;
+  --text: #f5f5f0; --text-dim: #999999; --accent: #c8b88a;
+  --red: #d32f2f; --red-dim: #4a1a1a; --green: #4caf50; --green-dim: #1a3a1a;
+  --blue: #42a5f5; --blue-dim: #1a2a3a; --orange: #ff9800; --orange-dim: #3a2a0a;
+  --yellow: #fdd835; --purple: #ce93d8;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'DM Mono', monospace;
+
+  /* Aliases for backward compat (index.html legacy names) */
+  --black: var(--bg); --white: var(--text); --grey: var(--surface);
+  --mid: var(--surface-2); --dim: var(--muted);
+}
+
+/* ── Reset ──────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--font-body); font-size: 12px;
+  line-height: 1.5; min-height: 100vh;
+}
+
+/* ── Ticker ─────────────────────────────────────────────── */
+.ticker { background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 0; overflow: hidden; white-space: nowrap; }
+.ticker-inner { display: inline-block; animation: marquee 30s linear infinite; color: var(--muted); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; }
+@keyframes marquee { 0% { transform: translateX(0) } 100% { transform: translateX(-50%) } }
+
+/* ── Nav ────────────────────────────────────────────────── */
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 40px; border-bottom: 1px solid var(--border); }
+.nav-logo { width: 40px; height: 40px; border: 2px solid var(--text); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 14px; letter-spacing: 1px; text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 24px; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; transition: color .2s; cursor: pointer; }
+.nav-links a:hover, .nav-links a.active { color: var(--text); text-decoration: underline; text-underline-offset: 6px; }
+
+/* ── Save Indicator ─────────────────────────────────────── */
+.save-indicator {
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); display: flex; align-items: center; gap: 6px;
+  opacity: 0; transition: opacity 0.3s; white-space: nowrap;
+}
+.save-indicator.visible { opacity: 1; }
+.save-indicator.saving { color: var(--orange); }
+.save-indicator.saved { color: var(--green); }
+.save-indicator.unsaved { color: var(--text-dim); }
+.save-indicator.offline { color: var(--red); }
+.save-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+/* ── Toast Notifications ────────────────────────────────── */
+.toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast {
+  background: var(--surface); border: 1px solid var(--border); padding: 10px 16px;
+  font-family: var(--font-body); font-size: 11px; letter-spacing: 1px; color: var(--text-dim);
+  display: flex; align-items: center; gap: 8px; pointer-events: auto;
+  animation: toastIn 0.3s ease; max-width: 360px;
+}
+.toast.info { border-left: 3px solid var(--blue); }
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error { border-left: 3px solid var(--red); }
+.toast.fadeout { animation: toastOut 0.3s ease forwards; }
+@keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+
+/* ── Top Progress Bar ───────────────────────────────────── */
+.top-progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); z-index: 10000; transition: width 0.3s ease; }
+
+/* ── Table Scroll Wrapper (mobile) ──────────────────────── */
+.table-scroll-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll-wrapper::-webkit-scrollbar { height: 4px; }
+.table-scroll-wrapper::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* ── Footer (shared pattern) ────────────────────────────── */
+.footer {
+  display: flex; justify-content: space-between; padding: 20px 40px;
+  border-top: 1px solid var(--border); color: var(--muted);
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — Mobile ≤ 768px
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .nav { flex-wrap: wrap; gap: 12px; padding: 12px 16px; }
+  .nav-links { gap: 16px; }
+  .ticker-inner { font-size: 9px; }
+  .footer { flex-direction: column; gap: 8px; padding: 16px; }
+  .save-indicator span:not(.dot) { display: none; }
+  .save-indicator .dot { width: 8px; height: 8px; }
+}

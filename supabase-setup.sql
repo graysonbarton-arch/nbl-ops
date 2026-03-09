@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS shared_roster (
   shirt_size TEXT DEFAULT '',
   email TEXT DEFAULT '',
   phone TEXT DEFAULT '',
+  is_archived BOOLEAN DEFAULT false,
   created_by UUID REFERENCES auth.users(id),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -41,6 +42,7 @@ CREATE TABLE IF NOT EXISTS shared_venues (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   city TEXT NOT NULL,
   venue TEXT NOT NULL,
+  is_archived BOOLEAN DEFAULT false,
   created_by UUID REFERENCES auth.users(id),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -120,3 +122,57 @@ CREATE POLICY "Authenticated users can delete venues"
 
 -- Service role bypass (for API routes that use service key)
 -- Service role automatically bypasses RLS, no policy needed
+
+-- ============================================================
+-- MIGRATION: Soft-delete columns (run if tables already exist)
+-- ============================================================
+-- ALTER TABLE shared_roster ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;
+-- ALTER TABLE shared_venues ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;
+
+-- ============================================================
+-- RPC FUNCTIONS: Transaction-safe replace for roster & venues
+-- ============================================================
+
+-- Replace entire roster atomically
+CREATE OR REPLACE FUNCTION replace_roster(new_roster JSONB, p_created_by UUID)
+RETURNS void AS $$
+BEGIN
+  -- Soft-delete all current entries
+  UPDATE shared_roster SET is_archived = true, updated_at = now()
+    WHERE is_archived = false;
+
+  -- Insert new entries
+  INSERT INTO shared_roster (name, position, pay_type, rate, dob, sky_miles, ktn, hilton, marriott, shirt_size, email, phone, created_by, updated_at)
+  SELECT
+    r->>'name', r->>'position', r->>'pay_type', r->>'rate',
+    r->>'dob', r->>'sky_miles', r->>'ktn', r->>'hilton',
+    r->>'marriott', r->>'shirt_size', r->>'email', r->>'phone',
+    p_created_by, now()
+  FROM jsonb_array_elements(new_roster) AS r;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Replace entire venue list atomically
+CREATE OR REPLACE FUNCTION replace_venues(new_venues JSONB, p_created_by UUID)
+RETURNS void AS $$
+BEGIN
+  -- Soft-delete all current entries
+  UPDATE shared_venues SET is_archived = true, updated_at = now()
+    WHERE is_archived = false;
+
+  -- Insert new entries
+  INSERT INTO shared_venues (city, venue, created_by, updated_at)
+  SELECT
+    v->>'city', v->>'venue',
+    p_created_by, now()
+  FROM jsonb_array_elements(new_venues) AS v;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- REALTIME: Enable replication for live sync
+-- (Also enable in Supabase Dashboard → Database → Replication)
+-- ============================================================
+-- ALTER PUBLICATION supabase_realtime ADD TABLE budgets;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE shared_roster;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE shared_venues;
