@@ -455,7 +455,7 @@
   <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="kpi-card green"><div class="kpi-label">HOTELS TOTAL</div><div class="kpi-value" id="kpiHotel">$0</div></div>
     <div class="kpi-card blue"><div class="kpi-label">TAX RATE</div><div class="kpi-value"><input class="editable" id="hotelTax" type="number" value="10" style="width:50px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()">%</div></div>
-    <div class="kpi-card orange"><div class="kpi-label">DEFAULT ROOMS/NIGHT</div><div class="kpi-value"><input class="editable" id="hotelDefaultRooms" type="number" value="14" style="width:50px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()"></div></div>
+    <div class="kpi-card orange"><div class="kpi-label">DEFAULT ROOMS/NIGHT</div><div class="kpi-value"><input class="editable" id="hotelDefaultRooms" type="number" value="1" style="width:50px; font-family:var(--font-display); font-size:36px; color:var(--text); text-align:center" oninput="recalcAll()"></div></div>
   </div>
   <table class="budget-table"><thead><tr><th>CHECK-IN</th><th>CHECK-OUT</th><th>CITY</th><th style="min-width:140px">GUEST</th><th>DOB</th><th>LOYALTY #</th><th>NOTE</th><th class="r">ROOMS</th><th class="r">NIGHTS</th><th class="r">RATE</th><th class="r">TOTAL</th><th></th></tr></thead>
     <tbody id="hotelBody"></tbody>
@@ -971,7 +971,7 @@ function addPDRow() {
 }
 
 function addHotelRow() {
-  const tb = $('hotelBody'); const defRooms = $('hotelDefaultRooms').value || 14;
+  const tb = $('hotelBody'); const defRooms = $('hotelDefaultRooms').value || 1;
   const defIn = $('metaDateStart')?.value || '';
   const defOut = $('metaDateEnd')?.value || '';
   const tr = tb.insertRow();
