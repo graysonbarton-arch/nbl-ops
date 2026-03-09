@@ -162,8 +162,10 @@
   .sub-body.collapsed { max-height:0 !important; opacity:0; margin:0; padding:0; }
 
   /* Tables */
-  .budget-table { width:100%; border-collapse:collapse; margin-bottom:24px; }
-  .budget-table th { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); }
+  .budget-table { width:100%; border-collapse:collapse; margin-bottom:24px; table-layout:auto; }
+  .budget-table th { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); position:relative; overflow:hidden; white-space:nowrap; }
+  .budget-table th .col-resize { position:absolute; right:0; top:0; width:5px; height:100%; cursor:col-resize; background:transparent; }
+  .budget-table th .col-resize:hover, .budget-table th .col-resize.active { background:var(--accent); opacity:0.5; }
   .budget-table th.r { text-align:right; }
   .budget-table td { padding:8px 12px; border-bottom:1px solid #1f1f1f; font-size:11px; vertical-align:middle; }
   .budget-table td.r { text-align:right; font-variant-numeric:tabular-nums; }
@@ -984,8 +986,8 @@ function addHotelRow() {
   tr.cells[5].appendChild(makeInput('text',''));  // Loyalty # (auto-filled)
   tr.cells[6].appendChild(makeInput('text',''));  // Note
   tr.cells[7].appendChild(makeInput('num', defRooms,'editable-num'));
-  const nightsInp = makeInput('num','0','editable-num'); nightsInp.readOnly = true; nightsInp.style.opacity = '0.6';
-  tr.cells[8].appendChild(nightsInp);  // Nights (auto-calculated)
+  const nightsInp = makeInput('num','0','editable-num');
+  tr.cells[8].appendChild(nightsInp);  // Nights (auto-fills from dates, editable)
   tr.cells[9].appendChild(makeInput('num','0','editable-num'));
   tr.appendChild(makeDeleteCell());
   calcHotelNights(tr);
@@ -2942,6 +2944,34 @@ function initBlankForm() {
   addEmailLogEntry();
 }
 
+/* ── Resizable column headers ──────────────────────────────── */
+function initColumnResize() {
+  document.querySelectorAll('.budget-table th').forEach(th => {
+    if (!th.textContent.trim()) return; // skip empty header cells (delete col)
+    const handle = document.createElement('span');
+    handle.className = 'col-resize';
+    th.appendChild(handle);
+
+    let startX, startW;
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      handle.classList.add('active');
+      startX = e.pageX;
+      startW = th.offsetWidth;
+      const onMove = ev => {
+        th.style.width = Math.max(30, startW + ev.pageX - startX) + 'px';
+      };
+      const onUp = () => {
+        handle.classList.remove('active');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
 function init() {
   // Parse project ID from URL
   const params = new URLSearchParams(window.location.search);
@@ -3008,6 +3038,7 @@ function init() {
 
   $('footerDate').textContent = 'GENERATED ' + new Date().toLocaleDateString('en-US', {month:'short', year:'numeric'}).toUpperCase();
   recalcAll();
+  initColumnResize();
 
   // Check for pending spreadsheet import from projects.html
   if (params.get('pendingImport') && sessionStorage.getItem('pendingImportFile')) {
