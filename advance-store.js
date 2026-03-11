@@ -26,8 +26,8 @@ const AdvanceStore = {
   async listCloud() {
     try {
       const res = (typeof isLoggedIn === 'function' && isLoggedIn())
-        ? await authFetch('/api/advances/list')
-        : await fetch('/api/advances/list');
+        ? await authFetch('/api/advances?action=list')
+        : await fetch('/api/advances?action=list');
       if (res.ok) {
         const cloud = await res.json();
         this._mergeCloudIndex(cloud);
@@ -76,8 +76,8 @@ const AdvanceStore = {
     let data = this.load(id);
     try {
       const res = (typeof isLoggedIn === 'function' && isLoggedIn())
-        ? await authFetch('/api/advances/get?id=' + encodeURIComponent(id))
-        : await fetch('/api/advances/get?id=' + encodeURIComponent(id));
+        ? await authFetch('/api/advances?action=get&id=' + encodeURIComponent(id))
+        : await fetch('/api/advances?action=get&id=' + encodeURIComponent(id));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud && cloud.data) {
@@ -122,7 +122,7 @@ const AdvanceStore = {
   async _syncToCloud(id, fullData, meta) {
     if (typeof isLoggedIn !== 'function' || !isLoggedIn()) return;
     try {
-      await authFetch('/api/advances/save', {
+      await authFetch('/api/advances?action=save', {
         method: 'POST',
         body: JSON.stringify({
           id,
@@ -164,7 +164,7 @@ const AdvanceStore = {
     this._setIndex(index);
 
     if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-      authFetch('/api/advances/delete', {
+      authFetch('/api/advances?action=delete', {
         method: 'POST',
         body: JSON.stringify({ id }),
       }).catch(e => console.warn('Cloud advance delete failed:', e));
