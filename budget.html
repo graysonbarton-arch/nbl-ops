@@ -397,6 +397,7 @@
   <button class="tab" data-tab="schedule" onclick="showTab('schedule',this)" style="display:none">SCHEDULE</button>
   <button class="tab" data-tab="crew" onclick="showTab('crew',this)" style="display:none">CREW</button>
   <button class="tab" data-tab="savings" onclick="showTab('savings',this)" style="display:none">SAVINGS</button>
+  <button class="tab" data-tab="quotes" onclick="showTab('quotes',this)" style="display:none">QUOTES & INVOICES</button>
   <button class="tab-add" onclick="togglePicker(event)" title="Add budget section">+</button>
 </div>
 
@@ -566,6 +567,18 @@
   <button class="add-row-btn" onclick="addLineRow('insurBody',['text','text','num','num'])">+ ADD ROW</button>
 </div>
 
+<!-- ==================== QUOTES & INVOICES ==================== -->
+<div id="quotes" class="tab-panel">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card accent"><div class="kpi-label">QUOTES & INVOICES TOTAL</div><div class="kpi-value" id="kpiQuotes">$0</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">LINE ITEMS</div><div class="kpi-value" id="kpiQuotesCount">0</div></div>
+  </div>
+  <table class="budget-table"><thead><tr><th>DESCRIPTION</th><th>VENDOR</th><th class="r">AMOUNT</th><th>FILE</th><th></th></tr></thead>
+    <tbody id="quotesBody"></tbody>
+  </table>
+  <button class="add-row-btn" onclick="addQuoteRow()">+ ADD ROW</button>
+</div>
+
 <!-- ==================== SPECIAL GUESTS ==================== -->
 <div id="guests" class="tab-panel">
   <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
@@ -630,7 +643,7 @@
 
   <div class="section-header" style="margin-top:32px"><span class="section-number">&#9993;</span><span class="section-title">LINKS &amp; DOCS</span><span class="section-line"></span></div>
   <table class="budget-table" style="margin-bottom:8px">
-    <thead><tr><th>DATE</th><th>LABEL</th><th>TYPE</th><th>URL / LINK</th><th></th></tr></thead>
+    <thead><tr><th>DATE</th><th>LABEL</th><th>VENDOR</th><th>URL / LINK</th><th></th></tr></thead>
     <tbody id="linksBody"></tbody>
   </table>
   <button class="add-row-btn" onclick="addLinkRow()">+ ADD LINK</button>
@@ -1122,18 +1135,84 @@ function addLinkRow() {
   tr.innerHTML = '<td></td><td></td><td></td><td></td>';
   tr.cells[0].appendChild(makeInput('text','','',{placeholder:'MM/DD/YY'}));
   tr.cells[1].appendChild(makeInput('text','','',{placeholder:'Description'}));
-  const sel = document.createElement('select');
-  sel.className = 'editable';
-  sel.style.cssText = 'font-size:11px;width:100%';
-  ['Tech Package','Google Doc','Dropbox','Contract','Invoice','Other'].forEach(opt => {
-    sel.innerHTML += `<option>${opt}</option>`;
-  });
-  tr.cells[2].appendChild(sel);
+  tr.cells[2].appendChild(makeInput('text','','',{placeholder:'Vendor name'}));
   const linkInp = makeInput('text','','',{placeholder:'Paste URL...'});
   linkInp.addEventListener('click', function() { if(this.value) window.open(this.value,'_blank'); });
   linkInp.style.cursor = 'pointer';
   tr.cells[3].appendChild(linkInp);
   tr.appendChild(makeDeleteCell());
+}
+
+function addQuoteRow(data) {
+  const tb = $('quotesBody');
+  const tr = tb.insertRow();
+  tr.innerHTML = '<td></td><td></td><td class="r"></td><td></td>';
+  tr.cells[0].appendChild(makeInput('text', data?.description || '', '', {placeholder:'Description'}));
+  tr.cells[1].appendChild(makeInput('text', data?.vendor || '', '', {placeholder:'Vendor name'}));
+  const amtInp = makeInput('num', data?.amount || '0', 'editable-num');
+  tr.cells[2].appendChild(amtInp);
+  // File upload cell
+  const fileWrap = document.createElement('div');
+  fileWrap.style.cssText = 'display:flex; align-items:center; gap:6px; min-width:120px';
+  const fileLabel = document.createElement('span');
+  fileLabel.className = 'quote-file-label';
+  fileLabel.style.cssText = 'font-size:10px; color:var(--text-dim); letter-spacing:0.5px; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px';
+  fileLabel.textContent = data?.fileName || 'No file';
+  if (data?.fileUrl) {
+    fileLabel.style.color = 'var(--accent)';
+    fileLabel.style.textDecoration = 'underline';
+    fileLabel.title = 'Click to open ' + (data.fileName || 'file');
+    fileLabel.onclick = function() { window.open(data.fileUrl, '_blank'); };
+  }
+  const fileInp = document.createElement('input');
+  fileInp.type = 'file';
+  fileInp.accept = '.pdf,.png,.jpg,.jpeg,.doc,.docx,.xlsx,.csv';
+  fileInp.style.display = 'none';
+  fileInp.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      tr._quoteFileData = ev.target.result;
+      tr._quoteFileName = file.name;
+      fileLabel.textContent = file.name;
+      fileLabel.style.color = 'var(--accent)';
+      fileLabel.style.textDecoration = 'underline';
+      fileLabel.title = file.name;
+      fileLabel.onclick = function() {
+        const a = document.createElement('a');
+        a.href = tr._quoteFileData;
+        a.download = tr._quoteFileName;
+        a.click();
+      };
+      scheduleAutoSave();
+    };
+    reader.readAsDataURL(file);
+  });
+  const uploadBtn = document.createElement('button');
+  uploadBtn.className = 'add-row-btn';
+  uploadBtn.style.cssText = 'margin:0; padding:3px 8px; font-size:9px; min-width:auto';
+  uploadBtn.textContent = 'UPLOAD';
+  uploadBtn.onclick = function() { fileInp.click(); };
+  fileWrap.appendChild(fileLabel);
+  fileWrap.appendChild(fileInp);
+  fileWrap.appendChild(uploadBtn);
+  tr.cells[3].appendChild(fileWrap);
+  // Restore file data if present
+  if (data?.fileData) {
+    tr._quoteFileData = data.fileData;
+    tr._quoteFileName = data.fileName || 'file';
+    fileLabel.style.color = 'var(--accent)';
+    fileLabel.style.textDecoration = 'underline';
+    fileLabel.onclick = function() {
+      const a = document.createElement('a');
+      a.href = tr._quoteFileData;
+      a.download = tr._quoteFileName;
+      a.click();
+    };
+  }
+  tr.appendChild(makeDeleteCell());
+  recalcAll();
 }
 
 function addEmailLogEntry(data) {
@@ -1599,6 +1678,7 @@ const builtInSections = [
   { id:'production', label:'Production',        icon:'🎤', group:'Production & Logistics' },
   { id:'startup',    label:'Start Up & Misc',   icon:'🔧', group:'Production & Logistics' },
   { id:'insurance',  label:'Insurance',         icon:'🛡', group:'Production & Logistics' },
+  { id:'quotes',     label:'Quotes & Invoices', icon:'📄', group:'Production & Logistics' },
   { id:'guests',     label:'Special Guests',    icon:'⭐', group:'Extras' },
   { id:'schedule',   label:'Schedule',          icon:'📅', group:'Extras' },
   { id:'savings',    label:'Savings Ideas',     icon:'💡', group:'Extras' },
@@ -1885,6 +1965,16 @@ function sumSavings() {
   return sum;
 }
 
+function sumQuotes() {
+  const tb = $('quotesBody'); if (!tb) return 0;
+  let sum = 0;
+  for (let r = 0; r < tb.rows.length; r++) {
+    const v = parseFloat(tb.rows[r].cells[2]?.querySelector('input')?.value) || 0;
+    sum += v;
+  }
+  return sum;
+}
+
 function sumGenericSection(prefix, count) {
   let total = 0;
   for (let i = 0; i < count; i++) {
@@ -2035,6 +2125,12 @@ function recalcAll() {
   const insurTotal = sumTableCalc('insurBody', 2, 3, 4);
   $('kpiInsurance').textContent = fmt(insurTotal);
 
+  // Quotes & Invoices
+  const quotesTotal = sumQuotes();
+  $('kpiQuotes').textContent = fmt(quotesTotal);
+  const quotesCountEl = $('kpiQuotesCount');
+  if (quotesCountEl) quotesCountEl.textContent = $('quotesBody') ? $('quotesBody').rows.length : 0;
+
   // Guests
   const guestTotal = sumGuests();
   $('kpiGuests').textContent = fmt(guestTotal);
@@ -2055,6 +2151,7 @@ function recalcAll() {
     { name: 'Special Guests', val: guestTotal },
     { name: 'Trucking & Freight', val: truckA + truckB },
     { name: 'Insurance', val: insurTotal },
+    { name: 'Quotes & Invoices', val: quotesTotal },
   ];
 
   // Custom sections
@@ -2216,8 +2313,7 @@ function getAllData() {
   data.links = [];
   Array.from($('linksBody').rows).forEach(tr => {
     const inputs = tr.querySelectorAll('input');
-    const sel = tr.querySelector('select');
-    data.links.push({ date: inputs[0]?.value||'', label: inputs[1]?.value||'', type: sel?.value||'', url: inputs[2]?.value||'' });
+    data.links.push({ date: inputs[0]?.value||'', label: inputs[1]?.value||'', vendor: inputs[2]?.value||'', url: inputs[3]?.value||'' });
   });
   data.emailLog = [];
   $('emailLogContainer').querySelectorAll('.email-log-card').forEach(card => {
@@ -2229,6 +2325,18 @@ function getAllData() {
       to: inputs[2]?.value || '',
       subject: inputs[3]?.value || '',
       body: ta?.value || ''
+    });
+  });
+  // Quotes & Invoices
+  data.quotes = [];
+  Array.from($('quotesBody').rows).forEach(tr => {
+    const inputs = tr.querySelectorAll('input[type="text"], input[type="number"], input.editable-num');
+    data.quotes.push({
+      description: inputs[0]?.value || '',
+      vendor: inputs[1]?.value || '',
+      amount: inputs[2]?.value || '0',
+      fileName: tr._quoteFileName || '',
+      fileData: tr._quoteFileData || '',
     });
   });
   return data;
@@ -2300,7 +2408,7 @@ function exportToXLSX() {
     'pdBody': 'Per Diems', 'hotelBody': 'Hotel', 'flightBody': 'Airfares',
     'busBody': 'Busses', 'localBody': 'Local Transport',
     'truckABody': 'Trucking', 'truckBBody': 'Internal Moves',
-    'insurBody': 'Insurance', 'savingsBody': 'Savings Ideas', 'crewBody': 'Crew Roster',
+    'insurBody': 'Insurance', 'quotesBody': 'Quotes & Invoices', 'savingsBody': 'Savings Ideas', 'crewBody': 'Crew Roster',
   };
   // Payroll blocks
   payrollBlocks.forEach(function(b) {
@@ -2431,6 +2539,14 @@ const sectionMatchers = [
     map: (row, headers) => {
       const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
       return [get('position','role','title'), get('name'), get('phone','mobile','cell'), get('email','e-mail'), get('status','note')];
+    }
+  },
+  { id: 'quotes', bodyId: 'quotesBody', keywords: ['quote','quotes','invoice','invoices','receipt'],
+    detect: h => h.some(c => /quote|invoice|receipt/i.test(c)),
+    addRow: () => addQuoteRow(),
+    map: (row, headers) => {
+      const get = (...keys) => { const i = headers.findIndex(h => keys.some(k => h.toLowerCase().includes(k))); return i >= 0 ? row[i] : ''; };
+      return [get('description','item','service'), get('vendor','company','from'), get('amount','total','cost','price')];
     }
   },
   { id: 'savings', bodyId: 'savingsBody', keywords: ['saving','savings','cost reduction','optimization'],
@@ -2645,6 +2761,13 @@ const ROW_ROUTES = [
       if (inputs[0]) inputs[0].value = desc;
       if (inputs[2]) inputs[2].value = rate || '0';
       if (inputs[3]) inputs[3].value = qty || '1';
+    }
+  },
+  { test: /quote|invoice|receipt|billing/i, tabId: 'quotes', bodyId: 'quotesBody',
+    addRow: () => addQuoteRow(),
+    fill: (inputs, desc, rate) => {
+      if (inputs[0]) inputs[0].value = desc;
+      if (inputs[2]) inputs[2].value = rate || '0';
     }
   },
   { test: /truck|freight|shipping|cargo|hauling/i, tabId: 'trucking', bodyId: 'truckABody',
@@ -3046,16 +3169,20 @@ function restoreFromData(data) {
       addLinkRow();
       const tr = $('linksBody').rows[$('linksBody').rows.length - 1];
       const inputs = tr.querySelectorAll('input');
-      const sel = tr.querySelector('select');
       if (inputs[0]) inputs[0].value = link.date || '';
       if (inputs[1]) inputs[1].value = link.label || '';
-      if (sel) sel.value = link.type || 'Tech Package';
-      if (inputs[2]) inputs[2].value = link.url || '';
+      if (inputs[2]) inputs[2].value = link.vendor || link.type || '';
+      if (inputs[3]) inputs[3].value = link.url || '';
     });
     // Restore email log
     $('emailLogContainer').innerHTML = '';
     (data.emailLog || []).forEach(entry => {
       addEmailLogEntry(entry);
+    });
+    // Restore quotes & invoices
+    $('quotesBody').innerHTML = '';
+    (data.quotes || []).forEach(q => {
+      addQuoteRow(q);
     });
   } finally {
     _suppressAutoSave = false;
@@ -3087,6 +3214,7 @@ function initBlankForm() {
   for (let i = 0; i < 2; i++) addLineRow('insurBody', ['text','text','num','num']);
   for (let i = 0; i < 5; i++) addCrewRow();
   for (let i = 0; i < 2; i++) addSavingsRow();
+  for (let i = 0; i < 2; i++) addQuoteRow();
   for (let i = 0; i < 4; i++) addGuestCard();
   // Schedule timeline
   const today = new Date();
