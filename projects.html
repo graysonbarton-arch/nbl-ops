@@ -303,20 +303,17 @@ function importAsProject(e) {
 
 // Auth callback — refresh project list when user logs in/out
 function onAuthChanged(user) {
-  if (user) {
-    ProjectStore.listCloud().then(() => renderProjects());
-    ProjectStore.syncAllToCloud();
-  } else {
-    renderProjects();
-  }
+  ProjectStore.listCloud().then(() => renderProjects());
+  if (user) ProjectStore.syncAllToCloud();
 }
 
 // Init
 document.getElementById('footerDate').textContent =
   new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' }).toUpperCase();
 initAuth().then(user => {
-  if (user) ProjectStore.listCloud().then(() => renderProjects());
-  else renderProjects();
+  // Always fetch cloud projects (API works without auth for read-only)
+  ProjectStore.listCloud().then(() => renderProjects());
+  if (user) ProjectStore.syncAllToCloud();
 });
 </script>
 </body>

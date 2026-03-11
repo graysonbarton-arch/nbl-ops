@@ -29,15 +29,16 @@ const ProjectStore = {
 
   /** Async: fetch cloud projects and merge with local */
   async listCloud() {
-    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-      try {
-        const res = await authFetch('/api/budgets/list');
-        if (res.ok) {
-          const cloud = await res.json();
-          this._mergeCloudIndex(cloud);
-        }
-      } catch (e) { console.warn('Cloud list failed, using local:', e); }
-    }
+    try {
+      // Use authFetch if logged in (includes token), plain fetch otherwise
+      const res = (typeof isLoggedIn === 'function' && isLoggedIn())
+        ? await authFetch('/api/budgets/list')
+        : await fetch('/api/budgets/list');
+      if (res.ok) {
+        const cloud = await res.json();
+        this._mergeCloudIndex(cloud);
+      }
+    } catch (e) { console.warn('Cloud list failed, using local:', e); }
     return this.list();
   },
 
@@ -79,23 +80,24 @@ const ProjectStore = {
     } catch { return null; }
   },
 
-  /** Async: try loading from cloud first, fall back to local */
+  /** Async: try loading from cloud, fall back to local */
   async loadCloud(id) {
     // Try local first for speed
     let data = this.load(id);
-    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-      try {
-        const res = await authFetch('/api/budgets/get?id=' + encodeURIComponent(id));
-        if (res.ok) {
-          const cloud = await res.json();
-          if (cloud && cloud.data) {
-            // Save cloud data locally for caching
-            localStorage.setItem('nbl_project_' + id, JSON.stringify(cloud.data));
-            data = cloud.data;
-          }
+    try {
+      // Use authFetch if logged in, plain fetch otherwise
+      const res = (typeof isLoggedIn === 'function' && isLoggedIn())
+        ? await authFetch('/api/budgets/get?id=' + encodeURIComponent(id))
+        : await fetch('/api/budgets/get?id=' + encodeURIComponent(id));
+      if (res.ok) {
+        const cloud = await res.json();
+        if (cloud && cloud.data) {
+          // Save cloud data locally for caching
+          localStorage.setItem('nbl_project_' + id, JSON.stringify(cloud.data));
+          data = cloud.data;
         }
-      } catch (e) { console.warn('Cloud load failed, using local:', e); }
-    }
+      }
+    } catch (e) { console.warn('Cloud load failed, using local:', e); }
     return data;
   },
 

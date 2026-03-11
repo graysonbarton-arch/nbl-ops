@@ -3155,12 +3155,27 @@ function init() {
     _suppressAutoSave = true; // keep suppressed permanently
     document.getElementById('exampleBanner').style.display = '';
   } else {
-    // Try loading saved project data
-    const savedData = ProjectStore.load(id);
-    if (savedData) {
-      restoreFromData(savedData);
+    // Try loading saved project data (local first, then cloud)
+    const localData = ProjectStore.load(id);
+    if (localData) {
+      restoreFromData(localData);
+      // Also try refreshing from cloud in background
+      ProjectStore.loadCloud(id).then(cloudData => {
+        if (cloudData && JSON.stringify(cloudData) !== JSON.stringify(localData)) {
+          restoreFromData(cloudData);
+          recalcAll();
+        }
+      });
     } else {
-      initBlankForm();
+      // No local data — try cloud (needed for users who haven't seen this project before)
+      ProjectStore.loadCloud(id).then(cloudData => {
+        if (cloudData) {
+          restoreFromData(cloudData);
+          recalcAll();
+        } else {
+          initBlankForm();
+        }
+      });
     }
   }
 

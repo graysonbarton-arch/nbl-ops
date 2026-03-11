@@ -3,8 +3,8 @@ import { getServiceClient, getUser } from '../../lib/supabase.js';
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Auth is optional — anyone can view the project list
   const auth = await getUser(req);
-  if (!auth) return res.status(401).json({ error: 'Not authenticated' });
 
   try {
     const supabase = getServiceClient();
