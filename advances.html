@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nappy Boy Live — Production Advances</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="save-indicator.js"></script>
+<script src="toast.js"></script>
+<script src="advance-store.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+  .hero { padding:48px 40px 24px; text-align:center; }
+  .hero-title { font-family:var(--font-display); font-size:72px; letter-spacing:4px; line-height:1; margin-bottom:4px; }
+  .hero-subtitle { font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--muted); }
+
+  .action-bar { display:flex; justify-content:center; gap:12px; padding:0 40px 32px; }
+  .action-btn {
+    padding:10px 28px; font-family:var(--font-body); font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; cursor:pointer; border:1px solid var(--border);
+    background:var(--surface); color:var(--text-dim); transition:all .2s;
+  }
+  .action-btn:hover { border-color:var(--accent); color:var(--text); }
+  .action-btn.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:500; }
+  .action-btn.primary:hover { background:#d4c490; }
+
+  .advance-grid {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
+    gap:16px; padding:0 40px 48px;
+  }
+
+  .advance-card {
+    background:var(--surface); border:1px solid var(--border); padding:20px;
+    cursor:pointer; transition:border-color .2s, transform .1s; position:relative; overflow:hidden;
+  }
+  .advance-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .advance-card::before {
+    content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:var(--muted);
+  }
+  .advance-card[data-status="not-started"]::before { background:var(--muted); }
+  .advance-card[data-status="in-progress"]::before { background:var(--blue); }
+  .advance-card[data-status="complete"]::before { background:var(--green); }
+
+  .card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+  .card-venue { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); }
+  .card-delete {
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px;
+    padding:0 4px; opacity:0; transition:opacity .15s, color .15s; line-height:1;
+  }
+  .advance-card:hover .card-delete { opacity:1; }
+  .card-delete:hover { color:var(--red); }
+
+  .card-title { font-family:var(--font-display); font-size:28px; letter-spacing:2px; line-height:1.1; margin-bottom:10px; }
+
+  .card-meta { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .card-meta span { font-size:10px; color:var(--text-dim); letter-spacing:1px; }
+
+  .badge {
+    font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:2px 8px;
+    border:1px solid var(--border); color:var(--text-dim);
+  }
+  .badge-not-started { border-color:var(--muted); color:var(--muted); }
+  .badge-in-progress { border-color:var(--blue); color:var(--blue); }
+  .badge-complete { border-color:var(--green); color:var(--green); }
+
+  .card-footer { display:flex; justify-content:space-between; align-items:baseline; border-top:1px solid var(--border); padding-top:10px; }
+  .card-linked { font-size:9px; color:var(--orange); letter-spacing:1px; }
+  .card-modified { font-size:9px; color:var(--muted); letter-spacing:1px; }
+
+  .empty-state {
+    grid-column:1/-1; text-align:center; padding:80px 20px;
+    color:var(--muted); font-size:13px; letter-spacing:1px;
+  }
+  .empty-state-icon { font-size:48px; margin-bottom:16px; opacity:.4; }
+
+  #importFile { display:none; }
+
+  @media (max-width:768px) {
+    .hero-title { font-size:48px; }
+    .advance-grid { grid-template-columns:1fr; padding:0 16px 32px; }
+    .action-bar { padding:0 16px 24px; }
+    .hero { padding:32px 16px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ticker">
+  <div class="ticker-inner">
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; PRODUCTION ADVANCES &nbsp;&bull;&nbsp; SHOW MANAGEMENT &nbsp;&bull;&nbsp; PRE-PRODUCTION &nbsp;&bull;&nbsp;
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; PRODUCTION ADVANCES &nbsp;&bull;&nbsp; SHOW MANAGEMENT &nbsp;&bull;&nbsp; PRE-PRODUCTION &nbsp;&bull;&nbsp;
+  </div>
+</div>
+
+<nav class="nav" id="main-nav"></nav>
+
+<div class="hero">
+  <div class="hero-title">NAPPY BOY LIVE</div>
+  <div class="hero-subtitle">PRODUCTION ADVANCES</div>
+</div>
+
+<div class="action-bar">
+  <button class="action-btn primary" onclick="newAdvance()">+ NEW ADVANCE</button>
+  <button class="action-btn" onclick="document.getElementById('importFile').click()">IMPORT XLSX</button>
+  <input type="file" id="importFile" accept=".xlsx,.xls" onchange="importAdvanceXLSX(event)">
+</div>
+
+<div class="advance-grid" id="advanceGrid"></div>
+
+<div class="footer">
+  <span>NAPPY BOY LIVE &mdash; PRODUCTION ADVANCES</span>
+  <span id="advanceCount"></span>
+  <span id="footerDate"></span>
+</div>
+
+<script>
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  return Math.floor(days / 30) + 'mo ago';
+}
+
+function statusSlug(status) {
+  return (status || 'not-started').toLowerCase().replace(/[^a-z0-9]/g, '-');
+}
+
+function fmtDate(d) {
+  if (!d) return 'TBD';
+  try {
+    return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }).toUpperCase();
+  } catch { return d; }
+}
+
+function renderAdvances() {
+  const advances = AdvanceStore.list();
+  const grid = document.getElementById('advanceGrid');
+  const counter = document.getElementById('advanceCount');
+  counter.textContent = advances.length + ' ADVANCE' + (advances.length !== 1 ? 'S' : '');
+
+  if (advances.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <div>No advances yet.<br>Click <strong>+ NEW ADVANCE</strong> or <strong>IMPORT XLSX</strong> to get started.</div>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = advances.map(a => {
+    const slug = statusSlug(a.status);
+    return `
+      <div class="advance-card" data-status="${slug}" onclick="openAdvance('${escHtml(a.id)}')">
+        <div class="card-header">
+          <span class="card-venue">${escHtml(a.venue || 'NO VENUE')}</span>
+          <button class="card-delete" onclick="event.stopPropagation(); deleteAdvance('${escHtml(a.id)}')" title="Delete advance">&times;</button>
+        </div>
+        <div class="card-title">${escHtml(a.showName || 'UNTITLED SHOW')}</div>
+        <div class="card-meta">
+          <span>${fmtDate(a.date)}</span>
+          <span class="badge badge-${slug}">${escHtml(a.status || 'Not Started')}</span>
+        </div>
+        <div class="card-footer">
+          <span class="card-linked">${a.linkedProjectId ? '🔗 LINKED' : ''}</span>
+          <span class="card-modified">${timeAgo(a.lastModified)}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openAdvance(id) {
+  window.location.href = 'advance.html?id=' + encodeURIComponent(id);
+}
+
+function newAdvance() {
+  const id = AdvanceStore.create();
+  window.location.href = 'advance.html?id=' + encodeURIComponent(id);
+}
+
+function deleteAdvance(id) {
+  const adv = AdvanceStore.list().find(a => a.id === id);
+  if (!confirm('Delete "' + (adv?.showName || 'this advance') + '"?\nThis cannot be undone.')) return;
+  AdvanceStore.delete(id);
+  renderAdvances();
+}
+
+// ── XLSX Import ──
+function parseAdvanceSheet(ws) {
+  const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+  const data = { meta:{}, contacts:[], schedule:[], crew:[], notes:'', links:[] };
+  let section = 'general';
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const c0 = String(r[0]||'').trim();
+    const c1 = String(r[1]||'').trim();
+    const c2 = String(r[2]||'').trim();
+    const c3 = String(r[3]||'').trim();
+
+    // Skip empty rows
+    if (!c0 && !c1 && !c2 && !c3) continue;
+
+    // Detect section headers
+    if (/^GENERAL\s+INFO/i.test(c0)) { section = 'general'; continue; }
+    if (/^SCHEDULE|^RUN\s+OF\s+SHOW|SCHEDULE\s*\/\s*ROS/i.test(c0)) { section = 'schedule'; continue; }
+    if (/^PRODUCTION\s+NOTES/i.test(c0)) { section = 'notes'; continue; }
+    if (/^CREW\s+FOR\s+SHOW/i.test(c0)) { section = 'crew'; continue; }
+    if (/^ADVANCE\s+INFO\s+LINKS/i.test(c0)) { section = 'links'; continue; }
+    if (/^PRODUCTION\s+ADVANCE$/i.test(c0)) {
+      // Check for status in column D
+      if (/STATUS/i.test(c3)) data.meta.status = c3.replace(/^ADVANCE\s+STATUS\?\s*/i, '').trim();
+      continue;
+    }
+
+    // General Info
+    if (section === 'general') {
+      if (/^Show:/i.test(c0)) {
+        data.meta.showName = c1 + (c2 ? ' — ' + c2 : '');
+      } else if (/^Venue:/i.test(c0)) {
+        data.meta.venue = c1;
+        if (c2) data.meta.venueAddress = c2;
+      } else if (/^Date:/i.test(c0)) {
+        const rawD = r[1];
+        if (rawD) {
+          try {
+            // Handle Excel serial date numbers (raw number from sheet)
+            if (typeof rawD === 'number' && rawD > 1000 && rawD < 100000) {
+              const dt = new Date(Date.UTC(1899, 11, 30) + rawD * 86400000);
+              data.meta.date = dt.toISOString().slice(0,10);
+            } else {
+              const dt = new Date(String(rawD));
+              if (!isNaN(dt)) data.meta.date = dt.toISOString().slice(0,10);
+            }
+          } catch {}
+        }
+      } else if (/PM\s*Contact/i.test(c0)) {
+        section = 'contacts';
+        if (c1) data.contacts.push({ role:'PM Contact', name:c1, email:c2||'', phone:c3||'' });
+      } else if (/Other\s*Contact/i.test(c0)) {
+        section = 'contacts';
+      }
+    }
+    // Contacts
+    else if (section === 'contacts') {
+      if (c1 && (c2 || c3)) {
+        // Detect if c2 is email or phone
+        const isEmail = /@/.test(c2);
+        const isPhone = /^\d[\d\s\-\(\)]+$/.test(c2);
+        if (isEmail) {
+          data.contacts.push({ role:c0||'', name:c1, email:c2, phone:c3||'' });
+        } else if (isPhone) {
+          data.contacts.push({ role:c0||'', name:c1, email:c3||'', phone:c2 });
+        } else {
+          data.contacts.push({ role:c0||'', name:c1, email:c2||'', phone:c3||'' });
+        }
+      }
+    }
+    // Schedule
+    else if (section === 'schedule') {
+      if (c0 && c1) {
+        let timeStr = c1;
+        // Convert Excel time serial or HH:MM:SS to HH:MM
+        if (typeof r[1] === 'number' && r[1] < 1) {
+          const totalMin = Math.round(r[1] * 24 * 60);
+          const h = Math.floor(totalMin / 60);
+          const m = totalMin % 60;
+          timeStr = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+        } else if (/^\d{1,2}:\d{2}/.test(timeStr)) {
+          timeStr = timeStr.slice(0, 5);
+        }
+        data.schedule.push({ label:c0, time:timeStr, day:c2||'', notes:c3||'' });
+      }
+    }
+    // Crew
+    else if (section === 'crew') {
+      if (c0 && c1) {
+        data.crew.push({ role:c0, name:c1 });
+      }
+    }
+    // Notes
+    else if (section === 'notes') {
+      if (c0 || c1) {
+        data.notes += (data.notes ? '\n' : '') + [c0,c1,c2,c3].filter(Boolean).join(' — ');
+      }
+    }
+    // Links
+    else if (section === 'links') {
+      const url = [c0,c1,c2,c3].find(v => /^https?:\/\//i.test(v));
+      if (url) {
+        data.links.push({ label:'Advance Link', url: url });
+      }
+    }
+  }
+
+  // Auto-detect status from first row if not found
+  if (!data.meta.status) data.meta.status = 'Not Started';
+  else {
+    // Normalize status
+    const s = data.meta.status.toLowerCase();
+    if (s.includes('progress')) data.meta.status = 'In Progress';
+    else if (s.includes('complete') || s.includes('done')) data.meta.status = 'Complete';
+    else data.meta.status = 'Not Started';
+  }
+
+  return data;
+}
+
+function importAdvanceXLSX(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const wb = XLSX.read(ev.target.result, { type:'array' });
+      let imported = 0;
+
+      wb.SheetNames.forEach(sheetName => {
+        const ws = wb.Sheets[sheetName];
+        const parsed = parseAdvanceSheet(ws);
+
+        // Skip sheets that don't look like advances
+        if (!parsed.meta.showName && !parsed.meta.venue && parsed.crew.length === 0) return;
+
+        const id = AdvanceStore.create();
+        const meta = {
+          showName: parsed.meta.showName || sheetName,
+          venue: parsed.meta.venue || '',
+          date: parsed.meta.date || '',
+          status: parsed.meta.status || 'Not Started',
+          linkedProjectId: '',
+        };
+        AdvanceStore.save(id, parsed, meta);
+        imported++;
+      });
+
+      if (imported > 0) {
+        Toast.show(imported + ' advance' + (imported > 1 ? 's' : '') + ' imported', 'success');
+        renderAdvances();
+      } else {
+        Toast.show('No valid advance sheets found in file', 'warning');
+      }
+    } catch (err) {
+      alert('Error importing file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+// Auth callback
+function onAuthChanged(user) {
+  AdvanceStore.listCloud().then(() => renderAdvances());
+  if (user) AdvanceStore.syncAllToCloud();
+}
+
+// Init
+document.getElementById('footerDate').textContent =
+  new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' }).toUpperCase();
+initAuth().then(user => {
+  AdvanceStore.listCloud().then(() => renderAdvances());
+  if (user) AdvanceStore.syncAllToCloud();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nappy Boy Live — Production Advance</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="save-indicator.js"></script>
+<script src="toast.js"></script>
+<script src="advance-store.js"></script>
+<script src="project-store.js"></script>
+<style>
+  .back-link {
+    display:inline-block; padding:12px 40px; font-size:10px; letter-spacing:2px;
+    color:var(--muted); text-decoration:none; transition:color .2s;
+  }
+  .back-link:hover { color:var(--accent); }
+
+  .advance-hero { padding:12px 40px 24px; }
+  .advance-hero input {
+    display:block; width:100%; background:none; border:none; color:var(--text);
+    font-family:var(--font-display); outline:none;
+  }
+  .advance-hero .show-name { font-size:56px; letter-spacing:3px; line-height:1; }
+  .advance-hero .venue-name { font-size:24px; letter-spacing:2px; color:var(--accent); margin-top:4px; }
+
+  .meta-bar {
+    display:flex; flex-wrap:wrap; gap:20px; padding:0 40px 24px; align-items:center;
+  }
+  .meta-item { display:flex; flex-direction:column; gap:2px; }
+  .meta-label { font-size:9px; letter-spacing:2px; color:var(--muted); }
+  .meta-input {
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    font-family:var(--font-body); font-size:12px; padding:6px 10px; letter-spacing:1px;
+  }
+  .meta-input:focus { border-color:var(--accent); outline:none; }
+  select.meta-input { cursor:pointer; }
+
+  .content { padding:0 40px 48px; max-width:1100px; }
+
+  .section {
+    margin-bottom:24px; border:1px solid var(--border); background:var(--surface); overflow:hidden;
+  }
+  .section-head {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 20px; cursor:pointer; user-select:none; transition:background .15s;
+  }
+  .section-head:hover { background:var(--surface-2); }
+  .section-head-title {
+    font-family:var(--font-body); font-size:11px; letter-spacing:3px;
+    text-transform:uppercase; color:var(--text);
+  }
+  .section-head-count { font-size:10px; color:var(--muted); letter-spacing:1px; }
+  .section-head-arrow { font-size:12px; color:var(--muted); transition:transform .2s; }
+  .section.collapsed .section-body { display:none; }
+  .section.collapsed .section-head-arrow { transform:rotate(-90deg); }
+
+  .section-body { padding:16px 20px; border-top:1px solid var(--border); }
+
+  .adv-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .adv-table th {
+    text-align:left; font-size:9px; letter-spacing:2px; color:var(--muted);
+    padding:6px 8px; border-bottom:1px solid var(--border); font-weight:400;
+  }
+  .adv-table td { padding:4px 8px; vertical-align:middle; }
+  .adv-table input, .adv-table select {
+    width:100%; background:none; border:1px solid transparent; color:var(--text);
+    font-family:var(--font-body); font-size:12px; padding:5px 6px; transition:border-color .15s;
+  }
+  .adv-table input:focus, .adv-table select:focus {
+    border-color:var(--border); outline:none; background:var(--surface-2);
+  }
+  .adv-table input::placeholder { color:var(--muted); font-size:11px; }
+  .del-btn {
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px;
+    opacity:0; transition:opacity .15s, color .15s; padding:0 4px;
+  }
+  tr:hover .del-btn { opacity:1; }
+  .del-btn:hover { color:var(--red); }
+
+  .add-btn {
+    display:inline-block; margin-top:10px; padding:6px 16px;
+    font-family:var(--font-body); font-size:10px; letter-spacing:2px;
+    background:none; border:1px solid var(--border); color:var(--text-dim);
+    cursor:pointer; transition:all .15s;
+  }
+  .add-btn:hover { border-color:var(--accent); color:var(--text); }
+
+  .notes-area {
+    width:100%; min-height:140px; background:none; border:1px solid var(--border);
+    color:var(--text); font-family:var(--font-body); font-size:12px;
+    padding:12px; resize:vertical; line-height:1.7;
+  }
+  .notes-area:focus { border-color:var(--accent); outline:none; }
+
+  .sync-bar {
+    display:flex; gap:10px; padding:0 40px 24px; flex-wrap:wrap; align-items:center;
+  }
+  .sync-btn {
+    padding:8px 20px; font-family:var(--font-body); font-size:10px; letter-spacing:2px;
+    cursor:pointer; border:1px solid var(--orange); color:var(--orange); background:none;
+    transition:all .15s;
+  }
+  .sync-btn:hover { background:var(--orange); color:var(--bg); }
+  .sync-label { font-size:10px; color:var(--muted); letter-spacing:1px; }
+
+  @media (max-width:768px) {
+    .advance-hero { padding:12px 16px 20px; }
+    .advance-hero .show-name { font-size:36px; }
+    .advance-hero .venue-name { font-size:18px; }
+    .meta-bar { padding:0 16px 20px; }
+    .content { padding:0 16px 32px; }
+    .sync-bar { padding:0 16px 20px; }
+    .back-link { padding:12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ticker">
+  <div class="ticker-inner">
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; PRODUCTION ADVANCE &nbsp;&bull;&nbsp; SHOW DETAILS &nbsp;&bull;&nbsp;
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; PRODUCTION ADVANCE &nbsp;&bull;&nbsp; SHOW DETAILS &nbsp;&bull;&nbsp;
+  </div>
+</div>
+
+<nav class="nav" id="main-nav"></nav>
+
+<a href="advances.html" class="back-link">&larr; BACK TO ADVANCES</a>
+
+<div class="advance-hero">
+  <input class="show-name" id="showName" placeholder="SHOW NAME" value="">
+  <input class="venue-name" id="venueName" placeholder="VENUE NAME" value="">
+</div>
+
+<div class="meta-bar">
+  <div class="meta-item">
+    <span class="meta-label">VENUE ADDRESS</span>
+    <input class="meta-input" id="venueAddress" placeholder="123 Main St, City, ST" style="width:280px">
+  </div>
+  <div class="meta-item">
+    <span class="meta-label">SHOW DATE</span>
+    <input type="date" class="meta-input" id="showDate">
+  </div>
+  <div class="meta-item">
+    <span class="meta-label">ADVANCE STATUS</span>
+    <select class="meta-input" id="advanceStatus">
+      <option>Not Started</option>
+      <option>In Progress</option>
+      <option>Complete</option>
+    </select>
+  </div>
+  <div class="meta-item">
+    <span class="meta-label">LINKED BUDGET PROJECT</span>
+    <select class="meta-input" id="linkedProject" style="min-width:200px">
+      <option value="">— None —</option>
+    </select>
+  </div>
+</div>
+
+<div class="sync-bar" id="syncBar" style="display:none">
+  <button class="sync-btn" onclick="syncToBudget()">⬆ SYNC TO BUDGET</button>
+  <button class="sync-btn" onclick="pullFromBudget()">⬇ PULL FROM BUDGET</button>
+  <span class="sync-label" id="syncLabel"></span>
+</div>
+
+<div class="content">
+
+<!-- CONTACTS -->
+<div class="section" id="sec-contacts">
+  <div class="section-head" onclick="toggleSection('sec-contacts')">
+    <span class="section-head-title">CONTACTS</span>
+    <span><span class="section-head-count" id="countContacts">0</span> &nbsp;<span class="section-head-arrow">▼</span></span>
+  </div>
+  <div class="section-body">
+    <table class="adv-table">
+      <thead><tr><th>ROLE</th><th>NAME</th><th>EMAIL</th><th>PHONE</th><th></th></tr></thead>
+      <tbody id="contactsBody"></tbody>
+    </table>
+    <button class="add-btn" onclick="addContactRow()">+ ADD CONTACT</button>
+  </div>
+</div>
+
+<!-- SCHEDULE / RUN OF SHOW -->
+<div class="section" id="sec-schedule">
+  <div class="section-head" onclick="toggleSection('sec-schedule')">
+    <span class="section-head-title">SCHEDULE / RUN OF SHOW</span>
+    <span><span class="section-head-count" id="countSchedule">0</span> &nbsp;<span class="section-head-arrow">▼</span></span>
+  </div>
+  <div class="section-body">
+    <table class="adv-table">
+      <thead><tr><th>ITEM</th><th style="width:100px">TIME</th><th>DAY</th><th>NOTES</th><th></th></tr></thead>
+      <tbody id="scheduleBody"></tbody>
+    </table>
+    <button class="add-btn" onclick="addScheduleRow()">+ ADD ITEM</button>
+  </div>
+</div>
+
+<!-- PRODUCTION NOTES -->
+<div class="section" id="sec-notes">
+  <div class="section-head" onclick="toggleSection('sec-notes')">
+    <span class="section-head-title">PRODUCTION NOTES</span>
+    <span class="section-head-arrow">▼</span>
+  </div>
+  <div class="section-body">
+    <textarea class="notes-area" id="prodNotes" placeholder="Flight info, special requirements, logistics notes..."></textarea>
+  </div>
+</div>
+
+<!-- CREW -->
+<div class="section" id="sec-crew">
+  <div class="section-head" onclick="toggleSection('sec-crew')">
+    <span class="section-head-title">CREW FOR SHOW</span>
+    <span><span class="section-head-count" id="countCrew">0</span> &nbsp;<span class="section-head-arrow">▼</span></span>
+  </div>
+  <div class="section-body">
+    <table class="adv-table">
+      <thead><tr><th>ROLE</th><th>NAME</th><th></th></tr></thead>
+      <tbody id="crewBody"></tbody>
+    </table>
+    <button class="add-btn" onclick="addCrewRow()">+ ADD CREW</button>
+  </div>
+</div>
+
+<!-- ADVANCE INFO LINKS -->
+<div class="section" id="sec-links">
+  <div class="section-head" onclick="toggleSection('sec-links')">
+    <span class="section-head-title">ADVANCE INFO LINKS</span>
+    <span><span class="section-head-count" id="countLinks">0</span> &nbsp;<span class="section-head-arrow">▼</span></span>
+  </div>
+  <div class="section-body">
+    <table class="adv-table">
+      <thead><tr><th>LABEL</th><th>URL</th><th></th></tr></thead>
+      <tbody id="linksBody"></tbody>
+    </table>
+    <button class="add-btn" onclick="addLinkRow()">+ ADD LINK</button>
+  </div>
+</div>
+
+</div><!-- .content -->
+
+<div class="footer">
+  <span>NAPPY BOY LIVE &mdash; PRODUCTION ADVANCE</span>
+  <span>ALL FIELDS AUTO-SAVE</span>
+  <span id="footerDate"></span>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let currentAdvanceId = null;
+let _saveTimer = null;
+let _suppressAutoSave = false;
+
+function scheduleAutoSave() {
+  if (!currentAdvanceId || _suppressAutoSave) return;
+  if (typeof SaveIndicator !== 'undefined') SaveIndicator.unsaved();
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(autoSave, 1000);
+}
+
+function autoSave() {
+  if (!currentAdvanceId || _suppressAutoSave) return;
+  if (typeof SaveIndicator !== 'undefined') SaveIndicator.saving();
+  const data = getAllData();
+  const meta = {
+    showName: $('showName').value || 'UNTITLED SHOW',
+    venue: $('venueName').value || '',
+    date: $('showDate').value || '',
+    status: $('advanceStatus').value || 'Not Started',
+    linkedProjectId: $('linkedProject').value || '',
+  };
+  AdvanceStore.save(currentAdvanceId, data, meta);
+  if (typeof SaveIndicator !== 'undefined') SaveIndicator.saved();
+}
+
+// Listen for changes on all inputs
+document.addEventListener('input', scheduleAutoSave);
+document.addEventListener('change', scheduleAutoSave);
+
+window.addEventListener('beforeunload', () => {
+  if (currentAdvanceId && !_suppressAutoSave) autoSave();
+});
+
+// ── Collapsible Sections ──
+function toggleSection(id) {
+  $(id).classList.toggle('collapsed');
+}
+
+// ── Row Builders ──
+function makeDelBtn(tr) {
+  const btn = document.createElement('button');
+  btn.className = 'del-btn';
+  btn.innerHTML = '&times;';
+  btn.onclick = () => { tr.remove(); updateCounts(); scheduleAutoSave(); };
+  return btn;
+}
+
+function addContactRow(data) {
+  const tr = $('contactsBody').insertRow();
+  tr.innerHTML = '<td></td><td></td><td></td><td></td><td></td>';
+  const fields = [
+    { ph:'Role', val:data?.role },
+    { ph:'Name', val:data?.name },
+    { ph:'Email', val:data?.email },
+    { ph:'Phone', val:data?.phone },
+  ];
+  fields.forEach((f, i) => {
+    const inp = document.createElement('input');
+    inp.placeholder = f.ph;
+    inp.value = f.val || '';
+    tr.cells[i].appendChild(inp);
+  });
+  tr.cells[4].appendChild(makeDelBtn(tr));
+  updateCounts();
+}
+
+function addScheduleRow(data) {
+  const tr = $('scheduleBody').insertRow();
+  tr.innerHTML = '<td></td><td></td><td></td><td></td><td></td>';
+  const fields = [
+    { ph:'Load In, Soundcheck, Doors, Set...', val:data?.label, type:'text' },
+    { ph:'', val:data?.time, type:'time' },
+    { ph:'Day / Date', val:data?.day, type:'text' },
+    { ph:'Notes', val:data?.notes, type:'text' },
+  ];
+  fields.forEach((f, i) => {
+    const inp = document.createElement('input');
+    if (f.type === 'time') inp.type = 'time';
+    inp.placeholder = f.ph;
+    inp.value = f.val || '';
+    tr.cells[i].appendChild(inp);
+  });
+  tr.cells[4].appendChild(makeDelBtn(tr));
+  updateCounts();
+}
+
+function addCrewRow(data) {
+  const tr = $('crewBody').insertRow();
+  tr.innerHTML = '<td></td><td></td><td></td>';
+  const fields = [
+    { ph:'PM, Audio, Lighting, VJ...', val:data?.role },
+    { ph:'Name', val:data?.name },
+  ];
+  fields.forEach((f, i) => {
+    const inp = document.createElement('input');
+    inp.placeholder = f.ph;
+    inp.value = f.val || '';
+    tr.cells[i].appendChild(inp);
+  });
+  tr.cells[2].appendChild(makeDelBtn(tr));
+  updateCounts();
+}
+
+function addLinkRow(data) {
+  const tr = $('linksBody').insertRow();
+  tr.innerHTML = '<td></td><td></td><td></td>';
+  const labelInp = document.createElement('input');
+  labelInp.placeholder = 'Tech Package, Stage Plot...';
+  labelInp.value = data?.label || '';
+  tr.cells[0].appendChild(labelInp);
+
+  const urlInp = document.createElement('input');
+  urlInp.placeholder = 'https://...';
+  urlInp.value = data?.url || '';
+  urlInp.style.cursor = 'pointer';
+  urlInp.addEventListener('click', function() { if (this.value && /^https?:\/\//i.test(this.value)) window.open(this.value, '_blank'); });
+  tr.cells[1].appendChild(urlInp);
+
+  tr.cells[2].appendChild(makeDelBtn(tr));
+  updateCounts();
+}
+
+function updateCounts() {
+  $('countContacts').textContent = $('contactsBody').rows.length;
+  $('countSchedule').textContent = $('scheduleBody').rows.length;
+  $('countCrew').textContent = $('crewBody').rows.length;
+  $('countLinks').textContent = $('linksBody').rows.length;
+}
+
+// ── Data Gather / Restore ──
+function getAllData() {
+  const data = { meta:{}, contacts:[], schedule:[], crew:[], notes:'', links:[] };
+  data.meta = {
+    showName: $('showName').value,
+    venue: $('venueName').value,
+    venueAddress: $('venueAddress').value,
+    date: $('showDate').value,
+    status: $('advanceStatus').value,
+    linkedProjectId: $('linkedProject').value,
+  };
+  Array.from($('contactsBody').rows).forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    data.contacts.push({ role:inputs[0]?.value||'', name:inputs[1]?.value||'', email:inputs[2]?.value||'', phone:inputs[3]?.value||'' });
+  });
+  Array.from($('scheduleBody').rows).forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    data.schedule.push({ label:inputs[0]?.value||'', time:inputs[1]?.value||'', day:inputs[2]?.value||'', notes:inputs[3]?.value||'' });
+  });
+  Array.from($('crewBody').rows).forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    data.crew.push({ role:inputs[0]?.value||'', name:inputs[1]?.value||'' });
+  });
+  data.notes = $('prodNotes').value;
+  Array.from($('linksBody').rows).forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    data.links.push({ label:inputs[0]?.value||'', url:inputs[1]?.value||'' });
+  });
+  return data;
+}
+
+function restoreFromData(data) {
+  _suppressAutoSave = true;
+  try {
+    $('showName').value = data.meta?.showName || '';
+    $('venueName').value = data.meta?.venue || '';
+    $('venueAddress').value = data.meta?.venueAddress || '';
+    $('showDate').value = data.meta?.date || '';
+    $('advanceStatus').value = data.meta?.status || 'Not Started';
+    if (data.meta?.linkedProjectId) $('linkedProject').value = data.meta.linkedProjectId;
+
+    $('contactsBody').innerHTML = '';
+    (data.contacts || []).forEach(c => addContactRow(c));
+
+    $('scheduleBody').innerHTML = '';
+    (data.schedule || []).forEach(s => addScheduleRow(s));
+
+    $('crewBody').innerHTML = '';
+    (data.crew || []).forEach(c => addCrewRow(c));
+
+    $('prodNotes').value = data.notes || '';
+
+    $('linksBody').innerHTML = '';
+    (data.links || []).forEach(l => addLinkRow(l));
+
+    updateCounts();
+    updateSyncBar();
+  } finally {
+    _suppressAutoSave = false;
+  }
+}
+
+function initBlankForm() {
+  // Default crew roles
+  ['PM','Audio','Lighting','Monitor Engineer','VJ','DJ'].forEach(role => addCrewRow({ role, name:'' }));
+  // Default schedule items
+  ['Load In','Soundcheck','Doors','Set Time'].forEach(label => addScheduleRow({ label, time:'', day:'', notes:'' }));
+  // Default contact
+  addContactRow({ role:'PM Contact', name:'', email:'', phone:'' });
+  // Default link
+  addLinkRow();
+  updateCounts();
+}
+
+// ── Linked Project Dropdown ──
+function populateProjectDropdown() {
+  const sel = $('linkedProject');
+  const currentVal = sel.value;
+  const projects = typeof ProjectStore !== 'undefined' ? ProjectStore.list() : [];
+  sel.innerHTML = '<option value="">— None —</option>';
+  projects.forEach(p => {
+    sel.innerHTML += `<option value="${p.id}">${p.artist ? p.artist + ' — ' : ''}${p.title || 'Untitled'}</option>`;
+  });
+  if (currentVal) sel.value = currentVal;
+}
+
+// Show/hide sync bar when linked project changes
+$('linkedProject').addEventListener('change', updateSyncBar);
+
+function updateSyncBar() {
+  const linked = $('linkedProject').value;
+  $('syncBar').style.display = linked ? 'flex' : 'none';
+  if (linked) {
+    const projects = ProjectStore.list();
+    const p = projects.find(x => x.id === linked);
+    $('syncLabel').textContent = p ? 'Linked to: ' + (p.title || 'Untitled') : '';
+  }
+}
+
+// ── SYNC TO BUDGET ──
+function syncToBudget() {
+  const linkedId = $('linkedProject').value;
+  if (!linkedId) return;
+
+  const projData = ProjectStore.load(linkedId);
+  if (!projData) {
+    Toast.show('Could not load linked budget project', 'error');
+    return;
+  }
+
+  const advData = getAllData();
+  let cCount = 0, crCount = 0, lCount = 0;
+
+  // Merge contacts
+  if (!projData.contacts) projData.contacts = [];
+  advData.contacts.forEach(ac => {
+    if (!ac.name) return;
+    const exists = projData.contacts.some(pc => {
+      const pcName = (Array.isArray(pc) ? pc[1] : pc.name) || '';
+      return pcName.toLowerCase() === ac.name.toLowerCase();
+    });
+    if (!exists) {
+      projData.contacts.push([ac.role, ac.name, ac.phone, ac.email]);
+      cCount++;
+    }
+  });
+
+  // Merge crew
+  if (!projData.tables) projData.tables = {};
+  if (!projData.tables.crewBody) projData.tables.crewBody = [];
+  advData.crew.forEach(ac => {
+    if (!ac.name) return;
+    const exists = projData.tables.crewBody.some(row => {
+      return (row[1] || '').toLowerCase() === ac.name.toLowerCase();
+    });
+    if (!exists) {
+      projData.tables.crewBody.push([ac.role, ac.name, '', '', '']);
+      crCount++;
+    }
+  });
+
+  // Merge links
+  if (!projData.links) projData.links = [];
+  advData.links.forEach(al => {
+    if (!al.url) return;
+    const exists = projData.links.some(pl => pl.url === al.url);
+    if (!exists) {
+      projData.links.push({ date:'', label:al.label, vendor:'', url:al.url });
+      lCount++;
+    }
+  });
+
+  // Append notes
+  if (advData.notes && advData.notes.trim()) {
+    const marker = '--- ADVANCE NOTES ---';
+    if (!projData.notes) projData.notes = '';
+    if (!projData.notes.includes(marker)) {
+      projData.notes += (projData.notes ? '\n\n' : '') + marker + '\n' + advData.notes;
+    }
+  }
+
+  // Save back to budget project
+  const idx = ProjectStore.list().find(p => p.id === linkedId);
+  ProjectStore.save(linkedId, projData, {
+    title: idx?.title || 'Untitled',
+    artist: idx?.artist || '',
+    dates: idx?.dates || 'TBD',
+    status: idx?.status || 'Draft',
+    budgetTotal: idx?.budgetTotal || 0,
+  });
+
+  Toast.show(`Synced to budget: ${cCount} contacts, ${crCount} crew, ${lCount} links`, 'success');
+}
+
+// ── PULL FROM BUDGET ──
+function pullFromBudget() {
+  const linkedId = $('linkedProject').value;
+  if (!linkedId) return;
+
+  const projData = ProjectStore.load(linkedId);
+  if (!projData) {
+    Toast.show('Could not load linked budget project', 'error');
+    return;
+  }
+
+  let pulled = 0;
+
+  // Pull contacts (only if advance contacts section is empty)
+  if ($('contactsBody').rows.length === 0 && projData.contacts?.length) {
+    projData.contacts.forEach(pc => {
+      const arr = Array.isArray(pc) ? pc : [pc.role||'', pc.name||'', pc.phone||'', pc.email||''];
+      addContactRow({ role:arr[0], name:arr[1], email:arr[3]||'', phone:arr[2]||'' });
+      pulled++;
+    });
+  }
+
+  // Pull crew
+  if ($('crewBody').rows.length === 0 && projData.tables?.crewBody?.length) {
+    projData.tables.crewBody.forEach(row => {
+      addCrewRow({ role:row[0]||'', name:row[1]||'' });
+      pulled++;
+    });
+  }
+
+  // Pull links
+  if ($('linksBody').rows.length === 0 && projData.links?.length) {
+    projData.links.forEach(l => {
+      addLinkRow({ label:l.label||'', url:l.url||'' });
+      pulled++;
+    });
+  }
+
+  // Pull venue/dates from meta
+  if (!$('venueName').value && projData.meta?.metaLocation) {
+    $('venueName').value = projData.meta.metaLocation;
+    pulled++;
+  }
+  if (!$('showDate').value && projData.meta?.metaDateStart) {
+    $('showDate').value = projData.meta.metaDateStart;
+    pulled++;
+  }
+
+  updateCounts();
+  scheduleAutoSave();
+  Toast.show(pulled > 0 ? `Pulled ${pulled} items from budget` : 'No new data to pull (advance already has data)', pulled > 0 ? 'success' : 'info');
+}
+
+// ── Auth callback ──
+function onAuthChanged(user) {
+  populateProjectDropdown();
+}
+
+// ── Init ──
+document.getElementById('footerDate').textContent =
+  new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' }).toUpperCase();
+
+initAuth().then(user => {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+
+  if (!id) {
+    const newId = AdvanceStore.create();
+    history.replaceState(null, '', 'advance.html?id=' + newId);
+    currentAdvanceId = newId;
+    populateProjectDropdown();
+    initBlankForm();
+    return;
+  }
+
+  currentAdvanceId = id;
+  populateProjectDropdown();
+
+  // Try local first
+  const localData = AdvanceStore.load(id);
+  if (localData) {
+    restoreFromData(localData);
+    // Also try cloud in background
+    AdvanceStore.loadCloud(id).then(cloudData => {
+      if (cloudData && JSON.stringify(cloudData) !== JSON.stringify(localData)) {
+        restoreFromData(cloudData);
+      }
+    });
+  } else {
+    AdvanceStore.loadCloud(id).then(cloudData => {
+      if (cloudData) restoreFromData(cloudData);
+      else initBlankForm();
+    });
+  }
+});
+</script>
+</body>
+</html>
