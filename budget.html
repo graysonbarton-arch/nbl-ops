@@ -643,7 +643,7 @@
 
   <div class="section-header" style="margin-top:32px"><span class="section-number">&#9993;</span><span class="section-title">LINKS &amp; DOCS</span><span class="section-line"></span></div>
   <table class="budget-table" style="margin-bottom:8px">
-    <thead><tr><th>DATE</th><th>LABEL</th><th>VENDOR</th><th>URL / LINK</th><th></th></tr></thead>
+    <thead><tr><th>DATE</th><th>LABEL</th><th>VENDOR</th><th>URL / LINK</th><th>FILE</th><th></th></tr></thead>
     <tbody id="linksBody"></tbody>
   </table>
   <button class="add-row-btn" onclick="addLinkRow()">+ ADD LINK</button>
@@ -1129,18 +1129,106 @@ function addContactRow() {
   tr.appendChild(makeDeleteCell());
 }
 
-function addLinkRow() {
+function addLinkRow(data) {
   const tb = $('linksBody');
   const tr = tb.insertRow();
-  tr.innerHTML = '<td></td><td></td><td></td><td></td>';
-  tr.cells[0].appendChild(makeInput('text','','',{placeholder:'MM/DD/YY'}));
-  tr.cells[1].appendChild(makeInput('text','','',{placeholder:'Description'}));
-  tr.cells[2].appendChild(makeInput('text','','',{placeholder:'Vendor name'}));
-  const linkInp = makeInput('text','','',{placeholder:'Paste URL...'});
+  tr.innerHTML = '<td></td><td></td><td></td><td></td><td></td>';
+  tr.cells[0].appendChild(makeInput('text', data?.date || '','',{placeholder:'MM/DD/YY'}));
+  tr.cells[1].appendChild(makeInput('text', data?.label || '','',{placeholder:'Description'}));
+  tr.cells[2].appendChild(makeInput('text', data?.vendor || '','',{placeholder:'Vendor name'}));
+  const linkInp = makeInput('text', data?.url || '','',{placeholder:'Paste URL...'});
   linkInp.addEventListener('click', function() { if(this.value) window.open(this.value,'_blank'); });
   linkInp.style.cursor = 'pointer';
   tr.cells[3].appendChild(linkInp);
+  // File upload cell
+  const fileWrap = document.createElement('div');
+  fileWrap.style.cssText = 'display:flex; align-items:center; gap:6px; min-width:100px';
+  const fileLabel = document.createElement('span');
+  fileLabel.className = 'link-file-label';
+  fileLabel.style.cssText = 'font-size:10px; color:var(--text-dim); letter-spacing:0.5px; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px';
+  fileLabel.textContent = data?.fileName || 'No file';
+  const fileInp = document.createElement('input');
+  fileInp.type = 'file';
+  fileInp.accept = '.pdf,.png,.jpg,.jpeg,.doc,.docx,.xlsx,.csv';
+  fileInp.style.display = 'none';
+  fileInp.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      tr._linkFileData = ev.target.result;
+      tr._linkFileName = file.name;
+      fileLabel.textContent = file.name;
+      fileLabel.style.color = 'var(--accent)';
+      fileLabel.style.textDecoration = 'underline';
+      fileLabel.title = file.name;
+      fileLabel.onclick = function() {
+        const a = document.createElement('a');
+        a.href = tr._linkFileData;
+        a.download = tr._linkFileName;
+        a.click();
+      };
+      scheduleAutoSave();
+    };
+    reader.readAsDataURL(file);
+  });
+  const uploadBtn = document.createElement('button');
+  uploadBtn.className = 'add-row-btn';
+  uploadBtn.style.cssText = 'margin:0; padding:3px 8px; font-size:9px; min-width:auto';
+  uploadBtn.textContent = 'UPLOAD';
+  uploadBtn.onclick = function() { fileInp.click(); };
+  fileWrap.appendChild(fileLabel);
+  fileWrap.appendChild(fileInp);
+  fileWrap.appendChild(uploadBtn);
+  tr.cells[4].appendChild(fileWrap);
+  // Restore file data if present
+  if (data?.fileData) {
+    tr._linkFileData = data.fileData;
+    tr._linkFileName = data.fileName || 'file';
+    fileLabel.style.color = 'var(--accent)';
+    fileLabel.style.textDecoration = 'underline';
+    fileLabel.onclick = function() {
+      const a = document.createElement('a');
+      a.href = tr._linkFileData;
+      a.download = tr._linkFileName;
+      a.click();
+    };
+  }
+  // Mark if synced from quotes (read-only tag)
+  if (data?.fromQuotes) {
+    tr._fromQuotes = true;
+    const tag = document.createElement('span');
+    tag.style.cssText = 'font-size:8px; color:var(--orange); letter-spacing:1px; margin-left:4px';
+    tag.textContent = 'INVOICE';
+    fileWrap.appendChild(tag);
+  }
   tr.appendChild(makeDeleteCell());
+  return tr;
+}
+
+function syncQuoteToLinks(description, vendor, fileName, fileData) {
+  if (!fileName) return;
+  // Check if already synced (avoid duplicates)
+  const existing = Array.from($('linksBody').rows).find(r => r._fromQuotes && r._linkFileName === fileName);
+  if (existing) {
+    // Update existing synced row
+    const inputs = existing.querySelectorAll('input');
+    if (inputs[1]) inputs[1].value = description;
+    if (inputs[2]) inputs[2].value = vendor;
+    return;
+  }
+  // Create new link row with the invoice file
+  const today = new Date();
+  const dateStr = (today.getMonth()+1) + '/' + today.getDate() + '/' + String(today.getFullYear()).slice(2);
+  addLinkRow({
+    date: dateStr,
+    label: description || 'Invoice',
+    vendor: vendor || '',
+    url: '',
+    fileName: fileName,
+    fileData: fileData,
+    fromQuotes: true
+  });
 }
 
 function addQuoteRow(data) {
@@ -1185,6 +1273,10 @@ function addQuoteRow(data) {
         a.download = tr._quoteFileName;
         a.click();
       };
+      // Sync to Links & Docs
+      const descInp = tr.cells[0]?.querySelector('input');
+      const vendorInp = tr.cells[1]?.querySelector('input');
+      syncQuoteToLinks(descInp?.value || '', vendorInp?.value || '', file.name, ev.target.result);
       scheduleAutoSave();
     };
     reader.readAsDataURL(file);
@@ -2312,8 +2404,12 @@ function getAllData() {
   });
   data.links = [];
   Array.from($('linksBody').rows).forEach(tr => {
-    const inputs = tr.querySelectorAll('input');
-    data.links.push({ date: inputs[0]?.value||'', label: inputs[1]?.value||'', vendor: inputs[2]?.value||'', url: inputs[3]?.value||'' });
+    const inputs = tr.querySelectorAll('input[type="text"]');
+    const link = { date: inputs[0]?.value||'', label: inputs[1]?.value||'', vendor: inputs[2]?.value||'', url: inputs[3]?.value||'' };
+    if (tr._linkFileName) link.fileName = tr._linkFileName;
+    if (tr._linkFileData) link.fileData = tr._linkFileData;
+    if (tr._fromQuotes) link.fromQuotes = true;
+    data.links.push(link);
   });
   data.emailLog = [];
   $('emailLogContainer').querySelectorAll('.email-log-card').forEach(card => {
@@ -3166,13 +3262,9 @@ function restoreFromData(data) {
     });
     $('linksBody').innerHTML = '';
     (data.links || []).forEach(link => {
-      addLinkRow();
-      const tr = $('linksBody').rows[$('linksBody').rows.length - 1];
-      const inputs = tr.querySelectorAll('input');
-      if (inputs[0]) inputs[0].value = link.date || '';
-      if (inputs[1]) inputs[1].value = link.label || '';
-      if (inputs[2]) inputs[2].value = link.vendor || link.type || '';
-      if (inputs[3]) inputs[3].value = link.url || '';
+      // Migrate old 'type' field to 'vendor'
+      if (!link.vendor && link.type) link.vendor = link.type;
+      addLinkRow(link);
     });
     // Restore email log
     $('emailLogContainer').innerHTML = '';
