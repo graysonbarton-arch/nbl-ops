@@ -170,9 +170,53 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================
+-- 4. ADVANCES TABLE
+-- ============================================================
+CREATE TABLE IF NOT EXISTS advances (
+  id TEXT PRIMARY KEY,
+  show_name TEXT DEFAULT 'UNTITLED SHOW',
+  venue TEXT DEFAULT '',
+  show_date TEXT DEFAULT '',
+  status TEXT DEFAULT 'Not Started',
+  linked_project_id TEXT DEFAULT '',
+  data JSONB DEFAULT '{}'::jsonb,
+  created_by TEXT DEFAULT 'anonymous',
+  updated_by TEXT DEFAULT 'anonymous',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  is_archived BOOLEAN DEFAULT false
+);
+
+-- Advances RLS (service role bypasses, but add policies for completeness)
+ALTER TABLE advances ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read advances"
+  ON advances FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can insert advances"
+  ON advances FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Anyone can update advances"
+  ON advances FOR UPDATE USING (true);
+
+CREATE POLICY "Anyone can delete advances"
+  ON advances FOR DELETE USING (true);
+
+-- ============================================================
+-- MIGRATION: Make budgets created_by/updated_by nullable TEXT
+-- (allows anonymous sync without requiring auth.users FK)
+-- Run these if budgets table already exists with UUID columns:
+-- ============================================================
+-- ALTER TABLE budgets ALTER COLUMN created_by DROP NOT NULL;
+-- ALTER TABLE budgets ALTER COLUMN updated_by DROP NOT NULL;
+-- ALTER TABLE budgets ALTER COLUMN created_by TYPE TEXT USING created_by::text;
+-- ALTER TABLE budgets ALTER COLUMN updated_by TYPE TEXT USING updated_by::text;
+
+-- ============================================================
 -- REALTIME: Enable replication for live sync
 -- (Also enable in Supabase Dashboard → Database → Replication)
 -- ============================================================
 -- ALTER PUBLICATION supabase_realtime ADD TABLE budgets;
 -- ALTER PUBLICATION supabase_realtime ADD TABLE shared_roster;
 -- ALTER PUBLICATION supabase_realtime ADD TABLE shared_venues;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE advances;

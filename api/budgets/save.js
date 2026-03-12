@@ -3,8 +3,9 @@ import { getServiceClient, getUser } from '../../lib/supabase.js';
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Auth is optional — use user ID if logged in, 'anonymous' otherwise
   const auth = await getUser(req);
-  if (!auth) return res.status(401).json({ error: 'Not authenticated' });
+  const userId = auth ? auth.user.id : 'anonymous';
 
   const { id, title, subtitle, status, data } = req.body;
   if (!data) return res.status(400).json({ error: 'Budget data is required' });
@@ -25,7 +26,7 @@ export default async function handler(req, res) {
         const updates = {
           data,
           updated_at: new Date().toISOString(),
-          updated_by: auth.user.id,
+          updated_by: userId,
         };
         if (title !== undefined) updates.title = title;
         if (subtitle !== undefined) updates.subtitle = subtitle;
@@ -50,8 +51,8 @@ export default async function handler(req, res) {
             subtitle: subtitle || '',
             status: status || 'Draft',
             data,
-            created_by: auth.user.id,
-            updated_by: auth.user.id,
+            created_by: userId,
+            updated_by: userId,
           })
           .select()
           .single();
@@ -70,8 +71,8 @@ export default async function handler(req, res) {
           subtitle: subtitle || '',
           status: status || 'Draft',
           data,
-          created_by: auth.user.id,
-          updated_by: auth.user.id,
+          created_by: userId,
+          updated_by: userId,
         })
         .select()
         .single();

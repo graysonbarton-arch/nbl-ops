@@ -366,7 +366,7 @@ function importAdvanceXLSX(e) {
 // Auth callback
 function onAuthChanged(user) {
   AdvanceStore.listCloud().then(() => renderAdvances());
-  if (user) AdvanceStore.syncAllToCloud();
+  AdvanceStore.syncAllToCloud();
 }
 
 // Init
@@ -374,7 +374,7 @@ document.getElementById('footerDate').textContent =
   new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' }).toUpperCase();
 initAuth().then(user => {
   AdvanceStore.listCloud().then(() => renderAdvances());
-  if (user) AdvanceStore.syncAllToCloud();
+  AdvanceStore.syncAllToCloud();
 });
 </script>
 </body>

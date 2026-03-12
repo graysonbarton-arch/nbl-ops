@@ -46,8 +46,9 @@ export default async function handler(req, res) {
 
   // SAVE
   if (req.method === 'POST' && (!action || action === 'save')) {
+    // Auth is optional — use user ID if logged in, 'anonymous' otherwise
     const auth = await getUser(req);
-    if (!auth) return res.status(401).json({ error: 'Not authenticated' });
+    const userId = auth ? auth.user.id : 'anonymous';
 
     const { id, show_name, venue, show_date, status, linked_project_id, data } = req.body;
     if (!data) return res.status(400).json({ error: 'Advance data is required' });
@@ -66,7 +67,7 @@ export default async function handler(req, res) {
           const updates = {
             data,
             updated_at: new Date().toISOString(),
-            updated_by: auth.user.id,
+            updated_by: userId,
           };
           if (show_name !== undefined) updates.show_name = show_name;
           if (venue !== undefined) updates.venue = venue;
@@ -94,8 +95,8 @@ export default async function handler(req, res) {
               status: status || 'Not Started',
               linked_project_id: linked_project_id || null,
               data,
-              created_by: auth.user.id,
-              updated_by: auth.user.id,
+              created_by: userId,
+              updated_by: userId,
             })
             .select()
             .single();
@@ -115,8 +116,8 @@ export default async function handler(req, res) {
             status: status || 'Not Started',
             linked_project_id: linked_project_id || null,
             data,
-            created_by: auth.user.id,
-            updated_by: auth.user.id,
+            created_by: userId,
+            updated_by: userId,
           })
           .select()
           .single();
@@ -133,7 +134,7 @@ export default async function handler(req, res) {
   // DELETE
   if (req.method === 'POST' && action === 'delete') {
     const auth = await getUser(req);
-    if (!auth) return res.status(401).json({ error: 'Not authenticated' });
+    const userId = auth ? auth.user.id : 'anonymous';
 
     const { id } = req.body;
     if (!id) return res.status(400).json({ error: 'Advance ID is required' });
@@ -145,7 +146,7 @@ export default async function handler(req, res) {
         .update({
           is_archived: true,
           updated_at: new Date().toISOString(),
-          updated_by: auth.user.id,
+          updated_by: userId,
         })
         .eq('id', id);
 

@@ -1,8 +1,9 @@
 import { getServiceClient, getUser } from '../lib/supabase.js';
 
 export default async function handler(req, res) {
+  // Auth is optional
   const auth = await getUser(req);
-  if (!auth) return res.status(401).json({ error: 'Not authenticated' });
+  const userId = auth ? auth.user.id : null;
 
   const supabase = getServiceClient();
 
@@ -34,7 +35,7 @@ export default async function handler(req, res) {
 
     const { error } = await supabase.rpc('replace_roster', {
       new_roster: JSON.stringify(rows),
-      p_created_by: auth.user.id,
+      p_created_by: userId,
     });
 
     if (error) {
@@ -43,7 +44,7 @@ export default async function handler(req, res) {
         await supabase.from('shared_roster').update({ is_archived: true }).eq('is_archived', false);
         if (roster.length > 0) {
           const insertRows = rows.map(r => ({
-            ...r, created_by: auth.user.id, updated_at: new Date().toISOString(),
+            ...r, created_by: userId, updated_at: new Date().toISOString(),
           }));
           const { error: insertError } = await supabase.from('shared_roster').insert(insertRows);
           if (insertError) return res.status(500).json({ error: insertError.message });

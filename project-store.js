@@ -141,10 +141,12 @@ const ProjectStore = {
 
   /** Background sync to cloud (fire and forget) */
   async _syncToCloud(id, fullData, meta) {
-    if (typeof isLoggedIn !== 'function' || !isLoggedIn()) return;
     try {
-      await authFetch('/api/budgets/save', {
+      // Use authFetch if logged in (includes token), plain fetch otherwise
+      const doFetch = (typeof isLoggedIn === 'function' && isLoggedIn()) ? authFetch : fetch;
+      await doFetch('/api/budgets/save', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id,
           title: meta.title,
@@ -190,13 +192,13 @@ const ProjectStore = {
     const index = this._getIndex().filter(p => p.id !== id);
     this._setIndex(index);
 
-    // Cloud delete
-    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-      authFetch('/api/budgets/delete', {
-        method: 'POST',
-        body: JSON.stringify({ id }),
-      }).catch(e => console.warn('Cloud delete failed:', e));
-    }
+    // Always sync delete to cloud
+    const doFetch = (typeof isLoggedIn === 'function' && isLoggedIn()) ? authFetch : fetch;
+    doFetch('/api/budgets/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    }).catch(e => console.warn('Cloud delete failed:', e));
   },
 
   /**
@@ -231,7 +233,6 @@ const ProjectStore = {
    * Call after login to sync existing local data up.
    */
   async syncAllToCloud() {
-    if (typeof isLoggedIn !== 'function' || !isLoggedIn()) return;
     const index = this._getIndex();
     let synced = 0;
     for (const entry of index) {
