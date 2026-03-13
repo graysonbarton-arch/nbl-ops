@@ -82,6 +82,6 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error('Save budget error:', err);
-    return res.status(500).json({ error: 'Failed to save budget' });
+    return res.status(500).json({ error: 'Failed to save budget', detail: err?.message || String(err) });
   }
 }

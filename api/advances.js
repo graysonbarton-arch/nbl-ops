@@ -17,7 +17,7 @@ export default async function handler(req, res) {
       return res.status(200).json(data || []);
     } catch (err) {
       console.error('List advances error:', err);
-      return res.status(500).json({ error: 'Failed to list advances' });
+      return res.status(500).json({ error: 'Failed to list advances', detail: err?.message || String(err) });
     }
   }
 
@@ -127,7 +127,7 @@ export default async function handler(req, res) {
       }
     } catch (err) {
       console.error('Save advance error:', err);
-      return res.status(500).json({ error: 'Failed to save advance' });
+      return res.status(500).json({ error: 'Failed to save advance', detail: err?.message || String(err) });
     }
   }
 
