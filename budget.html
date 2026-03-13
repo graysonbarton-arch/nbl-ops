@@ -2555,9 +2555,28 @@ function printBudget() {
     el.dataset.origDisplay = el.style.display;
     el.style.display = 'block';
   });
+
+  // Hide empty rows (rows where all text inputs are blank)
+  document.querySelectorAll('.budget-table tbody tr').forEach(function(tr) {
+    const inputs = tr.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], input:not([type])');
+    const hasData = Array.from(inputs).some(function(inp) {
+      return inp.value && inp.value.trim() !== '' && inp.value !== '0';
+    });
+    if (!hasData) {
+      tr.dataset.printHidden = '1';
+      tr.style.display = 'none';
+    }
+  });
+
   window.print();
+
   // Restore after print
   setTimeout(function() {
+    // Restore hidden rows
+    document.querySelectorAll('tr[data-print-hidden]').forEach(function(tr) {
+      tr.style.display = '';
+      delete tr.dataset.printHidden;
+    });
     document.querySelectorAll('.tab-panel').forEach(function(el) {
       if (el.dataset.origDisplay !== undefined) {
         el.style.display = el.dataset.origDisplay;

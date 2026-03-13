@@ -157,9 +157,12 @@
   </div>
   <div class="meta-item">
     <span class="meta-label">LINKED BUDGET PROJECT</span>
-    <select class="meta-input" id="linkedProject" style="min-width:200px">
-      <option value="">— None —</option>
-    </select>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <select class="meta-input" id="linkedProject" style="min-width:200px">
+        <option value="">— None —</option>
+      </select>
+      <button class="meta-input" id="createBudgetBtn" style="cursor:pointer; white-space:nowrap; font-size:10px; letter-spacing:1px; border-color:var(--orange); color:var(--orange);" onclick="createLinkedBudget()">+ CREATE BUDGET</button>
+    </div>
   </div>
 </div>
 
@@ -224,6 +227,21 @@
       <tbody id="crewBody"></tbody>
     </table>
     <button class="add-btn" onclick="addCrewRow()">+ ADD CREW</button>
+  </div>
+</div>
+
+<!-- HOTEL INFO -->
+<div class="section" id="sec-hotel">
+  <div class="section-head" onclick="toggleSection('sec-hotel')">
+    <span class="section-head-title">HOTEL INFO</span>
+    <span><span class="section-head-count" id="countHotel">0</span> &nbsp;<span class="section-head-arrow">▼</span></span>
+  </div>
+  <div class="section-body">
+    <table class="adv-table">
+      <thead><tr><th>GUEST</th><th>HOTEL NAME</th><th>CHECK-IN</th><th>CHECK-OUT</th><th>CONF #</th><th>NOTES</th><th></th></tr></thead>
+      <tbody id="hotelInfoBody"></tbody>
+    </table>
+    <button class="add-btn" onclick="addHotelInfoRow()">+ ADD HOTEL</button>
   </div>
 </div>
 
@@ -375,16 +393,39 @@ function addLinkRow(data) {
   updateCounts();
 }
 
+function addHotelInfoRow(data) {
+  const tr = $('hotelInfoBody').insertRow();
+  tr.innerHTML = '<td></td><td></td><td></td><td></td><td></td><td></td><td></td>';
+  const fields = [
+    { ph:'Guest Name', val:data?.guest, type:'text' },
+    { ph:'Hotel Name', val:data?.hotel, type:'text' },
+    { ph:'', val:data?.checkin, type:'date' },
+    { ph:'', val:data?.checkout, type:'date' },
+    { ph:'Confirmation #', val:data?.confirmation, type:'text' },
+    { ph:'Notes', val:data?.notes, type:'text' },
+  ];
+  fields.forEach((f, i) => {
+    const inp = document.createElement('input');
+    if (f.type === 'date') inp.type = 'date';
+    inp.placeholder = f.ph;
+    inp.value = f.val || '';
+    tr.cells[i].appendChild(inp);
+  });
+  tr.cells[6].appendChild(makeDelBtn(tr));
+  updateCounts();
+}
+
 function updateCounts() {
   $('countContacts').textContent = $('contactsBody').rows.length;
   $('countSchedule').textContent = $('scheduleBody').rows.length;
   $('countCrew').textContent = $('crewBody').rows.length;
+  $('countHotel').textContent = $('hotelInfoBody').rows.length;
   $('countLinks').textContent = $('linksBody').rows.length;
 }
 
 // ── Data Gather / Restore ──
 function getAllData() {
-  const data = { meta:{}, contacts:[], schedule:[], crew:[], notes:'', links:[] };
+  const data = { meta:{}, contacts:[], schedule:[], crew:[], hotel:[], notes:'', links:[] };
   data.meta = {
     showName: $('showName').value,
     venue: $('venueName').value,
@@ -404,6 +445,10 @@ function getAllData() {
   Array.from($('crewBody').rows).forEach(tr => {
     const inputs = tr.querySelectorAll('input');
     data.crew.push({ role:inputs[0]?.value||'', name:inputs[1]?.value||'' });
+  });
+  Array.from($('hotelInfoBody').rows).forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    data.hotel.push({ guest:inputs[0]?.value||'', hotel:inputs[1]?.value||'', checkin:inputs[2]?.value||'', checkout:inputs[3]?.value||'', confirmation:inputs[4]?.value||'', notes:inputs[5]?.value||'' });
   });
   data.notes = $('prodNotes').value;
   Array.from($('linksBody').rows).forEach(tr => {
@@ -431,6 +476,9 @@ function restoreFromData(data) {
 
     $('crewBody').innerHTML = '';
     (data.crew || []).forEach(c => addCrewRow(c));
+
+    $('hotelInfoBody').innerHTML = '';
+    (data.hotel || []).forEach(h => addHotelInfoRow(h));
 
     $('prodNotes').value = data.notes || '';
 
@@ -474,11 +522,54 @@ $('linkedProject').addEventListener('change', updateSyncBar);
 function updateSyncBar() {
   const linked = $('linkedProject').value;
   $('syncBar').style.display = linked ? 'flex' : 'none';
+  // Show CREATE BUDGET button only when no project is linked
+  $('createBudgetBtn').style.display = linked ? 'none' : 'inline-block';
   if (linked) {
     const projects = ProjectStore.list();
     const p = projects.find(x => x.id === linked);
     $('syncLabel').textContent = p ? 'Linked to: ' + (p.title || 'Untitled') : '';
   }
+}
+
+// ── CREATE LINKED BUDGET ──
+function createLinkedBudget() {
+  const showName = $('showName').value || 'Untitled Show';
+  const venue = $('venueName').value || '';
+  const showDate = $('showDate').value || '';
+
+  // Create a new budget project via ProjectStore
+  const newId = ProjectStore.create();
+
+  // Build initial budget data with show info
+  const budgetData = {
+    meta: {
+      metaArtist: showName,
+      metaLocation: venue,
+      metaDateStart: showDate,
+      metaDateEnd: showDate,
+    },
+    contacts: [],
+    links: [],
+    tables: { crewBody: [] },
+    notes: '',
+  };
+
+  // Save the budget project
+  ProjectStore.save(newId, budgetData, {
+    title: showName,
+    artist: showName,
+    dates: showDate || 'TBD',
+    status: 'Draft',
+    budgetTotal: 0,
+  });
+
+  // Link the advance to this new budget
+  $('linkedProject').innerHTML += `<option value="${newId}">${showName}</option>`;
+  $('linkedProject').value = newId;
+  updateSyncBar();
+  scheduleAutoSave();
+
+  Toast.show('Created new budget project: ' + showName, 'success');
 }
 
 // ── SYNC TO BUDGET ──
@@ -493,7 +584,7 @@ function syncToBudget() {
   }
 
   const advData = getAllData();
-  let cCount = 0, crCount = 0, lCount = 0;
+  let cCount = 0, crCount = 0, lCount = 0, hCount = 0;
 
   // Merge contacts
   if (!projData.contacts) projData.contacts = [];
@@ -534,6 +625,29 @@ function syncToBudget() {
     }
   });
 
+  // Merge hotel info into budget hotelBody
+  if (!projData.tables) projData.tables = {};
+  if (!projData.tables.hotelBody) projData.tables.hotelBody = [];
+  advData.hotel.forEach(ah => {
+    if (!ah.guest && !ah.hotel) return;
+    // Budget hotel row format: [checkin, checkout, city, guest, dob, loyalty, note, rooms, nights, rate]
+    const exists = projData.tables.hotelBody.some(row => {
+      return (row[3] || '').toLowerCase() === (ah.guest || '').toLowerCase()
+        && (row[0] || '') === (ah.checkin || '');
+    });
+    if (!exists) {
+      const ci = ah.checkin || '';
+      const co = ah.checkout || '';
+      let nights = 0;
+      if (ci && co) {
+        nights = Math.round((new Date(co+'T12:00:00') - new Date(ci+'T12:00:00')) / 86400000);
+        if (nights < 0) nights = 0;
+      }
+      projData.tables.hotelBody.push([ci, co, '', ah.guest||'', '', '', ah.notes||'', '1', String(nights), '0']);
+      hCount++;
+    }
+  });
+
   // Append notes
   if (advData.notes && advData.notes.trim()) {
     const marker = '--- ADVANCE NOTES ---';
@@ -553,7 +667,7 @@ function syncToBudget() {
     budgetTotal: idx?.budgetTotal || 0,
   });
 
-  Toast.show(`Synced to budget: ${cCount} contacts, ${crCount} crew, ${lCount} links`, 'success');
+  Toast.show(`Synced to budget: ${cCount} contacts, ${crCount} crew, ${hCount} hotel, ${lCount} links`, 'success');
 }
 
 // ── PULL FROM BUDGET ──
@@ -582,6 +696,22 @@ function pullFromBudget() {
   if ($('crewBody').rows.length === 0 && projData.tables?.crewBody?.length) {
     projData.tables.crewBody.forEach(row => {
       addCrewRow({ role:row[0]||'', name:row[1]||'' });
+      pulled++;
+    });
+  }
+
+  // Pull hotel
+  if ($('hotelInfoBody').rows.length === 0 && projData.tables?.hotelBody?.length) {
+    projData.tables.hotelBody.forEach(row => {
+      // Budget hotel row: [checkin, checkout, city, guest, dob, loyalty, note, rooms, nights, rate]
+      addHotelInfoRow({
+        guest: row[3] || '',
+        hotel: '',
+        checkin: row[0] || '',
+        checkout: row[1] || '',
+        confirmation: '',
+        notes: row[6] || '',
+      });
       pulled++;
     });
   }
