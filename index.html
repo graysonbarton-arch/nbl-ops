@@ -103,7 +103,12 @@
 <body>
 
 <!-- Ticker -->
-<div class="ticker"><div class="ticker-inner" id="ticker"></div></div>
+<div class="ticker">
+  <div class="ticker-inner">
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; INTERNAL OPERATIONS HUB &nbsp;&bull;&nbsp; BUDGETS &nbsp;&bull;&nbsp; ADVANCES &nbsp;&bull;&nbsp; REVIEWS &nbsp;&bull;&nbsp;
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; INTERNAL OPERATIONS HUB &nbsp;&bull;&nbsp; BUDGETS &nbsp;&bull;&nbsp; ADVANCES &nbsp;&bull;&nbsp; REVIEWS &nbsp;&bull;&nbsp;
+  </div>
+</div>
 
 <!-- Nav -->
 <nav class="nav" id="main-nav"></nav>
@@ -154,15 +159,4 @@
 </footer>
 
 <script src="nav.js"></script>
-<script>
-  // Ticker
-  const msgs = [
-    'NBL OPS — INTERNAL OPERATIONS HUB',
-    'PRODUCTION PLANNING — BUDGETS — ADVANCES — REVIEWS',
-    'ALL DATA SYNCS AUTOMATICALLY ACROSS YOUR TEAM',
-    'NAPPY BOY LIVE — WHERE CREATIVITY MEETS EXECUTION',
-  ];
-  const ticker = document.getElementById('ticker');
-  if (ticker) ticker.textContent = Array(4).fill(msgs.join('   ◆   ')).join('   ◆   ');
-</script>
 </body></html>
