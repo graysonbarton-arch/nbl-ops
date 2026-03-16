@@ -514,6 +514,19 @@ function populateProjectDropdown() {
     sel.innerHTML += `<option value="${p.id}">${p.artist ? p.artist + ' — ' : ''}${p.title || 'Untitled'}</option>`;
   });
   if (currentVal) sel.value = currentVal;
+
+  // Also fetch cloud projects so budgets from other users appear
+  if (typeof ProjectStore !== 'undefined') {
+    ProjectStore.listCloud().then(() => {
+      const cloudProjects = ProjectStore.list();
+      const curVal = sel.value;
+      sel.innerHTML = '<option value="">— None —</option>';
+      cloudProjects.forEach(p => {
+        sel.innerHTML += `<option value="${p.id}">${p.artist ? p.artist + ' — ' : ''}${p.title || 'Untitled'}</option>`;
+      });
+      if (curVal) sel.value = curVal;
+    });
+  }
 }
 
 // Show/hide sync bar when linked project changes
@@ -540,7 +553,8 @@ function createLinkedBudget() {
   // Create a new budget project via ProjectStore
   const newId = ProjectStore.create();
 
-  // Build initial budget data with show info
+  // Save only the meta info — budget.html will initialize the full structure
+  // when the user opens it. This avoids overwriting budget tables/settings.
   const budgetData = {
     meta: {
       metaArtist: showName,
@@ -548,13 +562,9 @@ function createLinkedBudget() {
       metaDateStart: showDate,
       metaDateEnd: showDate,
     },
-    contacts: [],
-    links: [],
-    tables: { crewBody: [] },
-    notes: '',
   };
 
-  // Save the budget project
+  // Save with just meta — budget.html adds tables/settings on first open
   ProjectStore.save(newId, budgetData, {
     title: showName,
     artist: showName,
@@ -563,21 +573,26 @@ function createLinkedBudget() {
     budgetTotal: 0,
   });
 
-  // Link the advance to this new budget
-  $('linkedProject').innerHTML += `<option value="${newId}">${showName}</option>`;
+  // Refresh dropdown and link to the new budget
+  populateProjectDropdown();
   $('linkedProject').value = newId;
   updateSyncBar();
   scheduleAutoSave();
 
-  Toast.show('Created new budget project: ' + showName, 'success');
+  Toast.show('Created budget project: ' + showName + '. Open it in BUDGET to set it up.', 'success');
 }
 
 // ── SYNC TO BUDGET ──
-function syncToBudget() {
+async function syncToBudget() {
   const linkedId = $('linkedProject').value;
   if (!linkedId) return;
 
-  const projData = ProjectStore.load(linkedId);
+  // Always fetch latest from cloud to avoid overwriting newer data
+  let projData = await ProjectStore.loadCloud(linkedId);
+  if (!projData) {
+    // Fallback to local if cloud fails
+    projData = ProjectStore.load(linkedId);
+  }
   if (!projData) {
     Toast.show('Could not load linked budget project', 'error');
     return;
@@ -671,11 +686,15 @@ function syncToBudget() {
 }
 
 // ── PULL FROM BUDGET ──
-function pullFromBudget() {
+async function pullFromBudget() {
   const linkedId = $('linkedProject').value;
   if (!linkedId) return;
 
-  const projData = ProjectStore.load(linkedId);
+  // Always fetch latest from cloud
+  let projData = await ProjectStore.loadCloud(linkedId);
+  if (!projData) {
+    projData = ProjectStore.load(linkedId);
+  }
   if (!projData) {
     Toast.show('Could not load linked budget project', 'error');
     return;
