@@ -555,9 +555,11 @@ function createLinkedBudget() {
 
   // Save only the meta info — budget.html will initialize the full structure
   // when the user opens it. This avoids overwriting budget tables/settings.
+  // Keys must match budget.html field IDs: heroTitle, heroSubtitle, metaLocation, etc.
   const budgetData = {
     meta: {
-      metaArtist: showName,
+      heroTitle: showName,
+      heroSubtitle: showName,
       metaLocation: venue,
       metaDateStart: showDate,
       metaDateEnd: showDate,
