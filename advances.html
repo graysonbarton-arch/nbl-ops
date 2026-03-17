@@ -112,11 +112,27 @@
   .mt-new { font-size:9px; color:var(--blue); letter-spacing:1px; }
   .mt-actions { margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; }
 
+  .archive-section { padding:0 40px 48px; }
+  .archive-header {
+    display:flex; align-items:center; gap:10px; cursor:pointer; padding:12px 0;
+    border-top:1px solid var(--border); user-select:none;
+  }
+  .archive-header:hover .archive-title { color:var(--text); }
+  .archive-chevron { font-size:10px; color:var(--muted); transition:transform .2s; }
+  .archive-chevron.open { transform:rotate(90deg); }
+  .archive-title { font-size:11px; letter-spacing:3px; color:var(--muted); font-family:var(--font-body); }
+  .archive-count {
+    font-size:10px; letter-spacing:1px; color:var(--muted); background:var(--surface);
+    border:1px solid var(--border); padding:2px 8px; border-radius:2px;
+  }
+  .archive-grid { padding:16px 0 0 !important; opacity:0.7; }
+
   @media (max-width:768px) {
     .hero-title { font-size:48px; }
     .advance-grid { grid-template-columns:1fr; padding:0 16px 32px; }
     .action-bar { padding:0 16px 24px; }
     .hero { padding:32px 16px 20px; }
+    .archive-section { padding:0 16px 32px; }
   }
 </style>
 </head>
@@ -154,6 +170,15 @@
 
 <div class="advance-grid" id="advanceGrid"></div>
 
+<div class="archive-section" id="archiveSection" style="display:none">
+  <div class="archive-header" onclick="toggleArchive()">
+    <span class="archive-chevron" id="archiveChevron">&#9654;</span>
+    <span class="archive-title">COMPLETED ADVANCES</span>
+    <span class="archive-count" id="archiveCount">0</span>
+  </div>
+  <div class="advance-grid archive-grid" id="archiveGrid" style="display:none"></div>
+</div>
+
 <div class="footer">
   <span>NAPPY BOY LIVE &mdash; PRODUCTION ADVANCES</span>
   <span id="advanceCount"></span>
@@ -189,11 +214,37 @@ function fmtDate(d) {
   } catch { return d; }
 }
 
+function renderAdvanceCard(a) {
+  const slug = statusSlug(a.status);
+  return `
+    <div class="advance-card" data-status="${slug}" onclick="openAdvance('${escHtml(a.id)}')">
+      <div class="card-header">
+        <span class="card-venue">${escHtml(a.venue || 'NO VENUE')}</span>
+        <button class="card-delete" onclick="event.stopPropagation(); deleteAdvance('${escHtml(a.id)}')" title="Delete advance">&times;</button>
+      </div>
+      <div class="card-title">${escHtml(a.showName || 'UNTITLED SHOW')}</div>
+      <div class="card-meta">
+        <span>${fmtDate(a.date)}</span>
+        <span class="badge badge-${slug}">${escHtml(a.status || 'Not Started')}</span>
+      </div>
+      <div class="card-footer">
+        <span class="card-linked">${a.linkedProjectId ? '🔗 LINKED' : ''}</span>
+        <span class="card-modified">${timeAgo(a.lastModified)}</span>
+      </div>
+    </div>`;
+}
+
 function renderAdvances() {
   const advances = AdvanceStore.list();
   const grid = document.getElementById('advanceGrid');
+  const archiveSection = document.getElementById('archiveSection');
+  const archiveGrid = document.getElementById('archiveGrid');
+  const archiveCount = document.getElementById('archiveCount');
   const counter = document.getElementById('advanceCount');
   counter.textContent = advances.length + ' ADVANCE' + (advances.length !== 1 ? 'S' : '');
+
+  const active = advances.filter(a => statusSlug(a.status) !== 'complete');
+  const completed = advances.filter(a => statusSlug(a.status) === 'complete');
 
   if (advances.length === 0) {
     grid.innerHTML = `
@@ -201,28 +252,35 @@ function renderAdvances() {
         <div class="empty-state-icon">📋</div>
         <div>No advances yet.<br>Click <strong>+ NEW ADVANCE</strong> or <strong>IMPORT XLSX</strong> to get started.</div>
       </div>`;
+    archiveSection.style.display = 'none';
     return;
   }
 
-  grid.innerHTML = advances.map(a => {
-    const slug = statusSlug(a.status);
-    return `
-      <div class="advance-card" data-status="${slug}" onclick="openAdvance('${escHtml(a.id)}')">
-        <div class="card-header">
-          <span class="card-venue">${escHtml(a.venue || 'NO VENUE')}</span>
-          <button class="card-delete" onclick="event.stopPropagation(); deleteAdvance('${escHtml(a.id)}')" title="Delete advance">&times;</button>
-        </div>
-        <div class="card-title">${escHtml(a.showName || 'UNTITLED SHOW')}</div>
-        <div class="card-meta">
-          <span>${fmtDate(a.date)}</span>
-          <span class="badge badge-${slug}">${escHtml(a.status || 'Not Started')}</span>
-        </div>
-        <div class="card-footer">
-          <span class="card-linked">${a.linkedProjectId ? '🔗 LINKED' : ''}</span>
-          <span class="card-modified">${timeAgo(a.lastModified)}</span>
-        </div>
+  if (active.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">✅</div>
+        <div>All advances are complete!</div>
       </div>`;
-  }).join('');
+  } else {
+    grid.innerHTML = active.map(renderAdvanceCard).join('');
+  }
+
+  if (completed.length > 0) {
+    archiveSection.style.display = 'block';
+    archiveCount.textContent = completed.length;
+    archiveGrid.innerHTML = completed.map(renderAdvanceCard).join('');
+  } else {
+    archiveSection.style.display = 'none';
+  }
+}
+
+function toggleArchive() {
+  const grid = document.getElementById('archiveGrid');
+  const chevron = document.getElementById('archiveChevron');
+  const isOpen = grid.style.display !== 'none';
+  grid.style.display = isOpen ? 'none' : 'grid';
+  chevron.classList.toggle('open', !isOpen);
 }
 
 function openAdvance(id) {
