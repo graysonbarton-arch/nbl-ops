@@ -52,6 +52,9 @@ function mtFetch(path, queryParams = {}) {
     return Promise.reject(new Error('Master Tour API credentials not configured'));
   }
 
+  // Include version=7 to satisfy MT API upgrade requirement
+  queryParams = { version: '7', ...queryParams };
+
   const url = `${MT_BASE}/${path}`;
 
   // OAuth params
