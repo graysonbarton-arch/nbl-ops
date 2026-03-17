@@ -1,9 +1,9 @@
 /**
- * Master Tour Sync Cron
+ * Master Tour Sync Cron — /api/mt-sync
  *
  * Polls MT for all tours & upcoming show dates, compares against
  * stored state in Supabase, and emails alerts for new or changed shows.
- * Runs daily via Vercel cron.
+ * Runs daily at 10am UTC via Vercel cron.
  */
 
 import { Resend } from 'resend';
