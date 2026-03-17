@@ -466,16 +466,16 @@ async function selectMTTour(tourId, el) {
 
   try {
     const resp = await mtApi('tour', { tourId });
-    const tour = resp.data || resp;
-    const dates = tour.tourDates || tour.dates || [];
+    const tour = resp.tour || resp.data?.tour || resp.data || resp;
+    const dates = tour.days || tour.tourDates || tour.dates || [];
 
-    if (!dates.length) {
+    if (!Array.isArray(dates) || !dates.length) {
       dateDiv.innerHTML = '<p class="mt-status">No dates found for this tour.</p>';
       return;
     }
 
     // Sort by date (soonest first)
-    dates.sort((a, b) => new Date(a.date || a.startDate || 0) - new Date(b.date || b.startDate || 0));
+    dates.sort((a, b) => new Date(a.dayDate || a.date || 0) - new Date(b.dayDate || b.date || 0));
 
     // Get existing advances to check for date matches
     const existingAdvances = AdvanceStore.list();
@@ -484,7 +484,7 @@ async function selectMTTour(tourId, el) {
     html += '<ul class="mt-list" id="mtDateList">';
 
     dates.forEach((d, i) => {
-      const rawDate = d.date || d.startDate || '';
+      const rawDate = d.dayDate || d.date || d.startDate || '';
       let dateStr = rawDate;
       try {
         const dt = new Date(rawDate);
