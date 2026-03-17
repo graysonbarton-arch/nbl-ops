@@ -564,12 +564,13 @@ function populateProjectDropdown() {
   if (typeof ProjectStore !== 'undefined') {
     ProjectStore.listCloud().then(() => {
       const cloudProjects = ProjectStore.list();
-      const curVal = sel.value;
+      const curVal = sel.value || (_loadedMeta?.linkedProjectId || '');
       sel.innerHTML = '<option value="">— None —</option>';
       cloudProjects.forEach(p => {
         sel.innerHTML += `<option value="${p.id}">${p.artist ? p.artist + ' — ' : ''}${p.title || 'Untitled'}</option>`;
       });
       if (curVal) sel.value = curVal;
+      updateSyncBar();
     });
   }
 }
@@ -578,7 +579,8 @@ function populateProjectDropdown() {
 $('linkedProject').addEventListener('change', updateSyncBar);
 
 function updateSyncBar() {
-  const linked = $('linkedProject').value;
+  // Use dropdown value, or fall back to loaded meta if dropdown hasn't populated yet
+  const linked = $('linkedProject').value || (_loadedMeta?.linkedProjectId || '');
   $('syncBar').style.display = linked ? 'flex' : 'none';
   $('createBudgetBtn').style.display = linked ? 'none' : 'inline-block';
 
@@ -991,6 +993,8 @@ initAuth().then(user => {
       if (cloudData && JSON.stringify(cloudData) !== JSON.stringify(localData)) {
         restoreFromData(cloudData);
       }
+      // Ensure linked nav updates after cloud data is available
+      updateSyncBar();
     });
   } else {
     AdvanceStore.loadCloud(id).then(cloudData => {

@@ -81,6 +81,10 @@ const AdvanceStore = {
       if (res.ok) {
         const cloud = await res.json();
         if (cloud && cloud.data) {
+          // Inject linked_project_id from the DB column into the data blob's meta
+          if (cloud.linked_project_id && cloud.data.meta) {
+            cloud.data.meta.linkedProjectId = cloud.linked_project_id;
+          }
           localStorage.setItem('nbl_advance_' + id, JSON.stringify(cloud.data));
           data = cloud.data;
         }
