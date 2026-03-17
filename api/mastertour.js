@@ -15,8 +15,8 @@
  *   roomlist  — Get room list for a hotel (?hotelId=)
  */
 
-const crypto = require('crypto');
-const https = require('https');
+import crypto from 'crypto';
+import https from 'https';
 
 const MT_BASE = 'https://my.eventric.com/portal/api/v5';
 
@@ -108,7 +108,7 @@ function mtFetch(path, queryParams = {}) {
   });
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -179,4 +179,4 @@ module.exports = async (req, res) => {
       upstream: err.upstreamBody || null,
     });
   }
-};
+}
