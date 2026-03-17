@@ -119,6 +119,22 @@
   .mt-refresh-bar { display:flex; align-items:center; gap:12px; }
   .mt-status { font-size:11px; color:var(--muted); letter-spacing:1px; }
 
+  .linked-nav {
+    display:flex; align-items:center; gap:8px; padding:8px 40px;
+    background:var(--surface); border-bottom:1px solid var(--border);
+  }
+  .linked-nav-label { font-size:9px; letter-spacing:2px; color:var(--muted); }
+  .linked-nav-btn {
+    padding:6px 16px; font-family:var(--font-body); font-size:10px; letter-spacing:2px;
+    text-decoration:none; border:1px solid var(--border); color:var(--text-dim);
+    background:none; cursor:pointer; transition:all .15s;
+  }
+  .linked-nav-btn:hover { border-color:var(--accent); color:var(--text); }
+  .linked-nav-btn.active {
+    border-color:var(--accent); color:var(--accent); background:rgba(196,180,130,0.08);
+  }
+  .linked-nav-sep { color:var(--muted); font-size:10px; }
+
   @media (max-width:768px) {
     .advance-hero { padding:12px 16px 20px; }
     .advance-hero .show-name { font-size:36px; }
@@ -127,6 +143,7 @@
     .content { padding:0 16px 32px; }
     .sync-bar { padding:0 16px 20px; }
     .back-link { padding:12px 16px; }
+    .linked-nav { padding:8px 16px; }
   }
 </style>
 </head>
@@ -140,6 +157,13 @@
 </div>
 
 <nav class="nav" id="main-nav"></nav>
+
+<div class="linked-nav" id="linkedNav" style="display:none">
+  <span class="linked-nav-label">VIEWING:</span>
+  <a class="linked-nav-btn active" id="linkedNavAdvance">ADVANCE</a>
+  <span class="linked-nav-sep">↔</span>
+  <a class="linked-nav-btn" id="linkedNavBudget">BUDGET</a>
+</div>
 
 <a href="advances.html" class="back-link">&larr; BACK TO ADVANCES</a>
 
@@ -556,12 +580,18 @@ $('linkedProject').addEventListener('change', updateSyncBar);
 function updateSyncBar() {
   const linked = $('linkedProject').value;
   $('syncBar').style.display = linked ? 'flex' : 'none';
-  // Show CREATE BUDGET button only when no project is linked
   $('createBudgetBtn').style.display = linked ? 'none' : 'inline-block';
+
+  // Update linked nav bar
+  const nav = $('linkedNav');
   if (linked) {
+    nav.style.display = 'flex';
+    $('linkedNavBudget').href = 'budget.html?id=' + encodeURIComponent(linked);
     const projects = ProjectStore.list();
     const p = projects.find(x => x.id === linked);
     $('syncLabel').textContent = p ? 'Linked to: ' + (p.title || 'Untitled') : '';
+  } else {
+    nav.style.display = 'none';
   }
 }
 
@@ -734,10 +764,16 @@ async function pullFromBudget() {
     });
   }
 
-  // Pull crew
-  if ($('crewBody').rows.length === 0 && projData.tables?.crewBody?.length) {
+  // Pull crew — merge from budget, skip duplicates by name
+  if (projData.tables?.crewBody?.length) {
+    const existingNames = new Set(
+      Array.from($('crewBody').rows).map(tr => (tr.querySelectorAll('input')[1]?.value || '').toLowerCase().trim())
+    );
     projData.tables.crewBody.forEach(row => {
-      addCrewRow({ role:row[0]||'', name:row[1]||'' });
+      const name = (row[1] || '').trim();
+      if (!name || existingNames.has(name.toLowerCase())) return;
+      addCrewRow({ role: row[0] || '', name });
+      existingNames.add(name.toLowerCase());
       pulled++;
     });
   }

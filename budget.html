@@ -281,11 +281,28 @@
   .export-btn.secondary { background:transparent; border:1px solid var(--border); color:var(--text); }
   .export-label { font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
 
+  .linked-nav {
+    display:flex; align-items:center; gap:8px; padding:8px 40px;
+    background:var(--surface); border-bottom:1px solid var(--border);
+  }
+  .linked-nav-label { font-size:9px; letter-spacing:2px; color:var(--muted); }
+  .linked-nav-btn {
+    padding:6px 16px; font-family:var(--font-body); font-size:10px; letter-spacing:2px;
+    text-decoration:none; border:1px solid var(--border); color:var(--text-dim);
+    background:none; cursor:pointer; transition:all .15s;
+  }
+  .linked-nav-btn:hover { border-color:var(--accent); color:var(--text); }
+  .linked-nav-btn.active {
+    border-color:var(--accent); color:var(--accent); background:rgba(196,180,130,0.08);
+  }
+  .linked-nav-sep { color:var(--muted); font-size:10px; }
+
   @media(max-width:900px) {
     .kpi-grid { grid-template-columns:repeat(2,1fr); }
     .category-grid { grid-template-columns:1fr 1fr; }
     .hero-title,.editable-lg { font-size:48px!important; }
     .guest-grid { grid-template-columns:1fr; }
+    .linked-nav { padding:8px 16px; }
   }
 
   /* ─── Print / PDF styles ──────────────────────────────────── */
@@ -354,6 +371,13 @@
 
 <!-- NAV -->
 <nav class="nav" id="main-nav"></nav>
+
+<div class="linked-nav" id="linkedNav" style="display:none">
+  <span class="linked-nav-label">VIEWING:</span>
+  <a class="linked-nav-btn" id="linkedNavAdvance">ADVANCE</a>
+  <span class="linked-nav-sep">↔</span>
+  <a class="linked-nav-btn active" id="linkedNavBudget">BUDGET</a>
+</div>
 
 <!-- EXPORT BAR -->
 <div class="export-bar">
@@ -3471,6 +3495,20 @@ function init() {
     }).catch(err => alert('Error importing file: ' + err.message));
     // Clean URL
     window.history.replaceState({}, '', 'budget.html?id=' + encodeURIComponent(currentProjectId));
+  }
+
+  // Check if an advance is linked to this budget
+  if (currentProjectId) {
+    fetch('/api/advances')
+      .then(r => r.ok ? r.json() : [])
+      .then(advances => {
+        const linked = advances.find(a => a.linked_project_id === currentProjectId);
+        if (linked) {
+          document.getElementById('linkedNav').style.display = 'flex';
+          document.getElementById('linkedNavAdvance').href = 'advance.html?id=' + encodeURIComponent(linked.id);
+        }
+      })
+      .catch(() => {});
   }
 }
 
