@@ -109,6 +109,36 @@
   .sync-btn:hover { background:var(--orange); color:var(--bg); }
   .sync-label { font-size:10px; color:var(--muted); letter-spacing:1px; }
 
+  .mt-btn {
+    padding:8px 20px; font-family:var(--font-body); font-size:10px; letter-spacing:2px;
+    cursor:pointer; border:1px solid #6c5ce7; color:#6c5ce7; background:none;
+    transition:all .15s;
+  }
+  .mt-btn:hover { background:#6c5ce7; color:var(--bg); }
+
+  .mt-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:1000;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mt-modal {
+    background:var(--surface); border:1px solid var(--border); padding:32px;
+    max-width:600px; width:90%; max-height:80vh; overflow-y:auto;
+  }
+  .mt-modal h3 { font-family:var(--font-display); font-size:24px; letter-spacing:2px; margin:0 0 16px; }
+  .mt-modal select, .mt-modal button { margin-top:8px; }
+  .mt-list { list-style:none; padding:0; margin:12px 0; }
+  .mt-list li {
+    padding:10px 14px; border:1px solid var(--border); margin-bottom:6px;
+    cursor:pointer; font-size:12px; letter-spacing:1px; transition:all .15s;
+  }
+  .mt-list li:hover { border-color:var(--accent); background:var(--surface-2); }
+  .mt-list li.selected { border-color:#6c5ce7; background:rgba(108,92,231,.15); }
+  .mt-status { font-size:11px; color:var(--muted); margin:8px 0; letter-spacing:1px; }
+  .mt-close {
+    position:absolute; top:12px; right:16px; background:none; border:none;
+    color:var(--muted); font-size:20px; cursor:pointer;
+  }
+
   @media (max-width:768px) {
     .advance-hero { padding:12px 16px 20px; }
     .advance-hero .show-name { font-size:36px; }
@@ -170,6 +200,21 @@
   <button class="sync-btn" onclick="syncToBudget()">⬆ SYNC TO BUDGET</button>
   <button class="sync-btn" onclick="pullFromBudget()">⬇ PULL FROM BUDGET</button>
   <span class="sync-label" id="syncLabel"></span>
+</div>
+
+<div style="padding:0 40px 16px;">
+  <button class="mt-btn" onclick="openMasterTourImport()">IMPORT FROM MASTER TOUR</button>
+</div>
+
+<!-- Master Tour Import Modal -->
+<div class="mt-overlay" id="mtOverlay" style="display:none">
+  <div class="mt-modal" style="position:relative">
+    <button class="mt-close" onclick="closeMT()">&times;</button>
+    <h3>MASTER TOUR IMPORT</h3>
+    <div id="mtContent">
+      <p class="mt-status">Loading tours...</p>
+    </div>
+  </div>
 </div>
 
 <div class="content">
@@ -758,6 +803,221 @@ async function pullFromBudget() {
   updateCounts();
   scheduleAutoSave();
   Toast.show(pulled > 0 ? `Pulled ${pulled} items from budget` : 'No new data to pull (advance already has data)', pulled > 0 ? 'success' : 'info');
+}
+
+// ── MASTER TOUR IMPORT ──
+function closeMT() { $('mtOverlay').style.display = 'none'; }
+
+async function mtApi(action, params = {}) {
+  const qs = new URLSearchParams({ action, ...params }).toString();
+  const res = await fetch('/api/mastertour?' + qs);
+  if (!res.ok) throw new Error('MT API error: ' + res.status);
+  return res.json();
+}
+
+async function openMasterTourImport() {
+  $('mtOverlay').style.display = 'flex';
+  $('mtContent').innerHTML = '<p class="mt-status">Loading tours...</p>';
+
+  try {
+    const resp = await mtApi('tours');
+    const tours = resp.data || resp || [];
+
+    if (!tours.length) {
+      $('mtContent').innerHTML = '<p class="mt-status">No tours found.</p>';
+      return;
+    }
+
+    let html = '<p class="mt-status">Select a tour:</p><ul class="mt-list">';
+    tours.forEach(t => {
+      const name = t.name || t.tourName || 'Untitled Tour';
+      html += `<li onclick="selectMTTour('${t.id || t.tourId}', this)">${name}</li>`;
+    });
+    html += '</ul>';
+    $('mtContent').innerHTML = html;
+  } catch (err) {
+    $('mtContent').innerHTML = `<p class="mt-status" style="color:var(--red)">Error: ${err.message}</p>`;
+  }
+}
+
+async function selectMTTour(tourId, el) {
+  // Highlight selected
+  document.querySelectorAll('.mt-list li').forEach(li => li.classList.remove('selected'));
+  el.classList.add('selected');
+
+  // Show loading below tour list
+  let dateDiv = document.getElementById('mtDates');
+  if (!dateDiv) {
+    dateDiv = document.createElement('div');
+    dateDiv.id = 'mtDates';
+    $('mtContent').appendChild(dateDiv);
+  }
+  dateDiv.innerHTML = '<p class="mt-status">Loading tour dates...</p>';
+
+  try {
+    const resp = await mtApi('tour', { tourId });
+    const tour = resp.data || resp;
+    const dates = tour.tourDates || tour.dates || [];
+
+    if (!dates.length) {
+      dateDiv.innerHTML = '<p class="mt-status">No dates found for this tour.</p>';
+      return;
+    }
+
+    // Sort by date descending (newest first)
+    dates.sort((a, b) => new Date(b.date || b.startDate || 0) - new Date(a.date || a.startDate || 0));
+
+    let html = '<p class="mt-status" style="margin-top:16px">Select a show date:</p><ul class="mt-list">';
+    dates.forEach(d => {
+      const date = d.date || d.startDate || '';
+      const venue = d.venue?.name || d.venueName || d.city || '';
+      const city = d.venue?.city || d.city || '';
+      const dayId = d.id || d.dayId;
+      const label = `${date}${venue ? ' — ' + venue : ''}${city ? ' (' + city + ')' : ''}`;
+      html += `<li onclick="importMTDay('${tourId}', '${dayId}', this)">${label}</li>`;
+    });
+    html += '</ul>';
+    dateDiv.innerHTML = html;
+  } catch (err) {
+    dateDiv.innerHTML = `<p class="mt-status" style="color:var(--red)">Error: ${err.message}</p>`;
+  }
+}
+
+async function importMTDay(tourId, dayId, el) {
+  // Highlight
+  el.parentNode.querySelectorAll('li').forEach(li => li.classList.remove('selected'));
+  el.classList.add('selected');
+
+  let statusDiv = document.getElementById('mtImportStatus');
+  if (!statusDiv) {
+    statusDiv = document.createElement('div');
+    statusDiv.id = 'mtImportStatus';
+    $('mtContent').appendChild(statusDiv);
+  }
+  statusDiv.innerHTML = '<p class="mt-status">Importing show data...</p>';
+
+  try {
+    // Fetch day details, crew, hotels, and schedule in parallel
+    const [dayResp, crewResp, hotelResp, schedResp] = await Promise.all([
+      mtApi('day', { dayId }),
+      mtApi('crew', { tourId }),
+      mtApi('hotels', { dayId }),
+      mtApi('schedule', { dayId }),
+    ]);
+
+    const day = dayResp.data || dayResp;
+    const crew = crewResp.data || crewResp || [];
+    const hotels = hotelResp.data || hotelResp || [];
+    const schedule = schedResp.data || schedResp || [];
+
+    let imported = 0;
+
+    // Fill show name & venue from day data
+    const showName = day.tourName || day.name || '';
+    const venueName = day.venue?.name || day.venueName || '';
+    const venueCity = day.venue?.city || day.city || '';
+    const venueAddr = day.venue?.address || day.venueAddress || '';
+    const showDate = day.date || day.startDate || '';
+
+    if (showName && !$('showName').value) { $('showName').value = showName; imported++; }
+    if (venueName && !$('venueName').value) { $('venueName').value = venueName; imported++; }
+    if (venueAddr && !$('venueAddress').value) {
+      $('venueAddress').value = venueAddr + (venueCity ? ', ' + venueCity : '');
+      imported++;
+    } else if (venueCity && !$('venueAddress').value) {
+      $('venueAddress').value = venueCity;
+      imported++;
+    }
+    if (showDate && !$('showDate').value) {
+      // Format date to YYYY-MM-DD if needed
+      const d = new Date(showDate);
+      if (!isNaN(d)) $('showDate').value = d.toISOString().split('T')[0];
+      imported++;
+    }
+
+    // Import crew
+    const crewArr = Array.isArray(crew) ? crew : [];
+    crewArr.forEach(c => {
+      const name = c.name || ((c.firstName || '') + ' ' + (c.lastName || '')).trim();
+      const role = c.role || c.position || c.department || '';
+      if (!name) return;
+      // Check if already exists
+      const exists = Array.from($('crewBody').rows).some(tr => {
+        const inp = tr.querySelector('input:nth-child(1)');
+        const nameInp = tr.querySelectorAll('input')[1];
+        return nameInp && nameInp.value.toLowerCase() === name.toLowerCase();
+      });
+      if (!exists) {
+        addCrewRow({ role, name });
+        imported++;
+      }
+    });
+
+    // Import schedule/events
+    const schedArr = Array.isArray(schedule) ? schedule : [];
+    schedArr.forEach(s => {
+      const label = s.name || s.title || s.description || '';
+      const time = s.startTime || s.time || '';
+      const notes = s.notes || s.description || '';
+      if (!label) return;
+      addScheduleRow({ label, time, day: '', notes });
+      imported++;
+    });
+
+    // Import hotels
+    const hotelArr = Array.isArray(hotels) ? hotels : [];
+    hotelArr.forEach(h => {
+      const hotelName = h.name || h.hotelName || '';
+      const checkin = h.checkIn || h.checkinDate || '';
+      const checkout = h.checkOut || h.checkoutDate || '';
+      const conf = h.confirmationNumber || h.confirmation || '';
+      const notes = h.notes || '';
+      if (!hotelName) return;
+      addHotelInfoRow({
+        guest: '',
+        hotel: hotelName,
+        checkin: checkin ? new Date(checkin).toISOString().split('T')[0] : '',
+        checkout: checkout ? new Date(checkout).toISOString().split('T')[0] : '',
+        confirmation: conf,
+        notes,
+      });
+      imported++;
+    });
+
+    // Import venue contacts if available
+    if (day.venue?.id || day.venueId) {
+      try {
+        const contactResp = await mtApi('contacts', { companyId: day.venue?.id || day.venueId });
+        const contacts = contactResp.data || contactResp || [];
+        const contactArr = Array.isArray(contacts) ? contacts : [];
+        contactArr.forEach(c => {
+          const name = c.name || ((c.firstName || '') + ' ' + (c.lastName || '')).trim();
+          const role = c.title || c.role || 'Venue Contact';
+          const email = c.email || '';
+          const phone = c.phone || c.mobilePhone || '';
+          if (!name) return;
+          addContactRow({ role, name, email, phone });
+          imported++;
+        });
+      } catch (e) { /* contacts are optional */ }
+    }
+
+    // Import production notes
+    const dayNotes = [day.generalNotes, day.travelNotes, day.hotelNotes].filter(Boolean).join('\n\n');
+    if (dayNotes && !$('prodNotes').value) {
+      $('prodNotes').value = dayNotes;
+      imported++;
+    }
+
+    updateCounts();
+    scheduleAutoSave();
+
+    statusDiv.innerHTML = `<p class="mt-status" style="color:var(--accent)">Imported ${imported} items from Master Tour.</p>
+      <button class="mt-btn" style="margin-top:12px" onclick="closeMT()">DONE</button>`;
+
+  } catch (err) {
+    statusDiv.innerHTML = `<p class="mt-status" style="color:var(--red)">Import error: ${err.message}</p>`;
+  }
 }
 
 // ── Auth callback ──
