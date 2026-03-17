@@ -32,8 +32,8 @@ const ProjectStore = {
     try {
       // Use authFetch if logged in (includes token), plain fetch otherwise
       const res = (typeof isLoggedIn === 'function' && isLoggedIn())
-        ? await authFetch('/api/budgets/list')
-        : await fetch('/api/budgets/list');
+        ? await authFetch('/api/budgets?action=list')
+        : await fetch('/api/budgets?action=list');
       if (res.ok) {
         const cloud = await res.json();
         this._mergeCloudIndex(cloud);
@@ -87,8 +87,8 @@ const ProjectStore = {
     try {
       // Use authFetch if logged in, plain fetch otherwise
       const res = (typeof isLoggedIn === 'function' && isLoggedIn())
-        ? await authFetch('/api/budgets/get?id=' + encodeURIComponent(id))
-        : await fetch('/api/budgets/get?id=' + encodeURIComponent(id));
+        ? await authFetch('/api/budgets?action=get&id=' + encodeURIComponent(id))
+        : await fetch('/api/budgets?action=get&id=' + encodeURIComponent(id));
       if (res.ok) {
         const cloud = await res.json();
         if (cloud && cloud.data) {
@@ -144,7 +144,7 @@ const ProjectStore = {
     try {
       // Use authFetch if logged in (includes token), plain fetch otherwise
       const doFetch = (typeof isLoggedIn === 'function' && isLoggedIn()) ? authFetch : fetch;
-      await doFetch('/api/budgets/save', {
+      await doFetch('/api/budgets?action=save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -194,7 +194,7 @@ const ProjectStore = {
 
     // Always sync delete to cloud
     const doFetch = (typeof isLoggedIn === 'function' && isLoggedIn()) ? authFetch : fetch;
-    doFetch('/api/budgets/delete', {
+    doFetch('/api/budgets?action=delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
