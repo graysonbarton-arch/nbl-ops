@@ -984,6 +984,22 @@ initAuth().then(user => {
   currentAdvanceId = id;
   populateProjectDropdown();
 
+  // Directly fetch advance record to get linked_project_id (independent of data blob)
+  fetch('/api/advances?action=get&id=' + encodeURIComponent(id))
+    .then(r => r.ok ? r.json() : null)
+    .then(record => {
+      if (record?.linked_project_id) {
+        const nav = $('linkedNav');
+        nav.style.display = 'flex';
+        $('linkedNavBudget').href = 'budget.html?id=' + encodeURIComponent(record.linked_project_id);
+        // Also set the dropdown if not already set
+        if (!$('linkedProject').value) {
+          $('linkedProject').value = record.linked_project_id;
+        }
+      }
+    })
+    .catch(() => {});
+
   // Try local first
   const localData = AdvanceStore.load(id);
   if (localData) {
@@ -993,8 +1009,6 @@ initAuth().then(user => {
       if (cloudData && JSON.stringify(cloudData) !== JSON.stringify(localData)) {
         restoreFromData(cloudData);
       }
-      // Ensure linked nav updates after cloud data is available
-      updateSyncBar();
     });
   } else {
     AdvanceStore.loadCloud(id).then(cloudData => {
