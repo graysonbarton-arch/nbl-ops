@@ -84,19 +84,27 @@ function mtFetch(path, queryParams = {}) {
         'Authorization': authHeader,
         'Accept': 'application/json',
       },
-    }, (res) => {
+    }, (resp) => {
       let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
+      resp.on('data', chunk => body += chunk);
+      resp.on('end', () => {
+        let parsed;
         try {
-          resolve({ status: res.statusCode, data: JSON.parse(body) });
+          parsed = JSON.parse(body);
         } catch {
-          resolve({ status: res.statusCode, data: body });
+          parsed = body;
         }
+        if (resp.statusCode >= 400) {
+          const err = new Error(`MT API returned ${resp.statusCode}`);
+          err.upstreamStatus = resp.statusCode;
+          err.upstreamBody = parsed;
+          return reject(err);
+        }
+        resolve({ status: resp.statusCode, data: parsed });
       });
     });
     req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Timeout')); });
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Timeout — Master Tour API did not respond within 15s')); });
   });
 }
 
@@ -163,7 +171,12 @@ module.exports = async (req, res) => {
     return res.status(200).json(result.data);
 
   } catch (err) {
-    console.error('Master Tour API error:', err);
-    return res.status(500).json({ error: 'Master Tour API request failed', detail: err.message });
+    console.error('Master Tour API error:', err.message, err.upstreamBody || '');
+    const status = err.upstreamStatus || 500;
+    return res.status(status).json({
+      error: 'Master Tour API request failed',
+      detail: err.message,
+      upstream: err.upstreamBody || null,
+    });
   }
 };

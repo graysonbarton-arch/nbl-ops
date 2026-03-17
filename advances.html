@@ -411,7 +411,14 @@ function closeMT() { document.getElementById('mtOverlay').style.display = 'none'
 async function mtApi(action, params = {}) {
   const qs = new URLSearchParams({ action, ...params }).toString();
   const res = await fetch('/api/mastertour?' + qs);
-  if (!res.ok) throw new Error('MT API error: ' + res.status);
+  if (!res.ok) {
+    let detail = res.status;
+    try {
+      const body = await res.json();
+      detail = body.detail || body.error || res.status;
+    } catch {}
+    throw new Error('MT API error: ' + detail);
+  }
   return res.json();
 }
 
