@@ -2,7 +2,6 @@
  * Master Tour API Proxy
  *
  * Single serverless function handling multiple Master Tour API actions.
- * Uses OAuth 1.0 signing with key/secret from environment variables.
  *
  * Actions (via ?action= query param):
  *   tours     — List all tours
@@ -15,101 +14,7 @@
  *   roomlist  — Get room list for a hotel (?hotelId=)
  */
 
-import crypto from 'crypto';
-import https from 'https';
-
-const MT_BASE = 'https://my.eventric.com/portal/api/v5';
-
-function percentEncode(str) {
-  return encodeURIComponent(str)
-    .replace(/!/g, '%21')
-    .replace(/\*/g, '%2A')
-    .replace(/'/g, '%27')
-    .replace(/\(/g, '%28')
-    .replace(/\)/g, '%29');
-}
-
-function buildOAuthSignature(method, url, params, consumerSecret) {
-  // Sort params alphabetically
-  const sortedKeys = Object.keys(params).sort();
-  const paramString = sortedKeys.map(k => `${percentEncode(k)}=${percentEncode(params[k])}`).join('&');
-
-  const baseString = [
-    method.toUpperCase(),
-    percentEncode(url),
-    percentEncode(paramString),
-  ].join('&');
-
-  // OAuth 1.0 HMAC-SHA1 — signing key is consumerSecret& (no token secret)
-  const signingKey = percentEncode(consumerSecret) + '&';
-  return crypto.createHmac('sha1', signingKey).update(baseString).digest('base64');
-}
-
-function mtFetch(path, queryParams = {}) {
-  const key = process.env.MASTERTOUR_KEY;
-  const secret = process.env.MASTERTOUR_SECRET;
-  if (!key || !secret) {
-    return Promise.reject(new Error('Master Tour API credentials not configured'));
-  }
-
-  // Include version=7 to satisfy MT API upgrade requirement
-  queryParams = { version: '7', ...queryParams };
-
-  const url = `${MT_BASE}/${path}`;
-
-  // OAuth params
-  const oauthParams = {
-    oauth_consumer_key: key,
-    oauth_nonce: crypto.randomBytes(16).toString('hex'),
-    oauth_signature_method: 'HMAC-SHA1',
-    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    oauth_version: '1.0',
-  };
-
-  // Merge query params + oauth params for signature
-  const allParams = { ...queryParams, ...oauthParams };
-  const signature = buildOAuthSignature('GET', url, allParams, secret);
-  oauthParams.oauth_signature = signature;
-
-  // Build Authorization header
-  const authHeader = 'OAuth ' + Object.keys(oauthParams)
-    .map(k => `${percentEncode(k)}="${percentEncode(oauthParams[k])}"`)
-    .join(', ');
-
-  // Build query string from non-oauth params
-  const qs = Object.keys(queryParams).length
-    ? '?' + Object.entries(queryParams).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
-    : '';
-
-  return new Promise((resolve, reject) => {
-    const req = https.get(url + qs, {
-      headers: {
-        'Authorization': authHeader,
-        'Accept': 'application/json',
-      },
-    }, (resp) => {
-      let body = '';
-      resp.on('data', chunk => body += chunk);
-      resp.on('end', () => {
-        let parsed;
-        try {
-          parsed = JSON.parse(body);
-        } catch {
-          parsed = body;
-        }
-        if (resp.statusCode >= 400) {
-          const err = new Error(`MT API returned ${resp.statusCode}`);
-          err.upstreamStatus = resp.statusCode;
-          err.upstreamBody = parsed;
-          return reject(err);
-        }
-        resolve({ status: resp.statusCode, data: parsed });
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Timeout — Master Tour API did not respond within 15s')); });
-  });
-}
+import { mtFetch } from '../lib/mastertour.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -128,7 +33,6 @@ export default async function handler(req, res) {
 
       case 'tour':
         if (!tourId) return res.status(400).json({ error: 'tourId required' });
-        // numPastDays=0 gets all dates including past
         result = await mtFetch(`tour/${tourId}`, { numPastDays: '0' });
         break;
 
