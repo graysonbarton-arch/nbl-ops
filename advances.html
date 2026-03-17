@@ -428,16 +428,16 @@ async function openMTImport() {
 
   try {
     const resp = await mtApi('tours');
-    const tours = resp.data || resp || [];
-    if (!tours.length) {
+    const tours = resp.tours || resp.data?.tours || resp.data || resp || [];
+    if (!Array.isArray(tours) || !tours.length) {
       document.getElementById('mtContent').innerHTML = '<p class="mt-status">No tours found in Master Tour.</p>';
       return;
     }
 
     let html = '<p class="mt-status">Select a tour to import from:</p><ul class="mt-list">';
     tours.forEach(t => {
-      const name = t.name || t.tourName || 'Untitled Tour';
-      const id = t.id || t.tourId;
+      const name = t.legName || t.organizationName || t.tourName || t.name || t.artistName || 'Untitled Tour';
+      const id = t.tourId || t.id;
       html += `<li onclick="selectMTTour('${id}', this)"><span>${escHtml(name)}</span></li>`;
     });
     html += '</ul>';
