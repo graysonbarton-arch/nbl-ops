@@ -477,13 +477,32 @@ async function selectMTTour(tourId, el) {
     // Sort by date (soonest first)
     dates.sort((a, b) => new Date(a.dayDate || a.date || 0) - new Date(b.dayDate || b.date || 0));
 
+    // Filter: only show days with actual show data (Show Day / Load-In Day) and today or future
+    const today = new Date().toISOString().split('T')[0];
+    const showTypes = ['show day', 'load-in day'];
+    const filtered = dates.filter(d => {
+      const type = (d.dayType || '').toLowerCase();
+      if (!showTypes.includes(type)) return false;
+      const raw = d.dayDate || d.date || '';
+      try {
+        const dt = new Date(raw);
+        if (!isNaN(dt)) return dt.toISOString().split('T')[0] >= today;
+      } catch {}
+      return false;
+    });
+
+    if (!filtered.length) {
+      dateDiv.innerHTML = '<p class="mt-status">No upcoming show dates found for this tour.</p>';
+      return;
+    }
+
     // Get existing advances to check for date matches
     const existingAdvances = AdvanceStore.list();
 
     let html = '<p class="mt-status" style="margin-top:16px">Select show dates to import (click to toggle):</p>';
     html += '<ul class="mt-list" id="mtDateList">';
 
-    dates.forEach((d, i) => {
+    filtered.forEach((d, i) => {
       const rawDate = d.dayDate || d.date || d.startDate || '';
       let dateStr = rawDate;
       try {
@@ -491,7 +510,7 @@ async function selectMTTour(tourId, el) {
         if (!isNaN(dt)) dateStr = dt.toISOString().split('T')[0];
       } catch {}
 
-      const venue = d.venue?.name || d.venueName || '';
+      const venue = d.name || d.venue?.name || d.venueName || '';
       const city = d.venue?.city || d.city || '';
       const dayId = d.id || d.dayId;
       const label = `${dateStr}${venue ? ' — ' + venue : ''}${city ? ' (' + city + ')' : ''}`;
