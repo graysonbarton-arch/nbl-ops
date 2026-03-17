@@ -80,6 +80,38 @@
 
   #importFile { display:none; }
 
+  .mt-btn {
+    padding:10px 28px; font-family:var(--font-body); font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; cursor:pointer; border:1px solid #6c5ce7;
+    background:none; color:#6c5ce7; transition:all .2s;
+  }
+  .mt-btn:hover { background:#6c5ce7; color:var(--bg); }
+  .mt-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:1000;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mt-modal {
+    background:var(--surface); border:1px solid var(--border); padding:32px;
+    max-width:640px; width:90%; max-height:80vh; overflow-y:auto; position:relative;
+  }
+  .mt-modal h3 { font-family:var(--font-display); font-size:24px; letter-spacing:2px; margin:0 0 16px; }
+  .mt-close {
+    position:absolute; top:12px; right:16px; background:none; border:none;
+    color:var(--muted); font-size:20px; cursor:pointer;
+  }
+  .mt-list { list-style:none; padding:0; margin:12px 0; }
+  .mt-list li {
+    padding:10px 14px; border:1px solid var(--border); margin-bottom:6px;
+    cursor:pointer; font-size:12px; letter-spacing:1px; transition:all .15s;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .mt-list li:hover { border-color:var(--accent); background:var(--surface-2); }
+  .mt-list li.selected { border-color:#6c5ce7; background:rgba(108,92,231,.15); }
+  .mt-status { font-size:11px; color:var(--muted); margin:8px 0; letter-spacing:1px; }
+  .mt-match { font-size:9px; color:var(--green); letter-spacing:1px; }
+  .mt-new { font-size:9px; color:var(--blue); letter-spacing:1px; }
+  .mt-actions { margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; }
+
   @media (max-width:768px) {
     .hero-title { font-size:48px; }
     .advance-grid { grid-template-columns:1fr; padding:0 16px 32px; }
@@ -106,8 +138,18 @@
 
 <div class="action-bar">
   <button class="action-btn primary" onclick="newAdvance()">+ NEW ADVANCE</button>
+  <button class="mt-btn" onclick="openMTImport()">IMPORT FROM MASTER TOUR</button>
   <button class="action-btn" onclick="document.getElementById('importFile').click()">IMPORT XLSX</button>
   <input type="file" id="importFile" accept=".xlsx,.xls" onchange="importAdvanceXLSX(event)">
+</div>
+
+<!-- Master Tour Import Modal -->
+<div class="mt-overlay" id="mtOverlay" style="display:none">
+  <div class="mt-modal">
+    <button class="mt-close" onclick="closeMT()">&times;</button>
+    <h3>MASTER TOUR IMPORT</h3>
+    <div id="mtContent"><p class="mt-status">Loading tours...</p></div>
+  </div>
 </div>
 
 <div class="advance-grid" id="advanceGrid"></div>
@@ -361,6 +403,289 @@ function importAdvanceXLSX(e) {
   };
   reader.readAsArrayBuffer(file);
   e.target.value = '';
+}
+
+// ── MASTER TOUR IMPORT ──
+function closeMT() { document.getElementById('mtOverlay').style.display = 'none'; }
+
+async function mtApi(action, params = {}) {
+  const qs = new URLSearchParams({ action, ...params }).toString();
+  const res = await fetch('/api/mastertour?' + qs);
+  if (!res.ok) throw new Error('MT API error: ' + res.status);
+  return res.json();
+}
+
+async function openMTImport() {
+  document.getElementById('mtOverlay').style.display = 'flex';
+  document.getElementById('mtContent').innerHTML = '<p class="mt-status">Loading tours...</p>';
+
+  try {
+    const resp = await mtApi('tours');
+    const tours = resp.data || resp || [];
+    if (!tours.length) {
+      document.getElementById('mtContent').innerHTML = '<p class="mt-status">No tours found in Master Tour.</p>';
+      return;
+    }
+
+    let html = '<p class="mt-status">Select a tour to import from:</p><ul class="mt-list">';
+    tours.forEach(t => {
+      const name = t.name || t.tourName || 'Untitled Tour';
+      const id = t.id || t.tourId;
+      html += `<li onclick="selectMTTour('${id}', this)"><span>${escHtml(name)}</span></li>`;
+    });
+    html += '</ul>';
+    document.getElementById('mtContent').innerHTML = html;
+  } catch (err) {
+    document.getElementById('mtContent').innerHTML = `<p class="mt-status" style="color:var(--red)">Error: ${err.message}</p>`;
+  }
+}
+
+let _mtSelectedDates = [];
+let _mtTourId = null;
+
+async function selectMTTour(tourId, el) {
+  document.querySelectorAll('#mtContent > .mt-list li').forEach(li => li.classList.remove('selected'));
+  el.classList.add('selected');
+  _mtTourId = tourId;
+  _mtSelectedDates = [];
+
+  let dateDiv = document.getElementById('mtDates');
+  if (!dateDiv) {
+    dateDiv = document.createElement('div');
+    dateDiv.id = 'mtDates';
+    document.getElementById('mtContent').appendChild(dateDiv);
+  }
+  dateDiv.innerHTML = '<p class="mt-status">Loading tour dates...</p>';
+
+  try {
+    const resp = await mtApi('tour', { tourId });
+    const tour = resp.data || resp;
+    const dates = tour.tourDates || tour.dates || [];
+
+    if (!dates.length) {
+      dateDiv.innerHTML = '<p class="mt-status">No dates found for this tour.</p>';
+      return;
+    }
+
+    // Sort by date (soonest first)
+    dates.sort((a, b) => new Date(a.date || a.startDate || 0) - new Date(b.date || b.startDate || 0));
+
+    // Get existing advances to check for date matches
+    const existingAdvances = AdvanceStore.list();
+
+    let html = '<p class="mt-status" style="margin-top:16px">Select show dates to import (click to toggle):</p>';
+    html += '<ul class="mt-list" id="mtDateList">';
+
+    dates.forEach((d, i) => {
+      const rawDate = d.date || d.startDate || '';
+      let dateStr = rawDate;
+      try {
+        const dt = new Date(rawDate);
+        if (!isNaN(dt)) dateStr = dt.toISOString().split('T')[0];
+      } catch {}
+
+      const venue = d.venue?.name || d.venueName || '';
+      const city = d.venue?.city || d.city || '';
+      const dayId = d.id || d.dayId;
+      const label = `${dateStr}${venue ? ' — ' + venue : ''}${city ? ' (' + city + ')' : ''}`;
+
+      // Check if an advance already exists for this date
+      const match = existingAdvances.find(a => a.date === dateStr);
+      const matchTag = match
+        ? `<span class="mt-match">EXISTING: ${escHtml(match.showName || 'Untitled')}</span>`
+        : '<span class="mt-new">NEW ADVANCE</span>';
+
+      html += `<li data-idx="${i}" data-dayid="${dayId}" data-date="${dateStr}" data-venue="${escHtml(venue)}" data-city="${escHtml(city)}" onclick="toggleMTDate(this)">
+        <span>${escHtml(label)}</span>${matchTag}
+      </li>`;
+    });
+
+    html += '</ul>';
+    html += `<div class="mt-actions">
+      <button class="mt-btn" onclick="selectAllMTDates()">SELECT ALL</button>
+      <button class="mt-btn" onclick="importSelectedMTDates()" id="mtImportBtn" style="border-color:var(--accent); color:var(--accent);">IMPORT SELECTED (0)</button>
+    </div>`;
+    html += '<div id="mtImportStatus"></div>';
+
+    dateDiv.innerHTML = html;
+  } catch (err) {
+    dateDiv.innerHTML = `<p class="mt-status" style="color:var(--red)">Error: ${err.message}</p>`;
+  }
+}
+
+function toggleMTDate(li) {
+  li.classList.toggle('selected');
+  updateMTImportCount();
+}
+
+function selectAllMTDates() {
+  const all = document.querySelectorAll('#mtDateList li');
+  const allSelected = Array.from(all).every(li => li.classList.contains('selected'));
+  all.forEach(li => {
+    if (allSelected) li.classList.remove('selected');
+    else li.classList.add('selected');
+  });
+  updateMTImportCount();
+}
+
+function updateMTImportCount() {
+  const count = document.querySelectorAll('#mtDateList li.selected').length;
+  const btn = document.getElementById('mtImportBtn');
+  if (btn) btn.textContent = `IMPORT SELECTED (${count})`;
+}
+
+async function importSelectedMTDates() {
+  const selected = document.querySelectorAll('#mtDateList li.selected');
+  if (!selected.length) { Toast.show('No dates selected', 'warning'); return; }
+
+  const statusDiv = document.getElementById('mtImportStatus');
+  statusDiv.innerHTML = `<p class="mt-status">Importing ${selected.length} show(s)...</p>`;
+
+  const existingAdvances = AdvanceStore.list();
+  let created = 0, updated = 0;
+
+  for (const li of selected) {
+    const dayId = li.dataset.dayid;
+    const dateStr = li.dataset.date;
+
+    try {
+      // Fetch all data for this day in parallel
+      const [dayResp, crewResp, hotelResp, schedResp] = await Promise.all([
+        mtApi('day', { dayId }),
+        mtApi('crew', { tourId: _mtTourId }),
+        mtApi('hotels', { dayId }),
+        mtApi('schedule', { dayId }),
+      ]);
+
+      const day = dayResp.data || dayResp;
+      const crew = (crewResp.data || crewResp || []);
+      const hotels = (hotelResp.data || hotelResp || []);
+      const schedule = (schedResp.data || schedResp || []);
+
+      // Build advance data from MT response
+      const showName = day.tourName || day.name || '';
+      const venueName = day.venue?.name || day.venueName || '';
+      const venueAddr = day.venue?.address || '';
+      const venueCity = day.venue?.city || day.city || '';
+      const showDate = dateStr;
+
+      // Check if advance exists for this date
+      const existing = existingAdvances.find(a => a.date === dateStr);
+
+      let advId, advData;
+
+      if (existing) {
+        // Load existing advance data and merge
+        advId = existing.id;
+        advData = AdvanceStore.load(advId) || {};
+        if (!advData.meta) advData.meta = {};
+        if (!advData.contacts) advData.contacts = [];
+        if (!advData.schedule) advData.schedule = [];
+        if (!advData.crew) advData.crew = [];
+        if (!advData.hotel) advData.hotel = [];
+        if (!advData.links) advData.links = [];
+        updated++;
+      } else {
+        // Create new advance
+        advId = AdvanceStore.create();
+        advData = { meta:{}, contacts:[], schedule:[], crew:[], hotel:[], notes:'', links:[] };
+        created++;
+      }
+
+      // Fill meta (only if blank on existing)
+      if (!advData.meta.showName) advData.meta.showName = showName;
+      if (!advData.meta.venue) advData.meta.venue = venueName;
+      if (!advData.meta.venueAddress) advData.meta.venueAddress = (venueAddr ? venueAddr + (venueCity ? ', ' + venueCity : '') : venueCity);
+      if (!advData.meta.date) advData.meta.date = showDate;
+      if (!advData.meta.status) advData.meta.status = 'Not Started';
+
+      // Store MT link for auto-sync
+      advData.meta.masterTourDayId = dayId;
+      advData.meta.masterTourTourId = _mtTourId;
+
+      // Merge crew (by name)
+      const crewArr = Array.isArray(crew) ? crew : [];
+      crewArr.forEach(c => {
+        const name = c.name || ((c.firstName || '') + ' ' + (c.lastName || '')).trim();
+        const role = c.role || c.position || c.department || '';
+        if (!name) return;
+        const exists = advData.crew.some(ec => ec.name && ec.name.toLowerCase() === name.toLowerCase());
+        if (!exists) advData.crew.push({ role, name });
+      });
+
+      // Merge schedule (by label)
+      const schedArr = Array.isArray(schedule) ? schedule : [];
+      schedArr.forEach(s => {
+        const label = s.name || s.title || s.description || '';
+        const time = s.startTime || s.time || '';
+        if (!label) return;
+        const exists = advData.schedule.some(es => es.label && es.label.toLowerCase() === label.toLowerCase());
+        if (!exists) advData.schedule.push({ label, time, day:'', notes: s.notes || '' });
+      });
+
+      // Merge hotels (by name + date)
+      const hotelArr = Array.isArray(hotels) ? hotels : [];
+      hotelArr.forEach(h => {
+        const hotelName = h.name || h.hotelName || '';
+        if (!hotelName) return;
+        let ci = h.checkIn || h.checkinDate || '';
+        let co = h.checkOut || h.checkoutDate || '';
+        try { if (ci) ci = new Date(ci).toISOString().split('T')[0]; } catch {}
+        try { if (co) co = new Date(co).toISOString().split('T')[0]; } catch {}
+        const exists = advData.hotel.some(eh => eh.hotel && eh.hotel.toLowerCase() === hotelName.toLowerCase() && eh.checkin === ci);
+        if (!exists) advData.hotel.push({
+          guest: '', hotel: hotelName, checkin: ci, checkout: co,
+          confirmation: h.confirmationNumber || h.confirmation || '',
+          notes: h.notes || '',
+        });
+      });
+
+      // Merge venue contacts
+      if (day.venue?.id || day.venueId) {
+        try {
+          const contactResp = await mtApi('contacts', { companyId: day.venue?.id || day.venueId });
+          const contacts = (contactResp.data || contactResp || []);
+          const contactArr = Array.isArray(contacts) ? contacts : [];
+          contactArr.forEach(c => {
+            const name = c.name || ((c.firstName || '') + ' ' + (c.lastName || '')).trim();
+            if (!name) return;
+            const exists = advData.contacts.some(ec => ec.name && ec.name.toLowerCase() === name.toLowerCase());
+            if (!exists) advData.contacts.push({
+              role: c.title || c.role || 'Venue Contact',
+              name, email: c.email || '', phone: c.phone || c.mobilePhone || '',
+            });
+          });
+        } catch {}
+      }
+
+      // Append notes
+      const dayNotes = [day.generalNotes, day.travelNotes, day.hotelNotes].filter(Boolean).join('\n\n');
+      if (dayNotes) {
+        const marker = '--- MASTER TOUR ---';
+        if (!advData.notes) advData.notes = '';
+        if (!advData.notes.includes(marker)) {
+          advData.notes += (advData.notes ? '\n\n' : '') + marker + '\n' + dayNotes;
+        }
+      }
+
+      // Save
+      AdvanceStore.save(advId, advData, {
+        showName: advData.meta.showName || 'UNTITLED SHOW',
+        venue: advData.meta.venue || '',
+        date: advData.meta.date || '',
+        status: advData.meta.status || 'Not Started',
+        linkedProjectId: advData.meta.linkedProjectId || '',
+      });
+
+    } catch (err) {
+      console.warn('MT import error for day ' + dayId, err);
+    }
+  }
+
+  statusDiv.innerHTML = `<p class="mt-status" style="color:var(--accent)">Done! ${created} new advance(s) created, ${updated} existing advance(s) updated.</p>
+    <button class="mt-btn" style="margin-top:12px; border-color:var(--accent); color:var(--accent);" onclick="closeMT()">DONE</button>`;
+
+  renderAdvances();
 }
 
 // Auth callback
