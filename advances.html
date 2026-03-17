@@ -434,8 +434,35 @@ async function openMTImport() {
       return;
     }
 
+    // Check each tour for upcoming show dates
+    const today = new Date().toISOString().split('T')[0];
+    const showTypes = ['show day', 'load-in day'];
+    document.getElementById('mtContent').innerHTML = '<p class="mt-status">Checking tours for upcoming shows...</p>';
+
+    const tourChecks = await Promise.all(tours.map(async t => {
+      const id = t.tourId || t.id;
+      try {
+        const r = await mtApi('tour', { tourId: id });
+        const tour = r.tour || r.data?.tour || r.data || r;
+        const days = tour.days || tour.tourDates || tour.dates || [];
+        const upcoming = Array.isArray(days) && days.some(d => {
+          const type = (d.dayType || '').toLowerCase();
+          if (!showTypes.includes(type)) return false;
+          const raw = d.dayDate || d.date || '';
+          try { return new Date(raw).toISOString().split('T')[0] >= today; } catch { return false; }
+        });
+        return upcoming ? t : null;
+      } catch { return null; }
+    }));
+
+    const activeTours = tourChecks.filter(Boolean);
+    if (!activeTours.length) {
+      document.getElementById('mtContent').innerHTML = '<p class="mt-status">No tours with upcoming show dates found.</p>';
+      return;
+    }
+
     let html = '<p class="mt-status">Select a tour to import from:</p><ul class="mt-list">';
-    tours.forEach(t => {
+    activeTours.forEach(t => {
       const name = t.legName || t.organizationName || t.tourName || t.name || t.artistName || 'Untitled Tour';
       const id = t.tourId || t.id;
       html += `<li onclick="selectMTTour('${id}', this)"><span>${escHtml(name)}</span></li>`;
