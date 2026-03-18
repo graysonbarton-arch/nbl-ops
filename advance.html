@@ -14,6 +14,7 @@
 <script src="toast.js"></script>
 <script src="advance-store.js"></script>
 <script src="project-store.js"></script>
+<script src="lib/data-enrichment.js"></script>
 <style>
   .back-link {
     display:inline-block; padding:12px 40px; font-size:10px; letter-spacing:2px;
@@ -262,7 +263,7 @@
   </div>
   <div class="section-body">
     <table class="adv-table">
-      <thead><tr><th>ROLE</th><th>NAME</th><th></th></tr></thead>
+      <thead><tr><th>ROLE</th><th>NAME</th><th>PHONE</th><th>EMAIL</th><th></th></tr></thead>
       <tbody id="crewBody"></tbody>
     </table>
     <button class="add-btn" onclick="addCrewRow()">+ ADD CREW</button>
@@ -399,19 +400,59 @@ function addScheduleRow(data) {
 
 function addCrewRow(data) {
   const tr = $('crewBody').insertRow();
-  tr.innerHTML = '<td></td><td></td><td></td>';
+  tr.innerHTML = '<td></td><td></td><td></td><td></td><td></td>';
+  // Store hidden roster data on the row element
+  if (data?._rosterData) tr._rosterData = data._rosterData;
   const fields = [
     { ph:'PM, Audio, Lighting, VJ...', val:data?.role },
-    { ph:'Name', val:data?.name },
+    { ph:'Name', val:data?.name, list:'crewRosterList' },
+    { ph:'Phone', val:data?.phone },
+    { ph:'Email', val:data?.email },
   ];
   fields.forEach((f, i) => {
     const inp = document.createElement('input');
     inp.placeholder = f.ph;
     inp.value = f.val || '';
+    if (f.list) {
+      inp.setAttribute('list', f.list);
+      inp.addEventListener('change', () => autofillCrewFromRoster(tr, inp.value));
+    }
     tr.cells[i].appendChild(inp);
   });
-  tr.cells[2].appendChild(makeDelBtn(tr));
+  tr.cells[4].appendChild(makeDelBtn(tr));
   updateCounts();
+}
+
+function autofillCrewFromRoster(tr, name) {
+  if (!name) return;
+  const roster = getSavedRoster();
+  const match = roster.find(r => (r.name || '').trim().toLowerCase() === name.trim().toLowerCase());
+  if (!match) return;
+  const inputs = tr.querySelectorAll('input');
+  if (inputs[2] && !inputs[2].value) inputs[2].value = match.phone || '';
+  if (inputs[3] && !inputs[3].value) inputs[3].value = match.email || '';
+  tr._rosterData = {
+    dob: match.dob || '', skyMiles: match.sky_miles || match.skyMiles || '',
+    ktn: match.ktn || '', hilton: match.hilton || '', marriott: match.marriott || '',
+    shirtSize: match.shirt_size || match.shirtSize || '',
+    payType: match.pay_type || match.payType || 'day', rate: match.rate || '',
+  };
+}
+
+function getSavedRoster() {
+  try { return JSON.parse(localStorage.getItem('nbl_saved_roster') || '[]'); } catch { return []; }
+}
+
+function buildCrewRosterDatalist() {
+  let dl = document.getElementById('crewRosterList');
+  if (!dl) { dl = document.createElement('datalist'); dl.id = 'crewRosterList'; document.body.appendChild(dl); }
+  dl.innerHTML = '';
+  getSavedRoster().forEach(r => {
+    if (!r.name) return;
+    const opt = document.createElement('option');
+    opt.value = r.name;
+    dl.appendChild(opt);
+  });
 }
 
 function addLinkRow(data) {
@@ -487,7 +528,9 @@ function getAllData() {
   });
   Array.from($('crewBody').rows).forEach(tr => {
     const inputs = tr.querySelectorAll('input');
-    data.crew.push({ role:inputs[0]?.value||'', name:inputs[1]?.value||'' });
+    const entry = { role:inputs[0]?.value||'', name:inputs[1]?.value||'', phone:inputs[2]?.value||'', email:inputs[3]?.value||'' };
+    if (tr._rosterData) entry._rosterData = tr._rosterData;
+    data.crew.push(entry);
   });
   Array.from($('hotelInfoBody').rows).forEach(tr => {
     const inputs = tr.querySelectorAll('input');
@@ -642,90 +685,54 @@ async function syncToBudget() {
   const linkedId = $('linkedProject').value;
   if (!linkedId) return;
 
-  // Always fetch latest from cloud to avoid overwriting newer data
   let projData = await ProjectStore.loadCloud(linkedId);
-  if (!projData) {
-    // Fallback to local if cloud fails
-    projData = ProjectStore.load(linkedId);
-  }
-  if (!projData) {
-    Toast.show('Could not load linked budget project', 'error');
-    return;
-  }
+  if (!projData) projData = ProjectStore.load(linkedId);
+  if (!projData) { Toast.show('Could not load linked budget project', 'error'); return; }
 
   const advData = getAllData();
-  let cCount = 0, crCount = 0, lCount = 0, hCount = 0;
-
-  // Merge contacts
+  const DE = DataEnrichment;
+  if (!projData.tables) projData.tables = {};
   if (!projData.contacts) projData.contacts = [];
-  advData.contacts.forEach(ac => {
-    if (!ac.name) return;
-    const exists = projData.contacts.some(pc => {
-      const pcName = (Array.isArray(pc) ? pc[1] : pc.name) || '';
-      return pcName.toLowerCase() === ac.name.toLowerCase();
-    });
-    if (!exists) {
-      projData.contacts.push([ac.role, ac.name, ac.phone, ac.email]);
-      cCount++;
-    }
-  });
-
-  // Merge crew
-  if (!projData.tables) projData.tables = {};
-  if (!projData.tables.crewBody) projData.tables.crewBody = [];
-  advData.crew.forEach(ac => {
-    if (!ac.name) return;
-    const exists = projData.tables.crewBody.some(row => {
-      return (row[1] || '').toLowerCase() === ac.name.toLowerCase();
-    });
-    if (!exists) {
-      projData.tables.crewBody.push([ac.role, ac.name, '', '', '']);
-      crCount++;
-    }
-  });
-
-  // Merge links
   if (!projData.links) projData.links = [];
-  advData.links.forEach(al => {
-    if (!al.url) return;
-    const exists = projData.links.some(pl => pl.url === al.url);
-    if (!exists) {
-      projData.links.push({ date:'', label:al.label, vendor:'', url:al.url });
-      lCount++;
-    }
-  });
 
-  // Merge hotel info into budget hotelBody
-  if (!projData.tables) projData.tables = {};
-  if (!projData.tables.hotelBody) projData.tables.hotelBody = [];
-  advData.hotel.forEach(ah => {
-    if (!ah.guest && !ah.hotel) return;
-    // Budget hotel row format: [checkin, checkout, city, guest, dob, loyalty, note, rooms, nights, rate]
-    const exists = projData.tables.hotelBody.some(row => {
-      return (row[3] || '').toLowerCase() === (ah.guest || '').toLowerCase()
-        && (row[0] || '') === (ah.checkin || '');
-    });
-    if (!exists) {
-      const ci = ah.checkin || '';
-      const co = ah.checkout || '';
-      let nights = 0;
-      if (ci && co) {
-        nights = Math.round((new Date(co+'T12:00:00') - new Date(ci+'T12:00:00')) / 86400000);
-        if (nights < 0) nights = 0;
-      }
-      projData.tables.hotelBody.push([ci, co, '', ah.guest||'', '', '', ah.notes||'', '1', String(nights), '0']);
-      hCount++;
-    }
-  });
+  // Convert advance contacts to budget format and merge
+  const budgetContacts = (projData.contacts || []).map(pc =>
+    Array.isArray(pc) ? { role:pc[0]||'', name:pc[1]||'', phone:pc[2]||'', email:pc[3]||'' } : pc
+  );
+  const mergedContacts = DE.mergeContacts(budgetContacts, advData.contacts);
+  const cCount = mergedContacts.length - budgetContacts.length;
+  projData.contacts = mergedContacts.map(c => [c.role||'', c.name||'', c.phone||'', c.email||'']);
 
-  // Append notes
-  if (advData.notes && advData.notes.trim()) {
-    const marker = '--- ADVANCE NOTES ---';
-    if (!projData.notes) projData.notes = '';
-    if (!projData.notes.includes(marker)) {
-      projData.notes += (projData.notes ? '\n\n' : '') + marker + '\n' + advData.notes;
-    }
-  }
+  // Crew: convert, merge, then write back as budget rows
+  const existingCrew = DE.budgetCrewToAdvance(projData.tables.crewBody || []);
+  const mergedCrew = DE.mergeCrew(existingCrew, advData.crew);
+  const crCount = mergedCrew.length - existingCrew.length;
+  projData.tables.crewBody = DE.advanceCrewToBudget(mergedCrew);
+
+  // Hotel: convert with new 11-field format (includes hotel name)
+  const existingHotel = DE.budgetHotelToAdvance(projData.tables.hotelBody || []);
+  const mergedHotel = DE.mergeHotel(existingHotel, advData.hotel);
+  const hCount = mergedHotel.length - existingHotel.length;
+  projData.tables.hotelBody = DE.advanceHotelToBudget(mergedHotel);
+
+  // Links
+  const existingLinks = DE.budgetLinksToAdvance(projData.links || []);
+  const mergedLinks = DE.mergeLinks(existingLinks, advData.links);
+  const lCount = mergedLinks.length - existingLinks.length;
+  projData.links = DE.advanceLinksToBudget(mergedLinks);
+
+  // Notes
+  projData.notes = DE.mergeNotes(projData.notes || '', advData.notes, '--- ADVANCE NOTES ---');
+
+  // Payroll: add crew to first payroll block if not already there
+  const payrollBlocks = projData.payrollBlocks || [{ id:'pay_0', name:'SHOW DAYS' }];
+  const enrichedCrew = DE.enrichFromRoster(advData.crew.filter(c => c.name), getSavedRoster());
+  const payCount = DE.addCrewToPayroll(enrichedCrew, payrollBlocks, projData.tables, getSavedRoster());
+
+  // Per Diems: add crew if not already there
+  if (!projData.tables.pdBody) projData.tables.pdBody = [];
+  const pdRate = projData.settings?.pdDefaultRate || '';
+  const pdCount = DE.addCrewToPerDiems(enrichedCrew, projData.tables.pdBody, pdRate);
 
   // Save back to budget project
   const idx = ProjectStore.list().find(p => p.id === linkedId);
@@ -737,7 +744,14 @@ async function syncToBudget() {
     budgetTotal: idx?.budgetTotal || 0,
   });
 
-  Toast.show(`Synced to budget: ${cCount} contacts, ${crCount} crew, ${hCount} hotel, ${lCount} links`, 'success');
+  const parts = [];
+  if (cCount) parts.push(`${cCount} contacts`);
+  if (crCount) parts.push(`${crCount} crew`);
+  if (hCount) parts.push(`${hCount} hotel`);
+  if (lCount) parts.push(`${lCount} links`);
+  if (payCount) parts.push(`${payCount} to payroll`);
+  if (pdCount) parts.push(`${pdCount} to per diems`);
+  Toast.show(parts.length ? `Synced to budget: ${parts.join(', ')}` : 'Budget already up to date', parts.length ? 'success' : 'info');
 }
 
 // ── PULL FROM BUDGET ──
@@ -755,68 +769,64 @@ async function pullFromBudget() {
     return;
   }
 
-  let pulled = 0;
+  const DE = DataEnrichment;
+  const advData = getAllData();
+  const roster = getSavedRoster();
 
-  // Pull contacts (only if advance contacts section is empty)
-  if ($('contactsBody').rows.length === 0 && projData.contacts?.length) {
-    projData.contacts.forEach(pc => {
-      const arr = Array.isArray(pc) ? pc : [pc.role||'', pc.name||'', pc.phone||'', pc.email||''];
-      addContactRow({ role:arr[0], name:arr[1], email:arr[3]||'', phone:arr[2]||'' });
-      pulled++;
-    });
-  }
+  // Pull contacts — always merge now
+  const budgetContacts = (projData.contacts || []).map(pc =>
+    Array.isArray(pc) ? { role:pc[0]||'', name:pc[1]||'', phone:pc[2]||'', email:pc[3]||'' } : pc
+  );
+  const mergedContacts = DE.mergeContacts(advData.contacts, budgetContacts);
+  const cCount = mergedContacts.length - advData.contacts.length;
 
-  // Pull crew — merge from budget, skip duplicates by name
-  if (projData.tables?.crewBody?.length) {
-    const existingNames = new Set(
-      Array.from($('crewBody').rows).map(tr => (tr.querySelectorAll('input')[1]?.value || '').toLowerCase().trim())
-    );
-    projData.tables.crewBody.forEach(row => {
-      const name = (row[1] || '').trim();
-      if (!name || existingNames.has(name.toLowerCase())) return;
-      addCrewRow({ role: row[0] || '', name });
-      existingNames.add(name.toLowerCase());
-      pulled++;
-    });
-  }
+  // Pull crew — always merge + enrich from roster
+  const budgetCrew = DE.budgetCrewToAdvance(projData.tables?.crewBody || []);
+  const enrichedBudgetCrew = DE.enrichFromRoster(budgetCrew, roster);
+  const mergedCrew = DE.mergeCrew(advData.crew, enrichedBudgetCrew);
+  const crCount = mergedCrew.length - advData.crew.length;
 
-  // Pull hotel
-  if ($('hotelInfoBody').rows.length === 0 && projData.tables?.hotelBody?.length) {
-    projData.tables.hotelBody.forEach(row => {
-      // Budget hotel row: [checkin, checkout, city, guest, dob, loyalty, note, rooms, nights, rate]
-      addHotelInfoRow({
-        guest: row[3] || '',
-        hotel: '',
-        checkin: row[0] || '',
-        checkout: row[1] || '',
-        confirmation: '',
-        notes: row[6] || '',
-      });
-      pulled++;
-    });
-  }
+  // Pull hotel — always merge, with hotel name from new column
+  const budgetHotel = DE.budgetHotelToAdvance(projData.tables?.hotelBody || []);
+  const mergedHotel = DE.mergeHotel(advData.hotel, budgetHotel);
+  const hCount = mergedHotel.length - advData.hotel.length;
 
-  // Pull links
-  if ($('linksBody').rows.length === 0 && projData.links?.length) {
-    projData.links.forEach(l => {
-      addLinkRow({ label:l.label||'', url:l.url||'' });
-      pulled++;
-    });
-  }
+  // Pull links — always merge
+  const budgetLinks = DE.budgetLinksToAdvance(projData.links || []);
+  const mergedLinks = DE.mergeLinks(advData.links, budgetLinks);
+  const lCount = mergedLinks.length - advData.links.length;
 
-  // Pull venue/dates from meta
+  // Rebuild UI with merged data
+  $('contactsBody').innerHTML = '';
+  mergedContacts.forEach(c => addContactRow(c));
+
+  $('crewBody').innerHTML = '';
+  mergedCrew.forEach(c => addCrewRow(c));
+
+  $('hotelInfoBody').innerHTML = '';
+  mergedHotel.forEach(h => addHotelInfoRow(h));
+
+  $('linksBody').innerHTML = '';
+  mergedLinks.forEach(l => addLinkRow(l));
+
+  // Pull venue/dates from meta (only if empty)
+  let metaPulled = 0;
   if (!$('venueName').value && projData.meta?.metaLocation) {
-    $('venueName').value = projData.meta.metaLocation;
-    pulled++;
+    $('venueName').value = projData.meta.metaLocation; metaPulled++;
   }
   if (!$('showDate').value && projData.meta?.metaDateStart) {
-    $('showDate').value = projData.meta.metaDateStart;
-    pulled++;
+    $('showDate').value = projData.meta.metaDateStart; metaPulled++;
   }
 
   updateCounts();
   scheduleAutoSave();
-  Toast.show(pulled > 0 ? `Pulled ${pulled} items from budget` : 'No new data to pull (advance already has data)', pulled > 0 ? 'success' : 'info');
+  const total = cCount + crCount + hCount + lCount + metaPulled;
+  const parts = [];
+  if (cCount) parts.push(`${cCount} contacts`);
+  if (crCount) parts.push(`${crCount} crew`);
+  if (hCount) parts.push(`${hCount} hotel`);
+  if (lCount) parts.push(`${lCount} links`);
+  Toast.show(total > 0 ? `Pulled from budget: ${parts.join(', ')}` : 'Budget already in sync', total > 0 ? 'success' : 'info');
 }
 
 // ── MASTER TOUR REFRESH ──
@@ -968,7 +978,9 @@ function onAuthChanged(user) {
 document.getElementById('footerDate').textContent =
   new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' }).toUpperCase();
 
+buildCrewRosterDatalist();
 initAuth().then(user => {
+  buildCrewRosterDatalist(); // refresh after auth loads roster
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
 

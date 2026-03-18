@@ -13,6 +13,7 @@
 <script src="save-indicator.js"></script>
 <script src="toast.js"></script>
 <script src="advance-store.js"></script>
+<script src="lib/data-enrichment.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
   .hero { padding:48px 40px 24px; text-align:center; }
@@ -28,6 +29,13 @@
   .action-btn:hover { border-color:var(--accent); color:var(--text); }
   .action-btn.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:500; }
   .action-btn.primary:hover { background:#d4c490; }
+  .import-dropdown-menu.show { display:block !important; }
+  .import-dropdown-item {
+    display:block; width:100%; padding:10px 20px; font-family:var(--font-body); font-size:11px;
+    letter-spacing:2px; text-transform:uppercase; cursor:pointer; border:none;
+    background:transparent; color:var(--text-dim); text-align:left; transition:all .2s;
+  }
+  .import-dropdown-item:hover { background:var(--hover); color:var(--text); }
 
   .advance-grid {
     display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
@@ -154,8 +162,13 @@
 
 <div class="action-bar">
   <button class="action-btn primary" onclick="newAdvance()">+ NEW ADVANCE</button>
-  <button class="mt-btn" onclick="openMTImport()">IMPORT FROM MASTER TOUR</button>
-  <button class="action-btn" onclick="document.getElementById('importFile').click()">IMPORT XLSX</button>
+  <div class="import-dropdown" style="position:relative; display:inline-block">
+    <button class="action-btn" onclick="this.nextElementSibling.classList.toggle('show')">IMPORT ▾</button>
+    <div class="import-dropdown-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:220px; margin-top:4px">
+      <button class="import-dropdown-item" onclick="openMTImport(); this.parentElement.classList.remove('show')">MASTER TOUR</button>
+      <button class="import-dropdown-item" onclick="document.getElementById('importFile').click(); this.parentElement.classList.remove('show')">XLSX SPREADSHEET</button>
+    </div>
+  </div>
   <input type="file" id="importFile" accept=".xlsx,.xls" onchange="importAdvanceXLSX(event)">
 </div>
 
@@ -724,6 +737,12 @@ async function importSelectedMTDates() {
         if (!exists) advData.crew.push({ role, name });
       });
 
+      // Enrich crew from shared roster (auto-fill phone, email, etc.)
+      const roster = getSavedRoster();
+      if (roster.length) {
+        advData.crew = DataEnrichment.enrichFromRoster(advData.crew, roster);
+      }
+
       // Merge schedule (by label)
       const schedArr = Array.isArray(schedule) ? schedule : [];
       schedArr.forEach(s => {
@@ -804,6 +823,17 @@ function onAuthChanged(user) {
   AdvanceStore.listCloud().then(() => renderAdvances());
   AdvanceStore.syncAllToCloud();
 }
+
+function getSavedRoster() {
+  try { return JSON.parse(localStorage.getItem('nbl_saved_roster') || '[]'); } catch { return []; }
+}
+
+// Close import dropdown when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.import-dropdown')) {
+    document.querySelectorAll('.import-dropdown-menu').forEach(m => m.classList.remove('show'));
+  }
+});
 
 // Init
 document.getElementById('footerDate').textContent =
