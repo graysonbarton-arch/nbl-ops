@@ -842,11 +842,11 @@ async function syncToBudget() {
   projData.tables.crewBody = DE.advanceCrewToBudget(mergedCrew);
 
   // Hotel: convert with new 11-field format (includes hotel name)
-  // Filter out blank rows from budget's initBlankForm starter rows
+  // Filter out blank rows — require guest name or hotel name (dates alone aren't enough)
   const existingHotel = DE.budgetHotelToAdvance(projData.tables.hotelBody || [])
-    .filter(h => h.guest || h.hotel || h.checkin);
+    .filter(h => h.guest || h.hotel);
   const mergedHotel = DE.mergeHotel(existingHotel, advData.hotel)
-    .filter(h => h.guest || h.hotel || h.checkin);
+    .filter(h => h.guest || h.hotel);
   const hCount = mergedHotel.length - existingHotel.length;
   projData.tables.hotelBody = DE.advanceHotelToBudget(mergedHotel);
 
