@@ -3489,16 +3489,20 @@ function init() {
       // Also try refreshing from cloud in background
       ProjectStore.loadCloud(id).then(cloudData => {
         if (cloudData && JSON.stringify(cloudData) !== JSON.stringify(localData)) {
-          restoreFromData(cloudData);
+          restoreFromData(cloudData); // this mutates cloudData to remove blank rows
           recalcAll();
+          // Save cleaned cloud data back so blanks don't persist
+          localStorage.setItem('nbl_project_' + id, JSON.stringify(cloudData));
         }
       });
     } else {
       // No local data — try cloud (needed for users who haven't seen this project before)
       ProjectStore.loadCloud(id).then(cloudData => {
         if (cloudData) {
-          restoreFromData(cloudData);
+          restoreFromData(cloudData); // this mutates cloudData to remove blank rows
           recalcAll();
+          // Save cleaned cloud data locally
+          localStorage.setItem('nbl_project_' + id, JSON.stringify(cloudData));
         } else {
           initBlankForm();
         }
