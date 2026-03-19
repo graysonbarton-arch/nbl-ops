@@ -858,25 +858,32 @@ async function refreshFromMasterTour() {
   statusEl.textContent = 'Refreshing...';
 
   try {
-    const [dayResp, crewResp, hotelResp, schedResp] = await Promise.all([
-      mtApi('day', { dayId }),
+    // Fetch crew, hotels, schedule — each with graceful fallback
+    const [crewResult, hotelResult, schedResult] = await Promise.allSettled([
       tourId ? mtApi('crew', { tourId }) : Promise.resolve([]),
       mtApi('hotels', { dayId }),
       mtApi('schedule', { dayId }),
     ]);
 
-    const day = dayResp.data || dayResp;
-    const crew = crewResp.data || crewResp || [];
-    const hotels = hotelResp.data || hotelResp || [];
-    const schedule = schedResp.data || schedResp || [];
+    // Unwrap MT API responses (they nest data in {hotels:[...]}, {events:[...]})
+    const crewRaw = crewResult.status === 'fulfilled' ? (crewResult.value || {}) : {};
+    const hotelRaw = hotelResult.status === 'fulfilled' ? (hotelResult.value || {}) : {};
+    const schedRaw = schedResult.status === 'fulfilled' ? (schedResult.value || {}) : {};
+
+    const crew = Array.isArray(crewRaw) ? crewRaw : (crewRaw.crew || crewRaw.data || []);
+    const hotels = Array.isArray(hotelRaw) ? hotelRaw : (hotelRaw.hotels || hotelRaw.data || []);
+    const schedule = Array.isArray(schedRaw) ? schedRaw : (schedRaw.events || schedRaw.data || []);
+    // day data not available from a separate endpoint — use what we have in _loadedMeta
+    const day = _loadedMeta || {};
     let imported = 0;
 
-    // Fill empty meta fields
-    const showName = day.tourName || day.name || '';
-    const venueName = day.venue?.name || day.venueName || '';
-    const venueCity = day.venue?.city || day.city || '';
-    const venueAddr = day.venue?.address || '';
-    const showDate = day.date || day.startDate || '';
+    // Fill empty meta fields from first schedule event (has venue details)
+    const ev0 = schedule[0] || {};
+    const showName = day.showName || ev0.eventName || '';
+    const venueName = ev0.venueName || '';
+    const venueCity = [ev0.venueCity, ev0.venueState].filter(Boolean).join(', ');
+    const venueAddr = ev0.venueAddressLine1 || '';
+    const showDate = day.date || '';
 
     if (showName && !$('showName').value) { $('showName').value = showName; imported++; }
     if (venueName && !$('venueName').value) { $('venueName').value = venueName; imported++; }
@@ -903,38 +910,71 @@ async function refreshFromMasterTour() {
 
     // Merge schedule (skip existing by label)
     (Array.isArray(schedule) ? schedule : []).forEach(s => {
-      const label = s.name || s.title || s.description || '';
+      const label = s.eventName || s.name || s.title || s.description || '';
       if (!label) return;
       const exists = Array.from($('scheduleBody').rows).some(tr => {
         const labelInp = tr.querySelectorAll('input')[0];
         return labelInp && labelInp.value.toLowerCase() === label.toLowerCase();
       });
-      if (!exists) { addScheduleRow({ label, time: s.startTime || s.time || '', day: '', notes: s.notes || '' }); imported++; }
+      if (!exists) {
+        const venueInfo = [s.venueName, s.venueCity, s.venueState].filter(Boolean).join(', ');
+        addScheduleRow({ label, time: s.startTime || s.time || '', day: '', notes: venueInfo || s.notes || '' });
+        imported++;
+      }
     });
 
-    // Merge hotels (skip existing by name)
-    (Array.isArray(hotels) ? hotels : []).forEach(h => {
+    // Merge hotels (skip existing by name) + fetch roomlist
+    for (const h of (Array.isArray(hotels) ? hotels : [])) {
       const hotelName = h.name || h.hotelName || '';
-      if (!hotelName) return;
+      if (!hotelName) continue;
       const exists = Array.from($('hotelInfoBody').rows).some(tr => {
         const nameInp = tr.querySelectorAll('input')[1];
         return nameInp && nameInp.value.toLowerCase() === hotelName.toLowerCase();
       });
       if (!exists) {
-        let ci = h.checkIn || h.checkinDate || '';
-        let co = h.checkOut || h.checkoutDate || '';
-        try { if (ci) ci = new Date(ci).toISOString().split('T')[0]; } catch {}
-        try { if (co) co = new Date(co).toISOString().split('T')[0]; } catch {}
-        addHotelInfoRow({ guest:'', hotel:hotelName, checkin:ci, checkout:co, confirmation:h.confirmationNumber||h.confirmation||'', notes:h.notes||'' });
+        const hotelAddr = [h.addressLine1, h.city, h.state, h.zip].filter(Boolean).join(', ');
+        const hotelPhone = (h.contacts && h.contacts[0]?.phone) || '';
+        const notes = [hotelAddr, hotelPhone ? 'Tel: ' + hotelPhone : '', h.notes].filter(Boolean).join('\n');
+        addHotelInfoRow({ guest:'', hotel:hotelName, checkin:'', checkout:'', confirmation:'', notes });
         imported++;
       }
-    });
+      // Fetch roomlist for guest-level detail
+      if (h.hotelId) {
+        try {
+          const rlResp = await mtApi('roomlist', { hotelId: h.hotelId });
+          const rlRaw = rlResp || {};
+          const rooms = Array.isArray(rlRaw) ? rlRaw : (rlRaw.rooms || rlRaw.roomList || rlRaw.data || []);
+          if (Array.isArray(rooms)) {
+            rooms.forEach(r => {
+              const guestName = r.guestName || r.name || ((r.firstName||'') + ' ' + (r.lastName||'')).trim();
+              if (!guestName) return;
+              const guestExists = Array.from($('hotelInfoBody').rows).some(tr => {
+                const gi = tr.querySelectorAll('input')[0];
+                const hi = tr.querySelectorAll('input')[1];
+                return gi?.value.toLowerCase() === guestName.toLowerCase() && hi?.value.toLowerCase() === hotelName.toLowerCase();
+              });
+              if (!guestExists) {
+                let ci = r.checkinDate || r.checkIn || '';
+                let co = r.checkoutDate || r.checkOut || '';
+                try { if (ci) ci = new Date(ci).toISOString().split('T')[0]; } catch {}
+                try { if (co) co = new Date(co).toISOString().split('T')[0]; } catch {}
+                addHotelInfoRow({ guest:guestName, hotel:hotelName, checkin:ci, checkout:co, confirmation:r.confirmationNumber||'', notes:r.roomType||r.notes||'' });
+                imported++;
+              }
+            });
+          }
+        } catch (rlErr) { console.warn('[MT] Roomlist fetch failed for', hotelName, rlErr.message); }
+      }
+    }
 
-    // Merge venue contacts
-    if (day.venue?.id || day.venueId) {
+    // Merge venue contacts from schedule events
+    const venueId = schedule[0]?.venueId;
+    if (venueId) {
       try {
-        const contactResp = await mtApi('contacts', { companyId: day.venue?.id || day.venueId });
-        (Array.isArray(contactResp.data || contactResp) ? (contactResp.data || contactResp) : []).forEach(c => {
+        const contactResp = await mtApi('contacts', { companyId: venueId });
+        const contactsRaw = contactResp || {};
+        const contactArr = Array.isArray(contactsRaw) ? contactsRaw : (contactsRaw.contacts || contactsRaw.data || []);
+        (Array.isArray(contactArr) ? contactArr : []).forEach(c => {
           const name = c.name || ((c.firstName || '') + ' ' + (c.lastName || '')).trim();
           if (!name) return;
           const exists = Array.from($('contactsBody').rows).some(tr => {
