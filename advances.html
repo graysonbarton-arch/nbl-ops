@@ -696,7 +696,10 @@ async function importSelectedMTDates() {
       if (hotelResult.status === 'rejected') console.warn('[MT] Hotels fetch failed:', hotelResult.reason?.message);
       if (schedResult.status === 'rejected') console.warn('[MT] Schedule fetch failed:', schedResult.reason?.message);
 
-      if (hotels.length) console.log('[MT] Imported', hotels.length, 'hotel(s)');
+      console.log('[MT DEBUG] hotels response:', JSON.stringify(hotels).substring(0, 3000));
+      if (hotels.length) { console.log('[MT] Hotel count:', hotels.length); console.log('[MT DEBUG] first hotel keys:', Object.keys(hotels[0])); console.log('[MT DEBUG] first hotel:', JSON.stringify(hotels[0]).substring(0, 2000)); }
+      console.log('[MT DEBUG] schedule response:', JSON.stringify(schedule).substring(0, 3000));
+      if (schedule.length) { console.log('[MT] Schedule count:', schedule.length); console.log('[MT DEBUG] first schedule keys:', Object.keys(schedule[0])); console.log('[MT DEBUG] first schedule:', JSON.stringify(schedule[0]).substring(0, 2000)); }
       if (crew.length) console.log('[MT] Imported', crew.length, 'crew member(s)');
 
       // Build advance data from MT response
