@@ -1056,11 +1056,10 @@ async function refreshFromMasterTour() {
       if (h.hotelId) {
         try {
           const rlResp = await mtApi('roomlist', { hotelId: h.hotelId });
-          const rlRaw = rlResp || {};
-          const rooms = Array.isArray(rlRaw) ? rlRaw : (rlRaw.rooms || rlRaw.roomList || rlRaw.data || []);
-          if (Array.isArray(rooms)) {
+          const rooms = unwrapMT(rlResp, 'rooms');
+          if (rooms.length) {
             rooms.forEach(r => {
-              const guestName = r.guestName || r.name || ((r.firstName||'') + ' ' + (r.lastName||'')).trim();
+              const guestName = ((r.firstName||'') + ' ' + (r.lastName||'')).trim() || r.guestName || r.name || '';
               if (!guestName) return;
               const guestExists = Array.from($('hotelInfoBody').rows).some(tr => {
                 const gi = tr.querySelectorAll('input')[0];
@@ -1068,8 +1067,8 @@ async function refreshFromMasterTour() {
                 return gi?.value.toLowerCase() === guestName.toLowerCase() && hi?.value.toLowerCase() === hotelName.toLowerCase();
               });
               if (!guestExists) {
-                let ci = r.checkinDate || r.checkIn || '';
-                let co = r.checkoutDate || r.checkOut || '';
+                let ci = r.checkinDatetime || r.checkinDate || r.checkIn || '';
+                let co = r.checkoutDatetime || r.checkoutDate || r.checkOut || '';
                 try { if (ci) ci = new Date(ci).toISOString().split('T')[0]; } catch {}
                 try { if (co) co = new Date(co).toISOString().split('T')[0]; } catch {}
                 addHotelInfoRow({ guest:guestName, hotel:hotelName, checkin:ci, checkout:co, confirmation:r.confirmationNumber||'', notes:r.roomType||r.notes||'' });

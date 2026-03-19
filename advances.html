@@ -811,14 +811,13 @@ async function importSelectedMTDates() {
         if (h.hotelId) {
           try {
             const rlResp = await mtApi('roomlist', { hotelId: h.hotelId });
-            const roomlistRaw = rlResp || {};
-            const rooms = Array.isArray(roomlistRaw) ? roomlistRaw : (roomlistRaw.rooms || roomlistRaw.roomList || roomlistRaw.data || []);
-            if (Array.isArray(rooms) && rooms.length) {
+            const rooms = unwrapMT(rlResp, 'rooms');
+            if (rooms.length) {
               rooms.forEach(r => {
-                const guestName = r.guestName || r.name || ((r.firstName || '') + ' ' + (r.lastName || '')).trim();
+                const guestName = ((r.firstName || '') + ' ' + (r.lastName || '')).trim() || r.guestName || r.name || '';
                 if (!guestName) return;
-                const ci = r.checkinDate || r.checkIn || '';
-                const co = r.checkoutDate || r.checkOut || '';
+                const ci = r.checkinDatetime || r.checkinDate || r.checkIn || '';
+                const co = r.checkoutDatetime || r.checkoutDate || r.checkOut || '';
                 let ciStr = '', coStr = '';
                 try { if (ci) ciStr = new Date(ci).toISOString().split('T')[0]; } catch {}
                 try { if (co) coStr = new Date(co).toISOString().split('T')[0]; } catch {}
