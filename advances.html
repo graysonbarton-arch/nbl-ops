@@ -600,6 +600,8 @@ async function selectMTTour(tourId, el) {
     let html = '<p class="mt-status" style="margin-top:16px">Select show dates to import (click to toggle):</p>';
     html += '<ul class="mt-list" id="mtDateList">';
 
+    console.log('[MT DEBUG] First day object keys:', Object.keys(filtered[0] || {}));
+    console.log('[MT DEBUG] First day object:', JSON.stringify(filtered[0]).substring(0, 2000));
     filtered.forEach((d, i) => {
       const rawDate = d.dayDate || d.date || d.startDate || '';
       let dateStr = rawDate;
@@ -611,6 +613,7 @@ async function selectMTTour(tourId, el) {
       const venue = d.name || d.venue?.name || d.venueName || '';
       const city = d.venue?.city || d.city || '';
       const dayId = d.id || d.dayId;
+      if (i === 0) console.log('[MT DEBUG] dayId resolved:', dayId, '| d.id:', d.id, '| d.dayId:', d.dayId, '| d.dayGuid:', d.dayGuid);
       const label = `${dateStr}${venue ? ' — ' + venue : ''}${city ? ' (' + city + ')' : ''}`;
 
       // Check if an advance already exists for this date
