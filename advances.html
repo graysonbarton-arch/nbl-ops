@@ -672,6 +672,7 @@ async function importSelectedMTDates() {
 
   const existingAdvances = AdvanceStore.list();
   let created = 0, updated = 0;
+  const allMTCrew = []; // Collect crew across all imported dates for roster merge
 
   for (const li of selected) {
     const dayId = li.dataset.dayid;
@@ -766,6 +767,14 @@ async function importSelectedMTDates() {
       if (roster.length) {
         advData.crew = DataEnrichment.enrichFromRoster(advData.crew, roster);
       }
+
+      // Collect MT crew + hotel guests for roster merge (done after the loop)
+      advData.crew.forEach(c => {
+        if (c.name) allMTCrew.push(c);
+      });
+      advData.hotel.forEach(h => {
+        if (h.guest) allMTCrew.push({ name: h.guest, role: '' });
+      });
 
       // Merge schedule / events (by label)
       const schedArr = Array.isArray(schedule) ? schedule : [];
@@ -883,7 +892,43 @@ async function importSelectedMTDates() {
     }
   }
 
-  statusDiv.innerHTML = `<p class="mt-status" style="color:var(--accent)">Done! ${created} new advance(s) created, ${updated} existing advance(s) updated.</p>
+  // ── Merge MT crew into the global roster ──
+  let rosterAdded = 0;
+  if (allMTCrew.length) {
+    const roster = getSavedRoster();
+    const existingKeys = new Set(roster.map(r => (r.name || '').trim().toLowerCase().replace(/\s+/g, ' ')));
+    allMTCrew.forEach(c => {
+      const key = (c.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!key || existingKeys.has(key)) return;
+      roster.push({
+        name: c.name,
+        position: c.role || '',
+        payType: 'day',
+        rate: c._rosterData?.rate || '',
+        email: c.email || '',
+        phone: c.phone || '',
+        dob: c._rosterData?.dob || '',
+        skyMiles: c._rosterData?.skyMiles || '',
+        ktn: c._rosterData?.ktn || '',
+        hilton: c._rosterData?.hilton || '',
+        marriott: c._rosterData?.marriott || '',
+        shirtSize: c._rosterData?.shirtSize || '',
+      });
+      existingKeys.add(key);
+      rosterAdded++;
+    });
+    if (rosterAdded > 0) {
+      localStorage.setItem('nbl_saved_roster', JSON.stringify(roster));
+      // Sync roster to cloud
+      const doFetch = (typeof isLoggedIn === 'function' && isLoggedIn()) ? authFetch : fetch;
+      doFetch('/api/roster', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roster }) })
+        .catch(e => console.warn('Roster cloud sync failed:', e));
+      Toast.show(`${rosterAdded} new crew member(s) added to roster`, 'success');
+    }
+  }
+
+  const rosterMsg = rosterAdded > 0 ? ` ${rosterAdded} new crew added to roster.` : '';
+  statusDiv.innerHTML = `<p class="mt-status" style="color:var(--accent)">Done! ${created} new advance(s) created, ${updated} existing advance(s) updated.${rosterMsg}</p>
     <button class="mt-btn" style="margin-top:12px; border-color:var(--accent); color:var(--accent);" onclick="closeMT()">DONE</button>`;
 
   renderAdvances();
@@ -899,6 +944,109 @@ function getSavedRoster() {
   try { return JSON.parse(localStorage.getItem('nbl_saved_roster') || '[]'); } catch { return []; }
 }
 
+/**
+ * Backfill: scan ALL existing advances and merge any crew/hotel guests
+ * not already in the global roster. Runs once on page load.
+ */
+async function backfillRosterFromAdvances() {
+  const advances = AdvanceStore.list();
+  if (!advances.length) return;
+
+  const roster = getSavedRoster();
+  const existingKeys = new Set(roster.map(r => (r.name || '').trim().toLowerCase().replace(/\s+/g, ' ')));
+  let added = 0;
+
+  for (const meta of advances) {
+    // Try cloud first, fall back to local
+    let advData;
+    try {
+      advData = await AdvanceStore.loadCloud(meta.id);
+    } catch {
+      advData = AdvanceStore.load(meta.id);
+    }
+    if (!advData) continue;
+
+    // Collect crew
+    (advData.crew || []).forEach(c => {
+      const name = (c.name || '').trim();
+      const key = name.toLowerCase().replace(/\s+/g, ' ');
+      if (!key || existingKeys.has(key)) return;
+      roster.push({
+        name,
+        position: c.role || '',
+        payType: 'day',
+        rate: c._rosterData?.rate || '',
+        email: c.email || '',
+        phone: c.phone || '',
+        dob: c._rosterData?.dob || '',
+        skyMiles: c._rosterData?.skyMiles || '',
+        ktn: c._rosterData?.ktn || '',
+        hilton: c._rosterData?.hilton || '',
+        marriott: c._rosterData?.marriott || '',
+        shirtSize: c._rosterData?.shirtSize || '',
+      });
+      existingKeys.add(key);
+      added++;
+    });
+
+    // Collect hotel guests
+    (advData.hotel || []).forEach(h => {
+      const name = (h.guest || '').trim();
+      const key = name.toLowerCase().replace(/\s+/g, ' ');
+      if (!key || existingKeys.has(key)) return;
+      roster.push({
+        name,
+        position: '',
+        payType: 'day',
+        rate: '',
+        email: '',
+        phone: '',
+        dob: '',
+        skyMiles: '',
+        ktn: '',
+        hilton: '',
+        marriott: '',
+        shirtSize: '',
+      });
+      existingKeys.add(key);
+      added++;
+    });
+
+    // Collect contacts too (venue contacts, production contacts)
+    (advData.contacts || []).forEach(c => {
+      const name = (c.name || '').trim();
+      const key = name.toLowerCase().replace(/\s+/g, ' ');
+      if (!key || existingKeys.has(key)) return;
+      roster.push({
+        name,
+        position: c.role || '',
+        payType: 'day',
+        rate: '',
+        email: c.email || '',
+        phone: c.phone || '',
+        dob: '',
+        skyMiles: '',
+        ktn: '',
+        hilton: '',
+        marriott: '',
+        shirtSize: '',
+      });
+      existingKeys.add(key);
+      added++;
+    });
+  }
+
+  if (added > 0) {
+    localStorage.setItem('nbl_saved_roster', JSON.stringify(roster));
+    // Sync to cloud
+    const doFetch = (typeof isLoggedIn === 'function' && isLoggedIn()) ? authFetch : fetch;
+    doFetch('/api/roster', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roster }) })
+      .catch(e => console.warn('Roster cloud sync failed:', e));
+    Toast.show(`Synced ${added} people from advances to roster`, 'success');
+    console.log(`[Roster Backfill] Added ${added} people from ${advances.length} advances`);
+  }
+}
+
 // Close import dropdown when clicking outside
 document.addEventListener('click', e => {
   if (!e.target.closest('.import-dropdown')) {
@@ -910,7 +1058,11 @@ document.addEventListener('click', e => {
 document.getElementById('footerDate').textContent =
   new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' }).toUpperCase();
 initAuth().then(user => {
-  AdvanceStore.listCloud().then(() => renderAdvances());
+  AdvanceStore.listCloud().then(() => {
+    renderAdvances();
+    // Backfill roster from all existing advances (one-time catch-up)
+    backfillRosterFromAdvances();
+  });
   AdvanceStore.syncAllToCloud();
 });
 </script>
