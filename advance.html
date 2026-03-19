@@ -814,6 +814,7 @@ async function syncToBudget() {
   const linkedId = $('linkedProject').value;
   if (!linkedId) return;
 
+  Toast.show('Syncing to budget...', 'info');
   let projData = await ProjectStore.loadCloud(linkedId);
   if (!projData) projData = ProjectStore.load(linkedId);
   if (!projData) { Toast.show('Could not load linked budget project', 'error'); return; }
@@ -832,18 +833,6 @@ async function syncToBudget() {
   const cCount = mergedContacts.length - budgetContacts.length;
   projData.contacts = mergedContacts.map(c => [c.role||'', c.name||'', c.phone||'', c.email||'']);
 
-  // Crew: convert, merge, enrich from roster, then write back as budget rows
-  // Filter out blank starter rows
-  const roster = getSavedRoster();
-  const existingCrew = DE.budgetCrewToAdvance(projData.tables.crewBody || [])
-    .filter(c => c.name);
-  const mergedCrew = DE.enrichFromRoster(
-    DE.mergeCrew(existingCrew, advData.crew).filter(c => c.name),
-    roster
-  );
-  const crCount = mergedCrew.length - existingCrew.length;
-  projData.tables.crewBody = DE.advanceCrewToBudget(mergedCrew);
-
   // Hotel: convert with new 11-field format (includes hotel name)
   // Filter out blank rows — require guest name or hotel name (dates alone aren't enough)
   const existingHotel = DE.budgetHotelToAdvance(projData.tables.hotelBody || [])
@@ -852,6 +841,22 @@ async function syncToBudget() {
     .filter(h => h.guest || h.hotel);
   const hCount = mergedHotel.length - existingHotel.length;
   projData.tables.hotelBody = DE.advanceHotelToBudget(mergedHotel);
+
+  // Build combined people list: crew from advance + hotel guests
+  const hotelGuests = advData.hotel.filter(h => h.guest).map(h => ({ role: '', name: h.guest }));
+  const allPeople = DE.mergeCrew(advData.crew, hotelGuests).filter(c => c.name);
+
+  // Crew: convert, merge, enrich from roster, then write back as budget rows
+  // Filter out blank starter rows
+  const roster = getSavedRoster();
+  const existingCrew = DE.budgetCrewToAdvance(projData.tables.crewBody || [])
+    .filter(c => c.name);
+  const mergedCrew = DE.enrichFromRoster(
+    DE.mergeCrew(existingCrew, allPeople).filter(c => c.name),
+    roster
+  );
+  const crCount = mergedCrew.length - existingCrew.length;
+  projData.tables.crewBody = DE.advanceCrewToBudget(mergedCrew);
 
   // Links
   const existingLinks = DE.budgetLinksToAdvance(projData.links || []);
@@ -862,20 +867,17 @@ async function syncToBudget() {
   // Notes
   projData.notes = DE.mergeNotes(projData.notes || '', advData.notes, '--- ADVANCE NOTES ---');
 
-  // Payroll: add crew to first payroll block if not already there
+  // Payroll: add all people (crew + hotel guests) to first payroll block
   const payrollBlocks = projData.payrollBlocks || [{ id:'pay_0', name:'SHOW DAYS' }];
-  const enrichedCrew = DE.enrichFromRoster(advData.crew.filter(c => c.name), roster);
-  const payCount = DE.addCrewToPayroll(enrichedCrew, payrollBlocks, projData.tables, roster);
+  const enrichedPeople = DE.enrichFromRoster(allPeople, roster);
+  const payCount = DE.addCrewToPayroll(enrichedPeople, payrollBlocks, projData.tables, roster);
 
-  // Per Diems: add crew + hotel guests (anyone traveling needs per diems)
+  // Per Diems: add all people (anyone traveling needs per diems)
   if (!projData.tables.pdBody) projData.tables.pdBody = [];
   // Filter out blank starter rows from per diems too
   projData.tables.pdBody = projData.tables.pdBody.filter(r => r[1]);
   const pdRate = projData.settings?.pdDefaultRate || '';
-  const pdCount = DE.addCrewToPerDiems(enrichedCrew, projData.tables.pdBody, pdRate);
-  // Also add hotel guests to per diems
-  const hotelGuests = advData.hotel.filter(h => h.guest).map(h => ({ role: '', name: h.guest }));
-  const pdHotelCount = DE.addCrewToPerDiems(hotelGuests, projData.tables.pdBody, pdRate);
+  const pdCount = DE.addCrewToPerDiems(enrichedPeople, projData.tables.pdBody, pdRate);
 
   // Ensure payrollBlocks is saved
   if (!projData.payrollBlocks) projData.payrollBlocks = payrollBlocks;
@@ -910,8 +912,7 @@ async function syncToBudget() {
   if (hCount) parts.push(`${hCount} hotel`);
   if (lCount) parts.push(`${lCount} links`);
   if (payCount) parts.push(`${payCount} to payroll`);
-  const totalPd = pdCount + pdHotelCount;
-  if (totalPd) parts.push(`${totalPd} to per diems`);
+  if (pdCount) parts.push(`${pdCount} to per diems`);
   Toast.show(parts.length ? `Synced to budget: ${parts.join(', ')}` : 'Budget already up to date', parts.length ? 'success' : 'info');
 }
 
@@ -920,6 +921,7 @@ async function pullFromBudget() {
   const linkedId = $('linkedProject').value;
   if (!linkedId) return;
 
+  Toast.show('Pulling from budget...', 'info');
   // Always fetch latest from cloud
   let projData = await ProjectStore.loadCloud(linkedId);
   if (!projData) {

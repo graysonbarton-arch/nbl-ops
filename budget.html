@@ -171,6 +171,19 @@
   .profiles-table input { font-size:10px; width:100%; min-width:70px; }
   .profiles-table input[type="date"] { min-width:110px; }
 
+  /* Presets/Roster section */
+  .presets-content { padding:16px; background:var(--surface); border:1px solid var(--border); }
+  .presets-sub-label { font-size:9px; letter-spacing:2px; color:var(--muted); margin-bottom:8px; cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; }
+  .presets-sub-label .arrow { font-size:11px; }
+  .presets-sub-label .count { font-size:10px; color:var(--text-dim); }
+  .presets-section { margin-bottom:20px; }
+  .presets-add-row { display:flex; gap:8px; margin-top:8px; align-items:center; }
+  .presets-add-row input { width:160px; }
+  .presets-add-row button { margin:0; padding:4px 12px; }
+  .presets-empty { font-size:11px; color:var(--muted); padding:4px 0; }
+  .venue-item { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid #1f1f1f; }
+  .venue-item span { font-size:11px; flex:1; color:var(--text-dim); }
+
   /* Progress bars */
   .progress-bar { width:100%; height:4px; background:var(--surface-2); border-radius:2px; overflow:hidden; }
   .progress-fill { height:100%; border-radius:2px; transition:width .6s ease; }
@@ -1678,7 +1691,12 @@ function addPresetPerson() {
   saveSavedRoster(list); buildPresetsUI(); inp.value='';
 }
 function removePresetPerson(i) { const list=loadSavedRoster(); list.splice(i,1); saveSavedRoster(list); buildPresetsUI(); }
-function findProfile(name) { return loadSavedRoster().find(p=>p.name===name); }
+function normalizeNameKey(n) { return (n || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+function findProfile(name) {
+  const key = normalizeNameKey(name);
+  if (!key) return null;
+  return loadSavedRoster().find(p => normalizeNameKey(p.name) === key);
+}
 function autofillPayProfile(tr, name) {
   const posInp=tr.cells[1]?.querySelector('input'), daysInp=tr.cells[3]?.querySelector('input'), rateInp=tr.cells[4]?.querySelector('input');
   if(!name) {
@@ -1735,15 +1753,25 @@ function autofillHotelProfile(tr, name) {
   if(loyInp&&!loyInp.value) loyInp.value=loy;
   tr._lastProfile={dob:dob,loyalty:loy};
 }
+let _rosterSaveTimer = null;
 function saveRosterFromUI() {
   const rows=document.querySelectorAll('.profile-row');
+  if (!rows.length) return;
   const list=[];
   rows.forEach(row => {
     const inp=row.querySelectorAll('input');
     const sel=row.querySelector('select');
+    if (inp.length < 11) return; // skip malformed rows
     list.push({name:inp[0].value,position:inp[1].value,payType:sel?sel.value:'day',rate:inp[2].value,email:inp[3].value,phone:inp[4].value,dob:inp[5].value,skyMiles:inp[6].value,ktn:inp[7].value,hilton:inp[8].value,marriott:inp[9].value,shirtSize:inp[10].value});
   });
   saveSavedRoster(list);
+}
+function scheduleRosterSave() {
+  clearTimeout(_rosterSaveTimer);
+  _rosterSaveTimer = setTimeout(saveRosterFromUI, 600);
+}
+function flushPendingRosterEdits() {
+  if (_rosterSaveTimer) { clearTimeout(_rosterSaveTimer); _rosterSaveTimer = null; saveRosterFromUI(); }
 }
 function addPresetVenue() {
   const c=$('newPresetCity'),v=$('newPresetVenue');
@@ -1771,40 +1799,41 @@ function toggleRosterSub(key) {
 }
 
 function buildPresetsUI() {
+  flushPendingRosterEdits();
   const container=$('schedPresets'); if(!container) return;
   const roster=loadSavedRoster(), venues=loadSavedVenues();
   const isOpen=$('presetsContent')?.style.display==='block';
-  let html=`<div class="sub-header" style="cursor:pointer" onclick="togglePresets()">ROSTER ${isOpen?'▾':'▸'}</div>`;
-  html+=`<div id="presetsContent" style="display:${isOpen?'block':'none'}; padding:16px; background:var(--surface); border:1px solid var(--border);">`;
+  let html=`<div class="sub-header collapsible" onclick="togglePresets()">ROSTER ${isOpen?'▾':'▸'}</div>`;
+  html+=`<div id="presetsContent" class="presets-content" style="display:${isOpen?'block':'none'}">`;
 
   // Traveler Profiles — collapsible
   const pArrow = rosterProfilesOpen ? '▾' : '▸';
-  html+=`<div style="margin-bottom:20px">`;
-  html+=`<div style="font-size:9px; letter-spacing:2px; color:var(--muted); margin-bottom:8px; cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px" onclick="toggleRosterSub('profiles')"><span style="font-size:11px">${pArrow}</span> TRAVELER PROFILES <span style="font-size:10px; color:var(--text-dim)">(${roster.length})</span></div>`;
+  html+=`<div class="presets-section">`;
+  html+=`<div class="presets-sub-label" onclick="toggleRosterSub('profiles')"><span class="arrow">${pArrow}</span> TRAVELER PROFILES <span class="count">(${roster.length})</span></div>`;
   if(rosterProfilesOpen) {
-    if(!roster.length) html+='<div style="font-size:11px; color:var(--muted); padding:4px 0">No saved people yet</div>';
+    if(!roster.length) html+='<div class="presets-empty">No saved people yet</div>';
     else {
       html+='<div style="overflow-x:auto"><table class="budget-table profiles-table"><thead><tr><th>NAME</th><th>POSITION</th><th>PAY TYPE</th><th>RATE</th><th>EMAIL</th><th>PHONE</th><th>DOB</th><th>SKYMILES</th><th>KTN</th><th>HILTON #</th><th>MARRIOTT #</th><th>SHIRT</th><th></th></tr></thead><tbody>';
       roster.forEach((p,i) => {
         const pt=p.payType||'day';
-        html+=`<tr class="profile-row"><td><input class="editable" value="${escHtml(p.name)}" placeholder="Name" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.position||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><select class="editable" style="width:80px;font-size:10px" onchange="saveRosterFromUI()"><option value="day"${pt==='day'?' selected':''}>Day Rate</option><option value="salary"${pt==='salary'?' selected':''}>Salary</option></select></td><td><input class="editable" value="${escHtml(p.rate||'')}" placeholder="—" style="width:70px" onchange="saveRosterFromUI()"></td><td><input class="editable" type="email" value="${escHtml(p.email||'')}" placeholder="—" style="min-width:140px" onchange="saveRosterFromUI()"></td><td><input class="editable" type="tel" value="${escHtml(p.phone||'')}" placeholder="—" style="min-width:100px" onchange="saveRosterFromUI()"></td><td><input class="editable" type="date" value="${escHtml(p.dob||'')}" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.skyMiles||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.ktn||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.hilton||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.marriott||'')}" placeholder="—" onchange="saveRosterFromUI()"></td><td><input class="editable" value="${escHtml(p.shirtSize||'')}" placeholder="—" style="width:50px" onchange="saveRosterFromUI()"></td><td><button class="row-delete-btn" style="display:inline-block" onclick="removePresetPerson(${i})">×</button></td></tr>`;
+        html+=`<tr class="profile-row"><td><input class="editable" value="${escHtml(p.name)}" placeholder="Name" oninput="scheduleRosterSave()"></td><td><input class="editable" value="${escHtml(p.position||'')}" placeholder="—" oninput="scheduleRosterSave()"></td><td><select class="editable" style="width:80px;font-size:10px" oninput="scheduleRosterSave()"><option value="day"${pt==='day'?' selected':''}>Day Rate</option><option value="salary"${pt==='salary'?' selected':''}>Salary</option></select></td><td><input class="editable editable-num" value="${escHtml(p.rate||'')}" placeholder="—" oninput="scheduleRosterSave()"></td><td><input class="editable" type="email" value="${escHtml(p.email||'')}" placeholder="—" oninput="scheduleRosterSave()"></td><td><input class="editable" type="tel" value="${escHtml(p.phone||'')}" placeholder="—" oninput="scheduleRosterSave()"></td><td><input class="editable" type="date" value="${escHtml(p.dob||'')}" oninput="scheduleRosterSave()"></td><td><input class="editable" value="${escHtml(p.skyMiles||'')}" placeholder="—" oninput="scheduleRosterSave()"></td><td><input class="editable" value="${escHtml(p.ktn||'')}" placeholder="—" oninput="scheduleRosterSave()"></td><td><input class="editable" value="${escHtml(p.hilton||'')}" placeholder="—" oninput="scheduleRosterSave()"></td><td><input class="editable" value="${escHtml(p.marriott||'')}" placeholder="—" oninput="scheduleRosterSave()"></td><td><input class="editable" value="${escHtml(p.shirtSize||'')}" placeholder="—" style="width:50px" oninput="scheduleRosterSave()"></td><td><button class="row-delete-btn" style="display:inline-block" onclick="removePresetPerson(${i})">×</button></td></tr>`;
       });
       html+='</tbody></table></div>';
     }
-    html+=`<div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="editable" id="newPresetPerson" placeholder="Add name…" style="width:160px" onkeydown="if(event.key==='Enter')addPresetPerson()"><button class="add-row-btn" style="margin:0;padding:4px 12px" onclick="addPresetPerson()">+ ADD</button></div>`;
+    html+=`<div class="presets-add-row"><input class="editable" id="newPresetPerson" placeholder="Add name…" onkeydown="if(event.key==='Enter')addPresetPerson()"><button class="add-row-btn" onclick="addPresetPerson()">+ ADD</button></div>`;
   }
   html+=`</div>`;
 
   // Venues — collapsible
   const vArrow = rosterVenuesOpen ? '▾' : '▸';
   html+=`<div>`;
-  html+=`<div style="font-size:9px; letter-spacing:2px; color:var(--muted); margin-bottom:8px; cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px" onclick="toggleRosterSub('venues')"><span style="font-size:11px">${vArrow}</span> SAVED VENUES <span style="font-size:10px; color:var(--text-dim)">(${venues.length})</span></div>`;
+  html+=`<div class="presets-sub-label" onclick="toggleRosterSub('venues')"><span class="arrow">${vArrow}</span> SAVED VENUES <span class="count">(${venues.length})</span></div>`;
   if(rosterVenuesOpen) {
-    if(!venues.length) html+='<div style="font-size:11px; color:var(--muted); padding:4px 0">No saved venues yet</div>';
+    if(!venues.length) html+='<div class="presets-empty">No saved venues yet</div>';
     venues.forEach((v,i) => {
-      html+=`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #1f1f1f"><span style="font-size:11px;flex:1;color:var(--text-dim)">${escHtml(v.city)}${v.city&&v.venue?' — ':''}${escHtml(v.venue)}</span><button class="row-delete-btn" style="display:inline-block" onclick="removePresetVenue(${i})">×</button></div>`;
+      html+=`<div class="venue-item"><span>${escHtml(v.city)}${v.city&&v.venue?' — ':''}${escHtml(v.venue)}</span><button class="row-delete-btn" style="display:inline-block" onclick="removePresetVenue(${i})">×</button></div>`;
     });
-    html+=`<div style="display:flex;gap:8px;margin-top:8px;align-items:center"><input class="editable" id="newPresetCity" placeholder="City" style="width:100px" onkeydown="if(event.key==='Enter')addPresetVenue()"><input class="editable" id="newPresetVenue" placeholder="Venue" style="width:160px" onkeydown="if(event.key==='Enter')addPresetVenue()"><button class="add-row-btn" style="margin:0;padding:4px 12px" onclick="addPresetVenue()">+ ADD</button></div>`;
+    html+=`<div class="presets-add-row"><input class="editable" id="newPresetCity" placeholder="City" style="width:100px" onkeydown="if(event.key==='Enter')addPresetVenue()"><input class="editable" id="newPresetVenue" placeholder="Venue" onkeydown="if(event.key==='Enter')addPresetVenue()"><button class="add-row-btn" onclick="addPresetVenue()">+ ADD</button></div>`;
   }
   html+=`</div>`;
 
@@ -2047,6 +2076,8 @@ function buildStartupSections() {
 }
 
 // ============ CALCULATION ENGINE ============
+const roundMoney = n => Math.round(n * 100) / 100;
+
 function sumTableCalc(bodyId, rateCol, qtyCol, totalCol) {
   const tb = $(bodyId); if (!tb) return 0;
   let sum = 0;
@@ -2054,11 +2085,11 @@ function sumTableCalc(bodyId, rateCol, qtyCol, totalCol) {
     const row = tb.rows[r];
     const rate = parseFloat(row.cells[rateCol]?.querySelector('input')?.value) || 0;
     const qty = parseFloat(row.cells[qtyCol]?.querySelector('input')?.value) || 0;
-    const total = rate * qty;
+    const total = roundMoney(rate * qty);
     if (row.cells[totalCol]) row.cells[totalCol].textContent = fmt(total);
     sum += total;
   }
-  return sum;
+  return roundMoney(sum);
 }
 
 function sumFlights() {
@@ -2069,11 +2100,11 @@ function sumFlights() {
     const price = parseFloat(row.cells[7]?.querySelector('input')?.value) || 0;
     const qty = parseFloat(row.cells[8]?.querySelector('input')?.value) || 0;
     const bags = parseFloat(row.cells[9]?.querySelector('input')?.value) || 0;
-    const total = price * qty + bags;
+    const total = roundMoney(price * qty + bags);
     if (row.cells[10]) row.cells[10].textContent = fmt(total);
     sum += total;
   }
-  return sum;
+  return roundMoney(sum);
 }
 
 function sumHotel() {
@@ -2085,11 +2116,11 @@ function sumHotel() {
     const rooms = parseFloat(row.cells[8]?.querySelector('input')?.value) || 0;
     const nights = parseFloat(row.cells[9]?.querySelector('input')?.value) || 0;
     const rate = parseFloat(row.cells[10]?.querySelector('input')?.value) || 0;
-    const total = rooms * nights * rate * (1 + taxRate);
+    const total = roundMoney(rooms * nights * rate * (1 + taxRate));
     if (row.cells[11]) row.cells[11].textContent = fmt(total);
     sum += total;
   }
-  return sum;
+  return roundMoney(sum);
 }
 
 function sumGuests() {
@@ -2323,12 +2354,12 @@ function recalcAll() {
   const bizPctV = (parseFloat($('bizPct').value) || 0) / 100;
   const lawyerPctV = (parseFloat($('lawyerPct').value) || 0) / 100;
 
-  const contingency = subtotal * contPct;
-  const mgmt = income * mgmtPct;
-  const agent = income * agentPctV;
-  const biz = income * bizPctV;
-  const lawyer = income * lawyerPctV;
-  const grandTotal = subtotal + contingency + mgmt + agent + biz + lawyer;
+  const contingency = roundMoney(subtotal * contPct);
+  const mgmt = roundMoney(income * mgmtPct);
+  const agent = roundMoney(income * agentPctV);
+  const biz = roundMoney(income * bizPctV);
+  const lawyer = roundMoney(income * lawyerPctV);
+  const grandTotal = roundMoney(subtotal + contingency + mgmt + agent + biz + lawyer);
   const net = income - grandTotal;
   const margin = income > 0 ? net / income : 0;
 

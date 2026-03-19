@@ -139,12 +139,13 @@ const ProjectStore = {
     return entry;
   },
 
-  /** Background sync to cloud (fire and forget) */
-  async _syncToCloud(id, fullData, meta) {
+  /** Background sync to cloud with retry */
+  async _syncToCloud(id, fullData, meta, _retries) {
+    const attempt = _retries || 0;
     try {
       // Use authFetch if logged in (includes token), plain fetch otherwise
       const doFetch = (typeof isLoggedIn === 'function' && isLoggedIn()) ? authFetch : fetch;
-      await doFetch('/api/budgets?action=save', {
+      const res = await doFetch('/api/budgets?action=save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -155,9 +156,18 @@ const ProjectStore = {
           data: fullData,
         }),
       });
+      if (!res.ok && attempt < 2) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        return this._syncToCloud(id, fullData, meta, attempt + 1);
+      }
     } catch (e) {
-      console.warn('Cloud save failed:', e);
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        return this._syncToCloud(id, fullData, meta, attempt + 1);
+      }
+      console.warn('Cloud save failed after retries:', e);
       if (typeof SaveIndicator !== 'undefined') SaveIndicator.offline();
+      if (typeof Toast !== 'undefined') Toast.error('Cloud save failed — changes saved locally');
     }
   },
 
