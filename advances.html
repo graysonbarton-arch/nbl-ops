@@ -684,6 +684,9 @@ async function importSelectedMTDates() {
       const day = dayResp.data || dayResp;
       const crew = (crewResp.data || crewResp || []);
       const hotels = (hotelResp.data || hotelResp || []);
+      console.log('[MT DEBUG] hotelResp raw:', JSON.stringify(hotelResp).substring(0, 2000));
+      console.log('[MT DEBUG] hotels parsed:', JSON.stringify(hotels).substring(0, 2000));
+      console.log('[MT DEBUG] day hotel fields:', JSON.stringify({ hotel: day.hotel, hotelName: day.hotelName, hotelCompanyName: day.hotelCompanyName, accommodation: day.accommodation }).substring(0, 1000));
       const schedule = (schedResp.data || schedResp || []);
 
       // Build advance data from MT response
