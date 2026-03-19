@@ -57,8 +57,8 @@ export default async function handler(req, res) {
         break;
 
       case 'itinerary':
-        if (!dayId) return res.status(400).json({ error: 'dayId required' });
-        result = await mtFetch(`day/${dayId}/scheduleitems`);
+        if (!tourId || !req.query.date) return res.status(400).json({ error: 'tourId and date required' });
+        result = await mtFetch(`tour/${tourId}/summary/${req.query.date}`);
         break;
 
       case 'contacts':
