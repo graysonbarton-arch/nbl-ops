@@ -56,6 +56,11 @@ export default async function handler(req, res) {
         result = await mtFetch(`day/${dayId}/events`);
         break;
 
+      case 'itinerary':
+        if (!dayId) return res.status(400).json({ error: 'dayId required' });
+        result = await mtFetch(`day/${dayId}/schedule`);
+        break;
+
       case 'contacts':
         if (!companyId) return res.status(400).json({ error: 'companyId required' });
         result = await mtFetch(`company/${companyId}/contacts`);
