@@ -833,14 +833,20 @@ async function syncToBudget() {
   projData.contacts = mergedContacts.map(c => [c.role||'', c.name||'', c.phone||'', c.email||'']);
 
   // Crew: convert, merge, then write back as budget rows
-  const existingCrew = DE.budgetCrewToAdvance(projData.tables.crewBody || []);
-  const mergedCrew = DE.mergeCrew(existingCrew, advData.crew);
+  // Filter out blank starter rows
+  const existingCrew = DE.budgetCrewToAdvance(projData.tables.crewBody || [])
+    .filter(c => c.name);
+  const mergedCrew = DE.mergeCrew(existingCrew, advData.crew)
+    .filter(c => c.name);
   const crCount = mergedCrew.length - existingCrew.length;
   projData.tables.crewBody = DE.advanceCrewToBudget(mergedCrew);
 
   // Hotel: convert with new 11-field format (includes hotel name)
-  const existingHotel = DE.budgetHotelToAdvance(projData.tables.hotelBody || []);
-  const mergedHotel = DE.mergeHotel(existingHotel, advData.hotel);
+  // Filter out blank rows from budget's initBlankForm starter rows
+  const existingHotel = DE.budgetHotelToAdvance(projData.tables.hotelBody || [])
+    .filter(h => h.guest || h.hotel || h.checkin);
+  const mergedHotel = DE.mergeHotel(existingHotel, advData.hotel)
+    .filter(h => h.guest || h.hotel || h.checkin);
   const hCount = mergedHotel.length - existingHotel.length;
   projData.tables.hotelBody = DE.advanceHotelToBudget(mergedHotel);
 
