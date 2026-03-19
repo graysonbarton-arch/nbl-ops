@@ -1586,13 +1586,16 @@ function loadSavedRoster() {
     return DEFAULT_ROSTER.map(r => ({...r})); // seed with defaults on first load
   } catch { return DEFAULT_ROSTER.map(r => ({...r})); }
 }
+let _rosterSaving = false;
 function saveSavedRoster(list) {
   localStorage.setItem('nbl_saved_roster',JSON.stringify(list));
   updateRosterDatalist();
-  // Always sync to cloud
+  // Always sync to cloud (with guard to prevent realtime overwrite)
+  _rosterSaving = true;
   const doFetch = (typeof isLoggedIn === 'function' && isLoggedIn()) ? authFetch : fetch;
   doFetch('/api/roster', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roster: list }) })
-    .catch(e => console.warn('Roster cloud sync failed:', e));
+    .then(() => { setTimeout(() => { _rosterSaving = false; }, 2000); })
+    .catch(e => { _rosterSaving = false; console.warn('Roster cloud sync failed:', e); });
 }
 const DEFAULT_VENUES = [
   {city:'New York, NY',venue:'Madison Square Garden'},{city:'New York, NY',venue:'Barclays Center'},{city:'New York, NY',venue:'Radio City Music Hall'},
@@ -3650,6 +3653,7 @@ function showRealtimeBanner(msg) {
 }
 
 async function syncRosterFromCloud() {
+  if (_rosterSaving) return; // don't overwrite a save in progress
   try {
     if (typeof Toast !== 'undefined') Toast.info('Syncing roster\u2026', 2000);
     const res = await authFetch('/api/roster');
