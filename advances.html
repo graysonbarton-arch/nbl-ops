@@ -688,14 +688,22 @@ async function importSelectedMTDates() {
         mtApi('schedule', { dayId }),
       ]);
 
-      // Unwrap MT API responses — they nest data in {hotels:[...]}, {events:[...]}, etc.
-      const crewRaw = crewResult.status === 'fulfilled' ? (crewResult.value || {}) : {};
-      const hotelRaw = hotelResult.status === 'fulfilled' ? (hotelResult.value || {}) : {};
-      const schedRaw = schedResult.status === 'fulfilled' ? (schedResult.value || {}) : {};
+      // Unwrap MT API responses — format: { success, message, data: { hotels:[...] } }
+      // or sometimes just the inner object { hotels:[...] } or a plain array
+      function unwrapMT(raw, key) {
+        if (Array.isArray(raw)) return raw;
+        const inner = raw?.data || raw;
+        if (Array.isArray(inner)) return inner;
+        if (inner && Array.isArray(inner[key])) return inner[key];
+        return [];
+      }
+      const crewRaw = crewResult.status === 'fulfilled' ? crewResult.value : {};
+      const hotelRaw = hotelResult.status === 'fulfilled' ? hotelResult.value : {};
+      const schedRaw = schedResult.status === 'fulfilled' ? schedResult.value : {};
 
-      const crew = Array.isArray(crewRaw) ? crewRaw : (crewRaw.crew || crewRaw.data || []);
-      const hotels = Array.isArray(hotelRaw) ? hotelRaw : (hotelRaw.hotels || hotelRaw.data || []);
-      const schedule = Array.isArray(schedRaw) ? schedRaw : (schedRaw.events || schedRaw.data || []);
+      const crew = unwrapMT(crewRaw, 'crew');
+      const hotels = unwrapMT(hotelRaw, 'hotels');
+      const schedule = unwrapMT(schedRaw, 'events');
 
       if (crewResult.status === 'rejected') console.warn('[MT] Crew fetch failed:', crewResult.reason?.message);
       if (hotelResult.status === 'rejected') console.warn('[MT] Hotels fetch failed:', hotelResult.reason?.message);

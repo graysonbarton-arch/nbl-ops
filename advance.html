@@ -865,14 +865,21 @@ async function refreshFromMasterTour() {
       mtApi('schedule', { dayId }),
     ]);
 
-    // Unwrap MT API responses (they nest data in {hotels:[...]}, {events:[...]})
-    const crewRaw = crewResult.status === 'fulfilled' ? (crewResult.value || {}) : {};
-    const hotelRaw = hotelResult.status === 'fulfilled' ? (hotelResult.value || {}) : {};
-    const schedRaw = schedResult.status === 'fulfilled' ? (schedResult.value || {}) : {};
+    // Unwrap MT API responses — format: { success, message, data: { hotels:[...] } }
+    function unwrapMT(raw, key) {
+      if (Array.isArray(raw)) return raw;
+      const inner = raw?.data || raw;
+      if (Array.isArray(inner)) return inner;
+      if (inner && Array.isArray(inner[key])) return inner[key];
+      return [];
+    }
+    const crewRaw = crewResult.status === 'fulfilled' ? crewResult.value : {};
+    const hotelRaw = hotelResult.status === 'fulfilled' ? hotelResult.value : {};
+    const schedRaw = schedResult.status === 'fulfilled' ? schedResult.value : {};
 
-    const crew = Array.isArray(crewRaw) ? crewRaw : (crewRaw.crew || crewRaw.data || []);
-    const hotels = Array.isArray(hotelRaw) ? hotelRaw : (hotelRaw.hotels || hotelRaw.data || []);
-    const schedule = Array.isArray(schedRaw) ? schedRaw : (schedRaw.events || schedRaw.data || []);
+    const crew = unwrapMT(crewRaw, 'crew');
+    const hotels = unwrapMT(hotelRaw, 'hotels');
+    const schedule = unwrapMT(schedRaw, 'events');
     // day data not available from a separate endpoint — use what we have in _loadedMeta
     const day = _loadedMeta || {};
     let imported = 0;
