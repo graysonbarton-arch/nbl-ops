@@ -15,8 +15,16 @@
 <script src="advance-store.js"></script>
 <script src="project-store.js"></script>
 <script src="lib/data-enrichment.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
   .travel-dropdown-menu.show { display:block !important; }
+  .adv-tools-menu.show { display:block !important; }
+  .adv-tools-item {
+    display:block; width:100%; padding:10px 16px; font-family:var(--font-body); font-size:10px;
+    letter-spacing:2px; text-transform:uppercase; cursor:pointer; border:none;
+    background:transparent; color:var(--text-dim); text-align:left; transition:all .2s;
+  }
+  .adv-tools-item:hover { background:var(--hover); color:var(--text); }
   .back-link {
     display:inline-block; padding:12px 40px; font-size:10px; letter-spacing:2px;
     color:var(--muted); text-decoration:none; transition:color .2s;
@@ -211,6 +219,20 @@
 <div id="mtRefreshBar" class="mt-refresh-bar" style="padding:0 40px 16px; display:none">
   <button class="mt-btn" onclick="refreshFromMasterTour()" id="mtRefreshBtn">↻ REFRESH FROM MASTER TOUR</button>
   <span class="mt-status" id="mtRefreshStatus"></span>
+</div>
+
+<div style="padding:0 40px 16px; display:flex; gap:8px; align-items:center">
+  <div class="adv-tools-dropdown" style="position:relative; display:inline-block">
+    <button class="add-btn" onclick="this.nextElementSibling.classList.toggle('show')" style="font-size:10px; letter-spacing:2px">TOOLS ▾</button>
+    <div class="adv-tools-menu" style="display:none; position:absolute; top:100%; left:0; z-index:100; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3); min-width:220px; margin-top:4px; padding:4px 0">
+      <button class="adv-tools-item" onclick="refreshFromMasterTour(); this.closest('.adv-tools-menu').classList.remove('show')">↻ REFRESH FROM MASTER TOUR</button>
+      <button class="adv-tools-item" onclick="document.getElementById('advImportFile').click(); this.closest('.adv-tools-menu').classList.remove('show')">📥 IMPORT XLSX</button>
+      <hr style="border:none; border-top:1px solid var(--border); margin:4px 0">
+      <button class="adv-tools-item" onclick="exportAdvanceXLSX(); this.closest('.adv-tools-menu').classList.remove('show')">📤 EXPORT XLSX</button>
+      <button class="adv-tools-item" onclick="exportAdvancePDF(); this.closest('.adv-tools-menu').classList.remove('show')">🖨 PRINT / PDF</button>
+    </div>
+  </div>
+  <input type="file" id="advImportFile" accept=".xlsx,.xls" onchange="importAdvanceXLSX(event)" style="display:none">
 </div>
 
 <div class="content">
@@ -1121,6 +1143,125 @@ async function refreshFromMasterTour() {
     btn.disabled = false;
   }
 }
+
+// ── IMPORT / EXPORT ──
+function importAdvanceXLSX(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1 });
+      if (!rows.length) { Toast.show('Empty spreadsheet', 'warning'); return; }
+
+      // Try to detect sections by header rows
+      const data = getAllData();
+      let section = '';
+      rows.forEach(row => {
+        const first = (row[0] || '').toString().trim().toUpperCase();
+        if (/CONTACT|ROLE.*NAME/.test(first)) { section = 'contacts'; return; }
+        if (/SCHEDULE|ITEM.*TIME|RUN.*SHOW/.test(first)) { section = 'schedule'; return; }
+        if (/CREW|POSITION/.test(first)) { section = 'crew'; return; }
+        if (/HOTEL|GUEST.*HOTEL|CHECK.?IN/.test(first)) { section = 'hotel'; return; }
+        if (!row[0] && !row[1]) return; // skip blank rows
+
+        if (section === 'contacts' && row[1]) {
+          const exists = data.contacts.some(c => c.name?.toLowerCase() === (row[1]||'').toString().toLowerCase());
+          if (!exists) data.contacts.push({ role:row[0]||'', name:row[1]||'', email:row[2]||'', phone:row[3]||'' });
+        } else if (section === 'schedule' && (row[0] || row[1])) {
+          data.schedule.push({ label:row[0]||'', time:row[1]||'', day:row[2]||'', notes:row[3]||'' });
+        } else if (section === 'crew' && row[1]) {
+          const exists = data.crew.some(c => c.name?.toLowerCase() === (row[1]||'').toString().toLowerCase());
+          if (!exists) data.crew.push({ role:row[0]||'', name:row[1]||'', phone:row[2]||'', email:row[3]||'' });
+        } else if (section === 'hotel' && (row[0] || row[1])) {
+          data.hotel.push({ guest:row[0]||'', hotel:row[1]||'', checkin:row[2]||'', checkout:row[3]||'', confirmation:row[4]||'', notes:row[5]||'' });
+        }
+      });
+
+      restoreFromData(data);
+      scheduleAutoSave();
+      Toast.show('Imported data from spreadsheet', 'success');
+    } catch (err) {
+      Toast.show('Import failed: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
+
+function exportAdvanceXLSX() {
+  const data = getAllData();
+  const wb = XLSX.utils.book_new();
+  const rows = [];
+
+  rows.push(['SHOW NAME', data.meta.showName]);
+  rows.push(['VENUE', data.meta.venue]);
+  rows.push(['VENUE ADDRESS', data.meta.venueAddress]);
+  rows.push(['DATE', data.meta.date]);
+  rows.push(['STATUS', data.meta.status]);
+  rows.push([]);
+
+  if (data.contacts.length) {
+    rows.push(['CONTACTS']);
+    rows.push(['ROLE', 'NAME', 'EMAIL', 'PHONE']);
+    data.contacts.forEach(c => rows.push([c.role, c.name, c.email, c.phone]));
+    rows.push([]);
+  }
+
+  if (data.schedule.length) {
+    rows.push(['SCHEDULE / RUN OF SHOW']);
+    rows.push(['ITEM', 'TIME', 'DAY', 'NOTES']);
+    data.schedule.forEach(s => rows.push([s.label, s.time, s.day, s.notes]));
+    rows.push([]);
+  }
+
+  if (data.crew.length) {
+    rows.push(['CREW']);
+    rows.push(['ROLE', 'NAME', 'PHONE', 'EMAIL']);
+    data.crew.forEach(c => rows.push([c.role, c.name, c.phone, c.email]));
+    rows.push([]);
+  }
+
+  if (data.hotel.length) {
+    rows.push(['HOTEL INFO']);
+    rows.push(['GUEST', 'HOTEL NAME', 'CHECK-IN', 'CHECK-OUT', 'CONF #', 'NOTES']);
+    data.hotel.forEach(h => rows.push([h.guest, h.hotel, h.checkin, h.checkout, h.confirmation, h.notes]));
+    rows.push([]);
+  }
+
+  if (data.notes) {
+    rows.push(['PRODUCTION NOTES']);
+    rows.push([data.notes]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Auto-width columns
+  ws['!cols'] = rows[0] ? rows.reduce((cols, row) => {
+    row.forEach((v, i) => {
+      const len = (v || '').toString().length;
+      cols[i] = cols[i] || { wch: 12 };
+      if (len + 2 > cols[i].wch) cols[i].wch = Math.min(len + 2, 50);
+    });
+    return cols;
+  }, []) : [];
+  XLSX.utils.book_append_sheet(wb, ws, 'Advance');
+  const fileName = (data.meta.showName || 'advance').replace(/[^a-zA-Z0-9 ]/g, '') + ' - Advance.xlsx';
+  XLSX.writeFile(wb, fileName);
+  Toast.show('Exported to ' + fileName, 'success');
+}
+
+function exportAdvancePDF() {
+  window.print();
+}
+
+// Close tools dropdown on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.adv-tools-dropdown')) {
+    document.querySelectorAll('.adv-tools-menu').forEach(m => m.classList.remove('show'));
+  }
+});
 
 // ── Auth callback ──
 function onAuthChanged(user) {
