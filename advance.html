@@ -16,6 +16,7 @@
 <script src="project-store.js"></script>
 <script src="lib/data-enrichment.js"></script>
 <style>
+  .travel-dropdown-menu.show { display:block !important; }
   .back-link {
     display:inline-block; padding:12px 40px; font-size:10px; letter-spacing:2px;
     color:var(--muted); text-decoration:none; transition:color .2s;
@@ -302,9 +303,12 @@
         <input id="travelHotel" placeholder="Hotel address..." style="width:100%; padding:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); font-family:var(--font-body)" oninput="updateTravelLinks()">
       </div>
     </div>
-    <div id="travelLinks" style="display:flex; flex-wrap:wrap; gap:8px">
-      <span style="color:var(--muted); font-size:11px">Enter venue address, hotel, and/or airport above to generate direction links</span>
+    <div style="position:relative; display:inline-block">
+      <button class="add-btn" onclick="this.nextElementSibling.classList.toggle('show')" id="travelDropBtn" style="display:none">🗺️ GET DIRECTIONS ▾</button>
+      <div id="travelLinks" class="travel-dropdown-menu" style="display:none; position:absolute; bottom:100%; left:0; z-index:100; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3); min-width:240px; margin-bottom:4px; padding:4px 0">
+      </div>
     </div>
+    <span id="travelEmpty" style="color:var(--muted); font-size:11px">Enter venue address, hotel, and/or airport above to generate direction links</span>
   </div>
 </div>
 
@@ -532,37 +536,54 @@ function updateTravelLinks() {
   const hotel = $('travelHotel').value.trim();
   const airport = $('travelAirport').value.trim();
   const container = $('travelLinks');
-
-  if (!venue && !hotel && !airport) {
-    container.innerHTML = '<span style="color:var(--muted); font-size:11px">Enter venue address, hotel, and/or airport above to generate direction links</span>';
-    return;
-  }
+  const btn = $('travelDropBtn');
+  const empty = $('travelEmpty');
 
   function mapsUrl(from, to) {
     return 'https://www.google.com/maps/dir/' + encodeURIComponent(from) + '/' + encodeURIComponent(to);
   }
-  function linkBtn(label, from, to) {
+  function linkItem(label, from, to) {
     if (!from || !to) return '';
     const url = mapsUrl(from, to);
-    return `<a href="${url}" target="_blank" rel="noopener" style="
-      display:inline-flex; align-items:center; gap:6px; padding:8px 16px;
-      background:var(--surface); border:1px solid var(--border); border-radius:6px;
-      color:var(--text); text-decoration:none; font-size:11px; letter-spacing:1px;
-      text-transform:uppercase; transition:all .2s; cursor:pointer;
-    " onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-      <span style="font-size:14px">🗺️</span> ${label}
+    return `<a href="${url}" target="_blank" rel="noopener" onclick="this.parentElement.classList.remove('show')" style="
+      display:block; padding:10px 16px; color:var(--text); text-decoration:none;
+      font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+      font-family:var(--font-body); transition:background .2s;
+    " onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='transparent'">
+      🗺️ &nbsp;${label}
     </a>`;
   }
 
   let html = '';
-  if (hotel && venue) html += linkBtn('Hotel → Venue', hotel, venue);
-  if (airport && hotel) html += linkBtn('Airport → Hotel', airport, hotel);
-  if (airport && venue) html += linkBtn('Airport → Venue', airport, venue);
-  if (venue && airport) html += linkBtn('Venue → Airport', venue, airport);
+  if (hotel && venue) html += linkItem('Hotel → Venue', hotel, venue);
+  if (airport && hotel) html += linkItem('Airport → Hotel', airport, hotel);
+  if (airport && venue) html += linkItem('Airport → Venue', airport, venue);
+  if (venue && airport) html += linkItem('Venue → Airport', venue, airport);
 
-  container.innerHTML = html || '<span style="color:var(--muted); font-size:11px">Need at least two locations to generate links</span>';
+  if (html) {
+    container.innerHTML = html;
+    btn.style.display = '';
+    empty.style.display = 'none';
+  } else {
+    container.innerHTML = '';
+    btn.style.display = 'none';
+    empty.style.display = (!venue && !hotel && !airport) ? '' : 'none';
+    if (venue || hotel || airport) {
+      empty.style.display = '';
+      empty.textContent = 'Need at least two locations to generate links';
+    } else {
+      empty.textContent = 'Enter venue address, hotel, and/or airport above to generate direction links';
+    }
+  }
   scheduleAutoSave();
 }
+
+// Close travel dropdown when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('#sec-travel')) {
+    $('travelLinks')?.classList.remove('show');
+  }
+});
 
 function autoFillTravelHotel() {
   // Auto-fill hotel address from first hotel row's notes (which contain address from MT)
