@@ -176,7 +176,7 @@
 <div class="meta-bar">
   <div class="meta-item">
     <span class="meta-label">VENUE ADDRESS</span>
-    <input class="meta-input" id="venueAddress" placeholder="123 Main St, City, ST" style="width:280px">
+    <input class="meta-input" id="venueAddress" placeholder="123 Main St, City, ST" style="width:280px" oninput="updateTravelLinks()">
   </div>
   <div class="meta-item">
     <span class="meta-label">SHOW DATE</span>
@@ -282,6 +282,29 @@
       <tbody id="hotelInfoBody"></tbody>
     </table>
     <button class="add-btn" onclick="addHotelInfoRow()">+ ADD HOTEL</button>
+  </div>
+</div>
+
+<!-- TRAVEL / DIRECTIONS -->
+<div class="section" id="sec-travel">
+  <div class="section-head" onclick="toggleSection('sec-travel')">
+    <span class="section-head-title">TRAVEL / DIRECTIONS</span>
+    <span><span class="section-head-arrow">▼</span></span>
+  </div>
+  <div class="section-body">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px">
+      <div>
+        <label style="font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase">NEAREST AIRPORT</label>
+        <input id="travelAirport" placeholder="e.g. MCO, LAX, ATL..." style="width:100%; padding:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); font-family:var(--font-body)" oninput="updateTravelLinks()">
+      </div>
+      <div>
+        <label style="font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase">HOTEL ADDRESS <span style="font-size:9px; opacity:0.5">(auto-filled from hotel section)</span></label>
+        <input id="travelHotel" placeholder="Hotel address..." style="width:100%; padding:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); font-family:var(--font-body)" oninput="updateTravelLinks()">
+      </div>
+    </div>
+    <div id="travelLinks" style="display:flex; flex-wrap:wrap; gap:8px">
+      <span style="color:var(--muted); font-size:11px">Enter venue address, hotel, and/or airport above to generate direction links</span>
+    </div>
   </div>
 </div>
 
@@ -504,6 +527,61 @@ function updateCounts() {
   $('countLinks').textContent = $('linksBody').rows.length;
 }
 
+function updateTravelLinks() {
+  const venue = $('venueAddress').value.trim();
+  const hotel = $('travelHotel').value.trim();
+  const airport = $('travelAirport').value.trim();
+  const container = $('travelLinks');
+
+  if (!venue && !hotel && !airport) {
+    container.innerHTML = '<span style="color:var(--muted); font-size:11px">Enter venue address, hotel, and/or airport above to generate direction links</span>';
+    return;
+  }
+
+  function mapsUrl(from, to) {
+    return 'https://www.google.com/maps/dir/' + encodeURIComponent(from) + '/' + encodeURIComponent(to);
+  }
+  function linkBtn(label, from, to) {
+    if (!from || !to) return '';
+    const url = mapsUrl(from, to);
+    return `<a href="${url}" target="_blank" rel="noopener" style="
+      display:inline-flex; align-items:center; gap:6px; padding:8px 16px;
+      background:var(--surface); border:1px solid var(--border); border-radius:6px;
+      color:var(--text); text-decoration:none; font-size:11px; letter-spacing:1px;
+      text-transform:uppercase; transition:all .2s; cursor:pointer;
+    " onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <span style="font-size:14px">🗺️</span> ${label}
+    </a>`;
+  }
+
+  let html = '';
+  if (hotel && venue) html += linkBtn('Hotel → Venue', hotel, venue);
+  if (airport && hotel) html += linkBtn('Airport → Hotel', airport, hotel);
+  if (airport && venue) html += linkBtn('Airport → Venue', airport, venue);
+  if (venue && airport) html += linkBtn('Venue → Airport', venue, airport);
+
+  container.innerHTML = html || '<span style="color:var(--muted); font-size:11px">Need at least two locations to generate links</span>';
+  scheduleAutoSave();
+}
+
+function autoFillTravelHotel() {
+  // Auto-fill hotel address from first hotel row's notes (which contain address from MT)
+  const hotelInp = $('travelHotel');
+  if (hotelInp.value) return; // don't overwrite manual entry
+  const rows = $('hotelInfoBody').rows;
+  if (!rows.length) return;
+  const hotelName = rows[0].querySelectorAll('input')[1]?.value || '';
+  const notes = rows[0].querySelectorAll('input')[5]?.value || '';
+  // Notes from MT import contain address on first line
+  const firstLine = notes.split('\n')[0] || '';
+  if (firstLine && firstLine.includes(',')) {
+    hotelInp.value = hotelName ? hotelName + ', ' + firstLine : firstLine;
+  } else if (hotelName) {
+    hotelInp.value = hotelName;
+  }
+  updateTravelLinks();
+}
+
 // ── Data Gather / Restore ──
 function getAllData() {
   const data = { meta:{}, contacts:[], schedule:[], crew:[], hotel:[], notes:'', links:[] };
@@ -514,6 +592,8 @@ function getAllData() {
     date: $('showDate').value,
     status: $('advanceStatus').value,
     linkedProjectId: $('linkedProject').value,
+    travelAirport: $('travelAirport').value,
+    travelHotel: $('travelHotel').value,
   };
   // Preserve MT link fields from loaded data
   if (_loadedMeta?.masterTourDayId) data.meta.masterTourDayId = _loadedMeta.masterTourDayId;
@@ -571,6 +651,12 @@ function restoreFromData(data) {
 
     $('linksBody').innerHTML = '';
     (data.links || []).forEach(l => addLinkRow(l));
+
+    // Travel fields
+    $('travelAirport').value = data.meta?.travelAirport || '';
+    $('travelHotel').value = data.meta?.travelHotel || '';
+    autoFillTravelHotel();
+    updateTravelLinks();
 
     updateCounts();
     updateSyncBar();
