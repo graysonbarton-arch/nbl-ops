@@ -863,6 +863,23 @@ async function syncToBudget() {
   const pdRate = projData.settings?.pdDefaultRate || '';
   const pdCount = DE.addCrewToPerDiems(enrichedCrew, projData.tables.pdBody, pdRate);
 
+  // Ensure payrollBlocks is saved
+  if (!projData.payrollBlocks) projData.payrollBlocks = payrollBlocks;
+
+  // Auto-activate budget tabs for sections that now have data
+  if (!projData.activeTabs) projData.activeTabs = ['overview', 'notescomms'];
+  const tabMap = {
+    hotel: projData.tables.hotelBody,
+    crew: projData.tables.crewBody,
+    perdiems: projData.tables.pdBody,
+    payroll: projData.tables[payrollBlocks[0]?.id + '_body'],
+  };
+  Object.entries(tabMap).forEach(([tab, data]) => {
+    if (data && data.length && !projData.activeTabs.includes(tab)) {
+      projData.activeTabs.push(tab);
+    }
+  });
+
   // Save back to budget project
   const idx = ProjectStore.list().find(p => p.id === linkedId);
   ProjectStore.save(linkedId, projData, {
