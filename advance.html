@@ -864,10 +864,15 @@ async function syncToBudget() {
   const enrichedCrew = DE.enrichFromRoster(advData.crew.filter(c => c.name), getSavedRoster());
   const payCount = DE.addCrewToPayroll(enrichedCrew, payrollBlocks, projData.tables, getSavedRoster());
 
-  // Per Diems: add crew if not already there
+  // Per Diems: add crew + hotel guests (anyone traveling needs per diems)
   if (!projData.tables.pdBody) projData.tables.pdBody = [];
+  // Filter out blank starter rows from per diems too
+  projData.tables.pdBody = projData.tables.pdBody.filter(r => r[1]);
   const pdRate = projData.settings?.pdDefaultRate || '';
   const pdCount = DE.addCrewToPerDiems(enrichedCrew, projData.tables.pdBody, pdRate);
+  // Also add hotel guests to per diems
+  const hotelGuests = advData.hotel.filter(h => h.guest).map(h => ({ role: '', name: h.guest }));
+  const pdHotelCount = DE.addCrewToPerDiems(hotelGuests, projData.tables.pdBody, pdRate);
 
   // Ensure payrollBlocks is saved
   if (!projData.payrollBlocks) projData.payrollBlocks = payrollBlocks;
@@ -902,7 +907,8 @@ async function syncToBudget() {
   if (hCount) parts.push(`${hCount} hotel`);
   if (lCount) parts.push(`${lCount} links`);
   if (payCount) parts.push(`${payCount} to payroll`);
-  if (pdCount) parts.push(`${pdCount} to per diems`);
+  const totalPd = pdCount + pdHotelCount;
+  if (totalPd) parts.push(`${totalPd} to per diems`);
   Toast.show(parts.length ? `Synced to budget: ${parts.join(', ')}` : 'Budget already up to date', parts.length ? 'success' : 'info');
 }
 
