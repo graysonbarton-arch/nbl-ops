@@ -547,6 +547,7 @@ async function openMTImport() {
 
 let _mtSelectedDates = [];
 let _mtTourId = null;
+let _mtDayData = {}; // dayId → day object from tour listing
 
 async function selectMTTour(tourId, el) {
   document.querySelectorAll('#mtContent > .mt-list li').forEach(li => li.classList.remove('selected'));
@@ -600,8 +601,10 @@ async function selectMTTour(tourId, el) {
     let html = '<p class="mt-status" style="margin-top:16px">Select show dates to import (click to toggle):</p>';
     html += '<ul class="mt-list" id="mtDateList">';
 
-    console.log('[MT DEBUG] First day object keys:', Object.keys(filtered[0] || {}));
-    console.log('[MT DEBUG] First day object:', JSON.stringify(filtered[0]).substring(0, 2000));
+    // Store day data so import doesn't need to re-fetch
+    _mtDayData = {};
+    filtered.forEach(d => { if (d.id) _mtDayData[d.id] = d; });
+
     filtered.forEach((d, i) => {
       const rawDate = d.dayDate || d.date || d.startDate || '';
       let dateStr = rawDate;
@@ -613,7 +616,6 @@ async function selectMTTour(tourId, el) {
       const venue = d.name || d.venue?.name || d.venueName || '';
       const city = d.venue?.city || d.city || '';
       const dayId = d.id || d.dayId;
-      if (i === 0) console.log('[MT DEBUG] dayId resolved:', dayId, '| d.id:', d.id, '| d.dayId:', d.dayId, '| d.dayGuid:', d.dayGuid);
       const label = `${dateStr}${venue ? ' — ' + venue : ''}${city ? ' (' + city + ')' : ''}`;
 
       // Check if an advance already exists for this date
@@ -676,27 +678,33 @@ async function importSelectedMTDates() {
     const dateStr = li.dataset.date;
 
     try {
-      // Fetch all data for this day in parallel
-      const [dayResp, crewResp, hotelResp, schedResp] = await Promise.all([
-        mtApi('day', { dayId }),
+      // Use day data already fetched from tour listing — no need to re-fetch
+      const day = _mtDayData[dayId] || {};
+
+      // Fetch crew, hotels, schedule in parallel — each with its own error handling
+      const [crewResult, hotelResult, schedResult] = await Promise.allSettled([
         mtApi('crew', { tourId: _mtTourId }),
         mtApi('hotels', { dayId }),
         mtApi('schedule', { dayId }),
       ]);
 
-      const day = dayResp.data || dayResp;
-      const crew = (crewResp.data || crewResp || []);
-      const hotels = (hotelResp.data || hotelResp || []);
-      console.log('[MT DEBUG] hotelResp raw:', JSON.stringify(hotelResp).substring(0, 2000));
-      console.log('[MT DEBUG] hotels parsed:', JSON.stringify(hotels).substring(0, 2000));
-      console.log('[MT DEBUG] day hotel fields:', JSON.stringify({ hotel: day.hotel, hotelName: day.hotelName, hotelCompanyName: day.hotelCompanyName, accommodation: day.accommodation }).substring(0, 1000));
-      const schedule = (schedResp.data || schedResp || []);
+      const crew = crewResult.status === 'fulfilled' ? (crewResult.value.data || crewResult.value || []) : [];
+      const hotels = hotelResult.status === 'fulfilled' ? (hotelResult.value.data || hotelResult.value || []) : [];
+      const schedule = schedResult.status === 'fulfilled' ? (schedResult.value.data || schedResult.value || []) : [];
+
+      if (crewResult.status === 'rejected') console.warn('[MT] Crew fetch failed:', crewResult.reason?.message);
+      if (hotelResult.status === 'rejected') console.warn('[MT] Hotels fetch failed:', hotelResult.reason?.message);
+      if (schedResult.status === 'rejected') console.warn('[MT] Schedule fetch failed:', schedResult.reason?.message);
+
+      if (hotels.length) console.log('[MT] Imported', hotels.length, 'hotel(s)');
+      if (crew.length) console.log('[MT] Imported', crew.length, 'crew member(s)');
 
       // Build advance data from MT response
-      const showName = day.tourName || day.name || '';
-      const venueName = day.venue?.name || day.venueName || '';
-      const venueAddr = day.venue?.address || '';
-      const venueCity = day.venue?.city || day.city || '';
+      // day.name = venue/event name from MT (e.g. "Okeechobee Music Festival")
+      const showName = day.name || '';
+      const venueName = day.name || '';
+      const venueAddr = '';
+      const venueCity = [day.city, day.state].filter(Boolean).join(', ');
       const showDate = dateStr;
 
       // Check if advance exists for this date
