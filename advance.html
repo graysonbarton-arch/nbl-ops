@@ -832,12 +832,15 @@ async function syncToBudget() {
   const cCount = mergedContacts.length - budgetContacts.length;
   projData.contacts = mergedContacts.map(c => [c.role||'', c.name||'', c.phone||'', c.email||'']);
 
-  // Crew: convert, merge, then write back as budget rows
+  // Crew: convert, merge, enrich from roster, then write back as budget rows
   // Filter out blank starter rows
+  const roster = getSavedRoster();
   const existingCrew = DE.budgetCrewToAdvance(projData.tables.crewBody || [])
     .filter(c => c.name);
-  const mergedCrew = DE.mergeCrew(existingCrew, advData.crew)
-    .filter(c => c.name);
+  const mergedCrew = DE.enrichFromRoster(
+    DE.mergeCrew(existingCrew, advData.crew).filter(c => c.name),
+    roster
+  );
   const crCount = mergedCrew.length - existingCrew.length;
   projData.tables.crewBody = DE.advanceCrewToBudget(mergedCrew);
 
@@ -861,8 +864,8 @@ async function syncToBudget() {
 
   // Payroll: add crew to first payroll block if not already there
   const payrollBlocks = projData.payrollBlocks || [{ id:'pay_0', name:'SHOW DAYS' }];
-  const enrichedCrew = DE.enrichFromRoster(advData.crew.filter(c => c.name), getSavedRoster());
-  const payCount = DE.addCrewToPayroll(enrichedCrew, payrollBlocks, projData.tables, getSavedRoster());
+  const enrichedCrew = DE.enrichFromRoster(advData.crew.filter(c => c.name), roster);
+  const payCount = DE.addCrewToPayroll(enrichedCrew, payrollBlocks, projData.tables, roster);
 
   // Per Diems: add crew + hotel guests (anyone traveling needs per diems)
   if (!projData.tables.pdBody) projData.tables.pdBody = [];
