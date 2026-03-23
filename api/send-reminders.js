@@ -114,10 +114,27 @@ export default async function handler(req, res) {
     }
   }
 
+  // Alert if any emails failed to send
+  const failures = results.filter(r => !r.sent);
+  if (failures.length && process.env.ALERT_EMAIL) {
+    try {
+      const FROM = `Nappy Boy Live <ops@${process.env.EMAIL_DOMAIN || 'nappyboylive.com'}>`;
+      await resend.emails.send({
+        from: FROM,
+        to: [process.env.ALERT_EMAIL],
+        subject: `[NBL] ⚠ ${failures.length} Reminder Email(s) Failed`,
+        text: `Reminder cron ran at ${new Date().toISOString()}\n\n${failures.length} email(s) failed to send:\n${failures.map(f => `  - ${f.id} (${f.type}): ${JSON.stringify(f.error)}`).join('\n')}`,
+      });
+    } catch (alertErr) {
+      console.error('Failed to send reminder failure alert:', alertErr);
+    }
+  }
+
   return res.status(200).json({
     ran: new Date().toISOString(),
     projectsChecked: pending.length,
     emailsSent: results.filter(r => r.sent).length,
+    failures: failures.length,
     results,
   });
 }

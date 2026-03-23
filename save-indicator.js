@@ -22,11 +22,12 @@ const SaveIndicator = {
     }
   },
 
-  saving()  { this.show('saving',  'Saving\u2026'); },
-  saved()   { this.show('saved',   'Saved'); },
-  unsaved() { this.show('unsaved', 'Unsaved'); },
-  offline() { this.show('offline', 'Offline'); },
-  syncing() { this.show('saving',  'Syncing\u2026'); },
+  saving()      { this.show('saving',  'Saving\u2026'); },
+  saved()       { this.show('saved',   'Saved'); },
+  unsaved()     { this.show('unsaved', 'Unsaved'); },
+  offline()     { this.show('offline', 'Offline'); },
+  syncing()     { this.show('saving',  'Syncing\u2026'); },
+  cloudFailed() { this.show('offline', 'Saved locally \u2014 cloud sync failed'); },
   hide() {
     const el = this._getEl();
     if (el) el.classList.remove('visible');

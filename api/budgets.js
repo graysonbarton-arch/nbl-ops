@@ -1,5 +1,12 @@
 import { getServiceClient, getUser } from '../lib/supabase.js';
 
+const MAX_DATA_SIZE = 5 * 1024 * 1024;
+
+function validateId(id) {
+  if (!id) return true;
+  return typeof id === 'string' && id.length <= 100 && /^[a-zA-Z0-9_-]+$/.test(id);
+}
+
 export default async function handler(req, res) {
   const action = req.query.action || req.url.split('/api/budgets/')[1]?.split('?')[0];
 
@@ -51,6 +58,8 @@ export default async function handler(req, res) {
 
     const { id, title, subtitle, status, data } = req.body;
     if (!data) return res.status(400).json({ error: 'Budget data is required' });
+    if (id && !validateId(id)) return res.status(400).json({ error: 'Invalid budget ID format' });
+    if (JSON.stringify(data).length > MAX_DATA_SIZE) return res.status(400).json({ error: 'Budget data exceeds maximum size' });
 
     try {
       const supabase = getServiceClient();
@@ -58,11 +67,19 @@ export default async function handler(req, res) {
       if (id) {
         const { data: existing } = await supabase
           .from('budgets')
-          .select('id')
+          .select('id, updated_at')
           .eq('id', id)
           .single();
 
         if (existing) {
+          // Conflict detection: reject if client's data is based on a stale version
+          const clientUpdatedAt = req.body.expected_updated_at;
+          if (clientUpdatedAt && existing.updated_at && new Date(existing.updated_at) > new Date(clientUpdatedAt)) {
+            return res.status(409).json({
+              error: 'Conflict: budget was modified by another session',
+              server_updated_at: existing.updated_at,
+            });
+          }
           const updates = {
             data,
             updated_at: new Date().toISOString(),

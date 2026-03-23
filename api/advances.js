@@ -1,5 +1,18 @@
 import { getServiceClient, getUser } from '../lib/supabase.js';
 
+// Max payload size for advance data blobs (5MB)
+const MAX_DATA_SIZE = 5 * 1024 * 1024;
+
+function validateDate(d) {
+  if (!d) return true; // optional
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) && !isNaN(new Date(d + 'T00:00:00').getTime());
+}
+
+function validateId(id) {
+  if (!id) return true;
+  return typeof id === 'string' && id.length <= 100 && /^[a-zA-Z0-9_-]+$/.test(id);
+}
+
 export default async function handler(req, res) {
   const { action } = req.query;
 
@@ -52,6 +65,9 @@ export default async function handler(req, res) {
 
     const { id, show_name, venue, show_date, status, linked_project_id, data } = req.body;
     if (!data) return res.status(400).json({ error: 'Advance data is required' });
+    if (id && !validateId(id)) return res.status(400).json({ error: 'Invalid advance ID format' });
+    if (show_date && !validateDate(show_date)) return res.status(400).json({ error: 'Invalid date format (expected YYYY-MM-DD)' });
+    if (JSON.stringify(data).length > MAX_DATA_SIZE) return res.status(400).json({ error: 'Advance data exceeds maximum size' });
 
     try {
       const supabase = getServiceClient();
@@ -59,11 +75,19 @@ export default async function handler(req, res) {
       if (id) {
         const { data: existing } = await supabase
           .from('advances')
-          .select('id')
+          .select('id, updated_at')
           .eq('id', id)
           .single();
 
         if (existing) {
+          // Conflict detection: reject if client's data is based on a stale version
+          const clientUpdatedAt = req.body.expected_updated_at;
+          if (clientUpdatedAt && existing.updated_at && new Date(existing.updated_at) > new Date(clientUpdatedAt)) {
+            return res.status(409).json({
+              error: 'Conflict: advance was modified by another session',
+              server_updated_at: existing.updated_at,
+            });
+          }
           const updates = {
             data,
             updated_at: new Date().toISOString(),

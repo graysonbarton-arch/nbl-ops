@@ -123,10 +123,10 @@ const AdvanceStore = {
     return entry;
   },
 
+  /** @returns {Promise<boolean>} true if cloud sync succeeded */
   async _syncToCloud(id, fullData, meta, _retries) {
     const attempt = _retries || 0;
     try {
-      // Use authFetch if logged in (includes token), plain fetch otherwise
       const doFetch = (typeof isLoggedIn === 'function' && isLoggedIn()) ? authFetch : fetch;
       const res = await doFetch('/api/advances?action=save', {
         method: 'POST',
@@ -141,18 +141,24 @@ const AdvanceStore = {
           data: fullData,
         }),
       });
-      if (!res.ok && attempt < 2) {
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      if (res.ok) return true;
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt))); // exponential backoff
         return this._syncToCloud(id, fullData, meta, attempt + 1);
       }
+      console.warn('Cloud advance save failed: HTTP', res.status);
+      if (typeof SaveIndicator !== 'undefined') SaveIndicator.cloudFailed();
+      if (typeof Toast !== 'undefined') Toast.error('Cloud sync failed — saved locally only');
+      return false;
     } catch (e) {
-      if (attempt < 2) {
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
         return this._syncToCloud(id, fullData, meta, attempt + 1);
       }
       console.warn('Cloud advance save failed after retries:', e);
-      if (typeof SaveIndicator !== 'undefined') SaveIndicator.offline();
-      if (typeof Toast !== 'undefined') Toast.error('Cloud save failed — changes saved locally');
+      if (typeof SaveIndicator !== 'undefined') SaveIndicator.cloudFailed();
+      if (typeof Toast !== 'undefined') Toast.error('Cloud sync failed — saved locally only');
+      return false;
     }
   },
 

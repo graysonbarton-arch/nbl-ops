@@ -14,6 +14,16 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const SHOW_TYPES = ['show day', 'load-in day'];
 const TABLE = 'mt_sync_state';
 
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function formatDate(d) {
   try {
     return new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
@@ -41,8 +51,8 @@ function buildAlertEmail(newShows, changedShows) {
       <div class="meta">
         ${newShows.map(s => `
           <div class="meta-row">
-            <span class="meta-label">${formatDate(s.show_date)}</span>
-            <span class="meta-value">${s.venue} — ${s.city}${s.state ? ', ' + s.state : ''}</span>
+            <span class="meta-label">${esc(formatDate(s.show_date))}</span>
+            <span class="meta-value">${esc(s.venue)} — ${esc(s.city)}${s.state ? ', ' + esc(s.state) : ''}</span>
           </div>
         `).join('')}
       </div>`;
@@ -54,9 +64,9 @@ function buildAlertEmail(newShows, changedShows) {
       <div class="meta">
         ${changedShows.map(s => `
           <div class="meta-row">
-            <span class="meta-label">${formatDate(s.show_date)}</span>
-            <span class="meta-value">${s.venue} — ${s.city}${s.state ? ', ' + s.state : ''}<br>
-              <span style="color:#666;font-size:10px">Changed: ${s.changes.join(', ')}</span>
+            <span class="meta-label">${esc(formatDate(s.show_date))}</span>
+            <span class="meta-value">${esc(s.venue)} — ${esc(s.city)}${s.state ? ', ' + esc(s.state) : ''}<br>
+              <span style="color:#666;font-size:10px">Changed: ${esc(s.changes.join(', '))}</span>
             </span>
           </div>
         `).join('')}
@@ -218,6 +228,20 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('MT sync error:', err);
+    // Alert on cron failure
+    if (process.env.ALERT_EMAIL) {
+      try {
+        const FROM = `Nappy Boy Live <ops@${process.env.EMAIL_DOMAIN || 'nappyboylive.com'}>`;
+        await resend.emails.send({
+          from: FROM,
+          to: [process.env.ALERT_EMAIL],
+          subject: '[NBL] ⚠ Master Tour Sync FAILED',
+          html: `<pre style="font-family:monospace;color:#e74c3c;background:#0a0a0a;padding:20px;">MT sync cron failed at ${new Date().toISOString()}\n\n${esc(err.message || String(err))}</pre>`,
+        });
+      } catch (emailErr) {
+        console.error('Failed to send cron failure alert:', emailErr);
+      }
+    }
     return res.status(500).json({ error: 'MT sync failed', detail: err.message });
   }
 }

@@ -64,13 +64,14 @@ async function logout() {
 
 // ─── Auth-aware fetch helper ─────────────────────────────────
 async function authFetch(url, options = {}) {
-  // Refresh token if needed
+  // Get a fresh token from the session each time (avoids race conditions
+  // when multiple authFetch calls run concurrently and mutate a shared global)
   const sb = getSupabase();
   const { data: { session } } = await sb.auth.getSession();
-  if (session) _accessToken = session.access_token;
+  const token = session?.access_token || _accessToken;
 
   const headers = { ...(options.headers || {}), 'Content-Type': 'application/json' };
-  if (_accessToken) headers['Authorization'] = 'Bearer ' + _accessToken;
+  if (token) headers['Authorization'] = 'Bearer ' + token;
   return fetch(url, { ...options, headers });
 }
 
