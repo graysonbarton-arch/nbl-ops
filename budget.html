@@ -48,8 +48,6 @@
   .hero-meta { display:flex; gap:40px; padding-top:20px; border-top:1px solid var(--border); flex-wrap:wrap; }
   .meta-item { display:flex; flex-direction:column; gap:2px; }
   .meta-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
-  .meta-sync-btn { background:none; border:1px solid var(--border); color:var(--muted); font-size:10px; cursor:pointer; padding:0 4px; border-radius:3px; margin-left:4px; line-height:1; vertical-align:middle; }
-  .meta-sync-btn:hover { color:var(--accent); border-color:var(--accent); }
   .meta-value { font-size:13px; color:var(--text); font-weight:500; }
 
   /* Editable field */
@@ -442,7 +440,7 @@
   <div class="hero-meta" style="margin-top:20px">
     <div class="meta-item"><span class="meta-label">PROJECT TYPE</span><input class="editable editable-meta" id="metaType" value="Tour / Live Event" style="width:160px"></div>
     <div class="meta-item"><span class="meta-label">DATES</span><input type="date" class="editable editable-meta" id="metaDateStart" style="width:130px"><span style="color:var(--muted); margin:0 6px">—</span><input type="date" class="editable editable-meta" id="metaDateEnd" style="width:130px"></div>
-    <div class="meta-item"><span class="meta-label">LOCATION <button class="meta-sync-btn" onclick="pullLocationFromData()" title="Pull from schedule data">&#x21bb;</button></span><input class="editable editable-meta" id="metaLocation" value="TBD" style="width:160px"><input class="editable editable-meta" id="metaAddress" placeholder="Address" style="width:220px; font-size:10px; margin-top:2px; color:var(--muted)"></div>
+    <div class="meta-item"><span class="meta-label">LOCATION</span><input class="editable editable-meta" id="metaLocation" value="TBD" placeholder="Venue / Location" style="width:200px"><input class="editable editable-meta" id="metaAddress" placeholder="Address" style="width:240px; font-size:11px; margin-top:2px; color:var(--muted)"></div>
     <div class="meta-item"><span class="meta-label">DURATION</span><input class="editable editable-meta" id="metaDuration" value="— DAYS" style="width:100px" readonly></div>
     <div class="meta-item"><span class="meta-label">CREW SIZE</span><input class="editable editable-meta" id="metaCrew" value="— MEMBERS" style="width:120px" readonly></div>
     <div class="meta-item"><span class="meta-label">STATUS</span><input class="editable editable-meta" id="metaStatus" value="PRE-PRODUCTION" style="width:140px; color:var(--orange)"></div>
@@ -2243,34 +2241,6 @@ function drawPieChart(categories, subtotal) {
       </div>`;
     }).join('');
   }
-}
-
-function pullLocationFromData() {
-  // Try to pull location from schedule venues first
-  const sched = getSchedData();
-  const venueDates = Object.keys(sched.venues || {}).sort();
-  if (venueDates.length > 0) {
-    const first = sched.venues[venueDates[0]];
-    if (first.city) $('metaLocation').value = first.city;
-    if (first.venue) $('metaAddress').value = first.venue;
-    scheduleAutoSave();
-    return;
-  }
-  // Fallback: try to pull city from hotel data
-  const hotelTb = $('hotelBody');
-  if (hotelTb) {
-    for (let r = 0; r < hotelTb.rows.length; r++) {
-      const cityInp = hotelTb.rows[r].cells[2]?.querySelector('input');
-      const hotelInp = hotelTb.rows[r].cells[3]?.querySelector('input');
-      if (cityInp && cityInp.value.trim()) {
-        $('metaLocation').value = cityInp.value.trim();
-        if (hotelInp && hotelInp.value.trim()) $('metaAddress').value = hotelInp.value.trim();
-        scheduleAutoSave();
-        return;
-      }
-    }
-  }
-  alert('No location data found in schedule or hotel sections.');
 }
 
 function updateCrewCount() {
