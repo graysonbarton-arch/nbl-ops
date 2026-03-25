@@ -13,6 +13,7 @@ function renderNav() {
     { href: 'projects.html',  label: 'BUDGET',  match: p => p.includes('projects.html') || p.includes('budget.html') },
     { href: 'advances.html',  label: 'ADVANCES', match: p => p.includes('advances.html') || p.includes('advance.html') },
     { href: 'reviews.html',   label: 'REVIEWS', match: p => p.includes('reviews.html') },
+    { href: 'links.html',     label: 'LINKS',   match: p => p.includes('links.html') },
   ];
 
   const links = pages.map(pg => {

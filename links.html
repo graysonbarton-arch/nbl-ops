@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nappy Boy Live — Live Links</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script src="save-indicator.js"></script>
+<script src="toast.js"></script>
+<script src="link-store.js"></script>
+<style>
+  /* Hero */
+  .hero { padding:48px 40px 24px; text-align:center; }
+  .hero-title { font-family:var(--font-display); font-size:72px; letter-spacing:4px; line-height:1; margin-bottom:4px; }
+  .hero-subtitle { font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--muted); }
+
+  /* Action Bar */
+  .action-bar { display:flex; justify-content:center; gap:12px; padding:0 40px 16px; flex-wrap:wrap; }
+  .action-btn {
+    padding:10px 28px; font-family:var(--font-body); font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; cursor:pointer; border:1px solid var(--border);
+    background:var(--surface); color:var(--text-dim); transition:all .2s;
+  }
+  .action-btn:hover { border-color:var(--accent); color:var(--text); }
+  .action-btn.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:500; }
+  .action-btn.primary:hover { background:#d4c490; }
+
+  /* Filter Bar */
+  .filter-bar {
+    display:flex; gap:10px; padding:0 40px 24px; flex-wrap:wrap; align-items:center;
+  }
+  .filter-bar select, .filter-bar input {
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    font-family:var(--font-body); font-size:10px; letter-spacing:1px;
+    padding:8px 12px; text-transform:uppercase; outline:none;
+    transition:border-color .2s;
+  }
+  .filter-bar select:focus, .filter-bar input:focus { border-color:var(--accent); }
+  .filter-bar input { flex:1; min-width:160px; text-transform:none; }
+  .filter-count { font-size:10px; color:var(--muted); letter-spacing:1px; margin-left:auto; }
+
+  /* Link Grid */
+  .link-grid {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));
+    gap:16px; padding:0 40px 48px;
+  }
+
+  /* Link Card */
+  .link-card {
+    background:var(--surface); border:1px solid var(--border); padding:20px;
+    transition:border-color .2s, transform .1s; position:relative; overflow:hidden;
+  }
+  .link-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .link-card::before {
+    content:''; position:absolute; top:0; left:0; width:100%; height:3px;
+  }
+
+  /* Category color stripe */
+  .link-card[data-cat="Lighting"]::before { background:var(--blue); }
+  .link-card[data-cat="LED/Panels"]::before { background:var(--purple); }
+  .link-card[data-cat="Stage Design"]::before { background:var(--green); }
+  .link-card[data-cat="Lasers"]::before { background:var(--red); }
+  .link-card[data-cat="Visuals/Content"]::before { background:var(--orange); }
+  .link-card[data-cat="Kinetic/Motion"]::before { background:var(--yellow); }
+  .link-card[data-cat="Rental Packages"]::before { background:#8d6e63; }
+  .link-card[data-cat="Props/Physical"]::before { background:#f48fb1; }
+  .link-card[data-cat="DMX/Control"]::before { background:var(--muted); }
+  .link-card[data-cat="Audio/Bass Setup"]::before { background:var(--text-dim); }
+
+  .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:8px; }
+  .card-badges { display:flex; gap:6px; flex-wrap:wrap; }
+
+  .badge {
+    font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:2px 8px;
+    border:1px solid var(--border); color:var(--text-dim); white-space:nowrap;
+  }
+  .badge-cat { border-color:var(--accent); color:var(--accent); }
+  .badge-high { border-color:var(--red); color:var(--red); }
+  .badge-medium { border-color:var(--orange); color:var(--orange); }
+  .badge-low { border-color:var(--green); color:var(--green); }
+
+  .card-delete {
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px;
+    padding:0 4px; opacity:0; transition:opacity .15s, color .15s; line-height:1; flex-shrink:0;
+  }
+  .link-card:hover .card-delete { opacity:1; }
+  .card-delete:hover { color:var(--red); }
+
+  .card-title {
+    font-family:var(--font-display); font-size:24px; letter-spacing:2px; line-height:1.1;
+    margin-bottom:8px;
+  }
+
+  .card-notes {
+    font-size:11px; color:var(--text-dim); line-height:1.6; margin-bottom:8px;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+  }
+
+  .card-usecase {
+    font-size:10px; color:var(--muted); letter-spacing:1px; margin-bottom:12px;
+    text-transform:uppercase;
+  }
+
+  .card-footer {
+    display:flex; align-items:center; gap:8px; border-top:1px solid var(--border);
+    padding-top:12px; flex-wrap:wrap;
+  }
+
+  .status-select {
+    background:var(--bg); border:1px solid var(--border); color:var(--text-dim);
+    font-family:var(--font-body); font-size:9px; letter-spacing:1px;
+    padding:4px 8px; text-transform:uppercase; cursor:pointer; outline:none;
+    transition:border-color .2s;
+  }
+  .status-select:focus { border-color:var(--accent); }
+  .status-select:hover { border-color:var(--accent); color:var(--text); }
+
+  .card-link-btn {
+    margin-left:auto; background:none; border:1px solid var(--border);
+    color:var(--text-dim); font-family:var(--font-body); font-size:11px;
+    padding:4px 12px; cursor:pointer; text-decoration:none; transition:all .2s;
+    display:inline-flex; align-items:center; gap:4px;
+  }
+  .card-link-btn:hover { border-color:var(--accent); color:var(--text); }
+
+  /* Source badge */
+  .badge-source { font-size:8px; padding:1px 6px; }
+  .badge-pip { border-color:var(--blue); color:var(--blue); }
+  .badge-reddit { border-color:var(--orange); color:var(--orange); }
+  .badge-instagram { border-color:var(--purple); color:var(--purple); }
+
+  /* Empty State */
+  .empty-state {
+    grid-column:1/-1; text-align:center; padding:80px 20px;
+    color:var(--muted); font-size:13px; letter-spacing:1px;
+  }
+
+  /* New Link Modal */
+  .modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+    z-index:1000; align-items:center; justify-content:center;
+  }
+  .modal-overlay.open { display:flex; }
+  .modal {
+    background:var(--surface); border:1px solid var(--border); padding:32px;
+    width:100%; max-width:520px; max-height:90vh; overflow-y:auto;
+  }
+  .modal h2 {
+    font-family:var(--font-display); font-size:32px; letter-spacing:2px;
+    margin-bottom:20px;
+  }
+  .modal label {
+    display:block; font-size:10px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--muted); margin-bottom:4px; margin-top:12px;
+  }
+  .modal input, .modal select, .modal textarea {
+    width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+    font-family:var(--font-body); font-size:11px; padding:8px 12px; outline:none;
+  }
+  .modal textarea { resize:vertical; min-height:60px; }
+  .modal input:focus, .modal select:focus, .modal textarea:focus { border-color:var(--accent); }
+  .modal-actions { display:flex; gap:12px; margin-top:20px; }
+
+  @media (max-width:768px) {
+    .hero-title { font-size:48px; }
+    .link-grid { grid-template-columns:1fr; padding:0 16px 32px; }
+    .filter-bar { padding:0 16px 16px; }
+    .action-bar { padding:0 16px 16px; }
+    .hero { padding:32px 16px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner">
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; LIVE LINKS &nbsp;&bull;&nbsp; PRODUCTION INSPIRATION &nbsp;&bull;&nbsp; GEAR TRACKING &nbsp;&bull;&nbsp;
+    NAPPY BOY LIVE &nbsp;&bull;&nbsp; LIVE LINKS &nbsp;&bull;&nbsp; PRODUCTION INSPIRATION &nbsp;&bull;&nbsp; GEAR TRACKING &nbsp;&bull;&nbsp;
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav" id="main-nav"></nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-title">LIVE LINKS</div>
+  <div class="hero-subtitle">NBL Production Inspiration &amp; Gear Tracker</div>
+</div>
+
+<!-- ACTION BAR -->
+<div class="action-bar">
+  <button class="action-btn primary" onclick="openNewModal()">+ NEW LINK</button>
+  <button class="action-btn" onclick="seedLinks()">SEED DATA</button>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <select id="filterCategory" onchange="renderLinks()">
+    <option value="">ALL CATEGORIES</option>
+    <option>Lighting</option>
+    <option>LED/Panels</option>
+    <option>Stage Design</option>
+    <option>Lasers</option>
+    <option>Visuals/Content</option>
+    <option>Kinetic/Motion</option>
+    <option>Rental Packages</option>
+    <option>Props/Physical</option>
+    <option>DMX/Control</option>
+    <option>Audio/Bass Setup</option>
+  </select>
+  <select id="filterPurchase" onchange="renderLinks()">
+    <option value="">ALL PURCHASE</option>
+    <option>To Research</option>
+    <option>Researching</option>
+    <option>Ready to Buy</option>
+    <option>Purchased</option>
+    <option>Too Expensive</option>
+  </select>
+  <select id="filterReview" onchange="renderLinks()">
+    <option value="">ALL REVIEW</option>
+    <option>Not Started</option>
+    <option>In Progress</option>
+    <option>Reviewed</option>
+    <option>Published</option>
+  </select>
+  <select id="filterPriority" onchange="renderLinks()">
+    <option value="">ALL PRIORITY</option>
+    <option>High</option>
+    <option>Medium</option>
+    <option>Low</option>
+  </select>
+  <input type="text" id="filterSearch" placeholder="Search items..." oninput="renderLinks()">
+  <span class="filter-count" id="filterCount"></span>
+</div>
+
+<!-- LINK GRID -->
+<div class="link-grid" id="linkGrid"></div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span>NAPPY BOY LIVE &mdash; LIVE LINKS</span>
+  <span id="linkCount"></span>
+  <span id="footerDate"></span>
+</div>
+
+<!-- NEW LINK MODAL -->
+<div class="modal-overlay" id="newLinkModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h2>NEW LINK</h2>
+    <label>Item Name *</label>
+    <input type="text" id="newItem" placeholder="e.g. LED Panel System">
+    <label>Category</label>
+    <select id="newCategory">
+      <option value="">Select...</option>
+      <option>Lighting</option>
+      <option>LED/Panels</option>
+      <option>Stage Design</option>
+      <option>Lasers</option>
+      <option>Visuals/Content</option>
+      <option>Kinetic/Motion</option>
+      <option>Rental Packages</option>
+      <option>Props/Physical</option>
+      <option>DMX/Control</option>
+      <option>Audio/Bass Setup</option>
+    </select>
+    <label>Priority</label>
+    <select id="newPriority">
+      <option>Medium</option>
+      <option>High</option>
+      <option>Low</option>
+    </select>
+    <label>Link URL</label>
+    <input type="url" id="newLink" placeholder="https://instagram.com/...">
+    <label>Notes</label>
+    <textarea id="newNotes" placeholder="What caught your eye about this?"></textarea>
+    <label>Use Case</label>
+    <input type="text" id="newUseCase" placeholder="e.g. Weekly network show">
+    <label>Source</label>
+    <select id="newSource">
+      <option>Instagram</option>
+      <option>Reddit</option>
+      <option>Pip</option>
+      <option>Other</option>
+    </select>
+    <label>Estimated Cost</label>
+    <input type="text" id="newCost" placeholder="e.g. $500-1000, Likely expensive">
+    <div class="modal-actions">
+      <button class="action-btn primary" onclick="createLink()">CREATE</button>
+      <button class="action-btn" onclick="closeModal()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const PURCHASE_OPTIONS = ['To Research','Researching','Ready to Buy','Purchased','Too Expensive'];
+const REVIEW_OPTIONS = ['Not Started','In Progress','Reviewed','Published'];
+
+function sourceBadge(src) {
+  if (!src) return '';
+  const cls = src.toLowerCase().replace(/[^a-z]/g,'');
+  return `<span class="badge badge-source badge-${cls}">${escHtml(src)}</span>`;
+}
+
+function priorityClass(p) {
+  return 'badge-' + (p || 'medium').toLowerCase();
+}
+
+function renderLinks() {
+  const all = LinkStore.list();
+  const cat = document.getElementById('filterCategory').value;
+  const pur = document.getElementById('filterPurchase').value;
+  const rev = document.getElementById('filterReview').value;
+  const pri = document.getElementById('filterPriority').value;
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+
+  const filtered = all.filter(l => {
+    if (cat && l.category !== cat) return false;
+    if (pur && l.purchase_status !== pur) return false;
+    if (rev && l.review_status !== rev) return false;
+    if (pri && l.priority !== pri) return false;
+    if (search) {
+      const hay = ((l.item||'') + ' ' + (l.notes||'') + ' ' + (l.use_case||'')).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  // Sort: High first, then Medium, then Low
+  const priOrder = { High: 0, Medium: 1, Low: 2 };
+  filtered.sort((a, b) => (priOrder[a.priority] || 1) - (priOrder[b.priority] || 1));
+
+  const grid = document.getElementById('linkGrid');
+  const counter = document.getElementById('linkCount');
+  const filterCount = document.getElementById('filterCount');
+
+  counter.textContent = all.length + ' LINK' + (all.length !== 1 ? 'S' : '');
+  filterCount.textContent = filtered.length === all.length
+    ? filtered.length + ' items'
+    : filtered.length + ' of ' + all.length;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        ${all.length === 0
+          ? 'No links yet. Click <strong>SEED DATA</strong> to load the initial list, or <strong>+ NEW LINK</strong> to add one.'
+          : 'No links match your filters.'}
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(l => {
+    const purchaseOpts = PURCHASE_OPTIONS.map(o =>
+      `<option${o === l.purchase_status ? ' selected' : ''}>${escHtml(o)}</option>`
+    ).join('');
+    const reviewOpts = REVIEW_OPTIONS.map(o =>
+      `<option${o === l.review_status ? ' selected' : ''}>${escHtml(o)}</option>`
+    ).join('');
+
+    return `
+      <div class="link-card" data-id="${escHtml(l.id)}" data-cat="${escHtml(l.category || '')}">
+        <div class="card-top">
+          <div class="card-badges">
+            <span class="badge badge-cat">${escHtml(l.category || 'Uncategorized')}</span>
+            <span class="badge ${priorityClass(l.priority)}">${escHtml(l.priority || 'Medium')}</span>
+            ${sourceBadge(l.source)}
+          </div>
+          <button class="card-delete" onclick="deleteLink('${escHtml(l.id)}')" title="Delete">&times;</button>
+        </div>
+        <div class="card-title">${escHtml(l.item || 'UNTITLED')}</div>
+        ${l.notes ? `<div class="card-notes">${escHtml(l.notes)}</div>` : ''}
+        ${l.use_case ? `<div class="card-usecase">Use: ${escHtml(l.use_case)}</div>` : ''}
+        ${l.estimated_cost ? `<div class="card-usecase">Est. Cost: ${escHtml(l.estimated_cost)}</div>` : ''}
+        <div class="card-footer">
+          <select class="status-select" onchange="updateField('${escHtml(l.id)}','purchase_status',this.value)"
+                  title="Purchase Status">${purchaseOpts}</select>
+          <select class="status-select" onchange="updateField('${escHtml(l.id)}','review_status',this.value)"
+                  title="Review Status">${reviewOpts}</select>
+          ${l.link ? `<a class="card-link-btn" href="${escHtml(l.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">VIEW &nearr;</a>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function updateField(id, field, value) {
+  LinkStore.save(id, { [field]: value });
+  if (typeof SaveIndicator !== 'undefined') SaveIndicator.saving();
+  setTimeout(() => { if (typeof SaveIndicator !== 'undefined') SaveIndicator.saved(); }, 600);
+}
+
+function deleteLink(id) {
+  const links = LinkStore.list();
+  const link = links.find(l => l.id === id);
+  if (!confirm('Delete "' + (link?.item || 'this link') + '"?')) return;
+  LinkStore.delete(id);
+  renderLinks();
+  if (typeof Toast !== 'undefined') Toast.success('Link deleted');
+}
+
+function openNewModal() {
+  document.getElementById('newLinkModal').classList.add('open');
+  document.getElementById('newItem').focus();
+}
+
+function closeModal() {
+  document.getElementById('newLinkModal').classList.remove('open');
+  // Reset fields
+  document.getElementById('newItem').value = '';
+  document.getElementById('newCategory').value = '';
+  document.getElementById('newPriority').value = 'Medium';
+  document.getElementById('newLink').value = '';
+  document.getElementById('newNotes').value = '';
+  document.getElementById('newUseCase').value = '';
+  document.getElementById('newSource').value = 'Instagram';
+  document.getElementById('newCost').value = '';
+}
+
+function createLink() {
+  const item = document.getElementById('newItem').value.trim();
+  if (!item) { alert('Item name is required'); return; }
+
+  LinkStore.create({
+    item,
+    category: document.getElementById('newCategory').value || null,
+    priority: document.getElementById('newPriority').value,
+    link: document.getElementById('newLink').value.trim() || null,
+    notes: document.getElementById('newNotes').value.trim() || null,
+    use_case: document.getElementById('newUseCase').value.trim() || null,
+    source: document.getElementById('newSource').value || null,
+    estimated_cost: document.getElementById('newCost').value.trim() || null,
+  });
+
+  closeModal();
+  renderLinks();
+  if (typeof Toast !== 'undefined') Toast.success('Link created');
+}
+
+async function seedLinks() {
+  if (typeof Toast !== 'undefined') Toast.info('Seeding data...');
+  const result = await LinkStore.seed();
+  if (result) {
+    if (typeof Toast !== 'undefined') Toast.success(result.message || 'Data seeded');
+    renderLinks();
+  } else {
+    if (typeof Toast !== 'undefined') Toast.error('Seed failed — check console');
+  }
+}
+
+// Auth callback
+function onAuthChanged(user) {
+  LinkStore.listCloud().then(() => renderLinks());
+  LinkStore.syncAllToCloud();
+}
+
+// Init
+document.getElementById('footerDate').textContent =
+  new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' }).toUpperCase();
+initAuth().then(user => {
+  LinkStore.listCloud().then(() => renderLinks());
+  LinkStore.syncAllToCloud();
+});
+</script>
+</body>
+</html>
