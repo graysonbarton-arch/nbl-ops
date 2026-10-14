@@ -1,0 +1,27 @@
+{
+	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+	"type": "connection",
+	"id": "clockotron",
+	"name": "clockotron",
+	"shortname": "clockotron",
+	"description": "Control the Clockotron countdown timer for vMix",
+	"version": "0.0.0",
+	"license": "MIT",
+	"repository": "git+https://github.com/graysonbarton-arch/nbl-ops.git",
+	"bugs": "https://github.com/graysonbarton-arch/nbl-ops/issues",
+	"maintainers": [
+		{
+			"name": "Nappy Boy Live"
+		}
+	],
+	"runtime": {
+		"type": "node26",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../src/main.js"
+	},
+	"legacyIds": [],
+	"manufacturer": "Clockotron",
+	"products": ["Clockotron"],
+	"keywords": ["timer", "countdown", "clock", "vmix"]
+}
