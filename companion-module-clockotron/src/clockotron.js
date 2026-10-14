@@ -4,7 +4,7 @@
  * Every endpoint is a plain GET. Requests are sent strictly one after another so that
  * keypad digits arrive in the order they were pressed.
  */
-class ClockotronClient {
+export class ClockotronClient {
 	constructor({ host, port, timeoutMs = 2000 }) {
 		this.baseUrl = `http://${host}:${port}`
 		this.timeoutMs = timeoutMs
@@ -37,5 +37,3 @@ class ClockotronClient {
 		return body
 	}
 }
-
-module.exports = { ClockotronClient }

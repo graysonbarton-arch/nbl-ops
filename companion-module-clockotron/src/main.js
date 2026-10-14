@@ -1,18 +1,20 @@
-const { InstanceBase, InstanceStatus, Regex, runEntrypoint } = require('@companion-module/base')
-const UpgradeScripts = require('./upgrades')
-const UpdateActions = require('./actions')
-const UpdateFeedbacks = require('./feedbacks')
-const UpdateVariableDefinitions = require('./variables')
-const UpdatePresets = require('./presets')
-const { ClockotronClient } = require('./clockotron')
-const { fetchVmixXml, parseInputs, findInput, findText } = require('./vmix')
-const { parseClockText, formatHMS, secondsToKeypadDigits } = require('./time')
+import { InstanceBase, InstanceStatus, Regex } from '@companion-module/base'
+import UpdateActions from './actions.js'
+import UpdateFeedbacks from './feedbacks.js'
+import UpdateVariableDefinitions from './variables.js'
+import UpdatePresets from './presets.js'
+import { ClockotronClient } from './clockotron.js'
+import { fetchVmixXml, parseInputs, findInput, findText } from './vmix.js'
+import { parseClockText, formatHMS, secondsToKeypadDigits } from './time.js'
+
+// Companion 5 (module API 2.x) imports this file and uses the default export as the instance class.
+export { UpgradeScripts } from './upgrades.js'
 
 const HEALTH_INTERVAL_MS = 5000
 // Clockotron ticks once a second; if the read-back value hasn't moved for this long we call it stopped.
 const RUNNING_STALE_MS = 1800
 
-class ClockotronInstance extends InstanceBase {
+export default class ClockotronInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
 		this.healthTimer = null
@@ -343,5 +345,3 @@ function formatKeypad(entry) {
 	const s = n % 100
 	return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
-
-runEntrypoint(ClockotronInstance, UpgradeScripts)

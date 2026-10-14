@@ -1,4 +1,4 @@
-module.exports = function (self) {
+export default function (self) {
 	self.setVariableDefinitions({
 		connected: { name: 'Clockotron reachable (true/false)' },
 		time: { name: 'Clock text exactly as shown in vMix' },

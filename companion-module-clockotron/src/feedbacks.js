@@ -1,7 +1,7 @@
-const { combineRgb } = require('@companion-module/base')
-const { parseDuration } = require('./time')
+import { combineRgb } from '@companion-module/base'
+import { parseDuration } from './time.js'
 
-module.exports = function (self) {
+export default function (self) {
 	self.setFeedbackDefinitions({
 		connected: {
 			name: 'Clockotron connected',

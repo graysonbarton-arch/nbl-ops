@@ -4,13 +4,13 @@
  * variables and feedbacks.
  */
 
-async function fetchVmixXml({ host, port, timeoutMs = 2000 }) {
+export async function fetchVmixXml({ host, port, timeoutMs = 2000 }) {
 	const res = await fetch(`http://${host}:${port}/api`, { signal: AbortSignal.timeout(timeoutMs) })
 	if (!res.ok) throw new Error(`vMix responded HTTP ${res.status}`)
 	return res.text()
 }
 
-function decodeXml(str) {
+export function decodeXml(str) {
 	return str
 		.replace(/&lt;/g, '<')
 		.replace(/&gt;/g, '>')
@@ -30,7 +30,7 @@ function parseAttributes(attrString) {
 }
 
 /** Returns [{ number, key, title, shortTitle, texts: [{ index, name, value }] }] */
-function parseInputs(xml) {
+export function parseInputs(xml) {
 	const inputs = []
 	for (const match of xml.matchAll(/<input\s([^>]*?)(?:\/>|>([\s\S]*?)<\/input>)/g)) {
 		const attrs = parseAttributes(match[1])
@@ -52,7 +52,7 @@ function parseInputs(xml) {
 }
 
 /** Match an input by number, GUID key, or title (case-insensitive). */
-function findInput(inputs, ref) {
+export function findInput(inputs, ref) {
 	const wanted = String(ref ?? '').trim()
 	if (wanted === '') return undefined
 	const lower = wanted.toLowerCase()
@@ -65,12 +65,10 @@ function findInput(inputs, ref) {
 }
 
 /** Pick a text field by name ("Headline.Text") or index ("0"); defaults to the first one. */
-function findText(input, fieldRef) {
+export function findText(input, fieldRef) {
 	if (!input || input.texts.length === 0) return undefined
 	const wanted = String(fieldRef ?? '').trim()
 	if (wanted === '') return input.texts[0]
 	const lower = wanted.toLowerCase()
 	return input.texts.find((t) => t.name?.toLowerCase() === lower) ?? input.texts.find((t) => t.index === wanted)
 }
-
-module.exports = { fetchVmixXml, parseInputs, findInput, findText, decodeXml }

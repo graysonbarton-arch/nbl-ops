@@ -1,6 +1,6 @@
-const test = require('node:test')
-const assert = require('node:assert')
-const { parseInputs, findInput, findText } = require('../src/vmix')
+import test from 'node:test'
+import assert from 'node:assert'
+import { parseInputs, findInput, findText } from '../src/vmix.js'
 
 const XML = `<vmix><version>27.0.0.49</version><inputs>
 <input key="aaa-111" number="1" type="Colour" title="Black" shortTitle="Black" state="Paused">Black</input>

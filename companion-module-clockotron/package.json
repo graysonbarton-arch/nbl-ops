@@ -1,6 +1,6 @@
 {
 	"name": "companion-module-clockotron",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Bitfocus Companion module for Clockotron (vMix countdown timer)",
 	"main": "src/main.js",
 	"private": true,
@@ -22,5 +22,6 @@
 		"prettier": "^3.9.9"
 	},
 	"prettier": "@companion-module/tools/.prettierrc.json",
-	"packageManager": "yarn@4.18.1"
+	"packageManager": "yarn@4.18.1",
+	"type": "module"
 }

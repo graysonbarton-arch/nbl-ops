@@ -3,7 +3,7 @@
  * Accepts "HH:MM:SS", "MM:SS", plain seconds ("90"), or unit form ("1h 5m 30s").
  * Returns null when the input can't be understood.
  */
-function parseDuration(input) {
+export function parseDuration(input) {
 	const str = String(input ?? '').trim()
 	if (str === '') return null
 
@@ -31,7 +31,7 @@ function parseDuration(input) {
  * Clockotron's keypad reads typed digits as HHMMSS, e.g. "13000" = 1:30:00.
  * Build the digit string that makes Clockotron land on exactly `totalSeconds`.
  */
-function secondsToKeypadDigits(totalSeconds) {
+export function secondsToKeypadDigits(totalSeconds) {
 	const secs = Math.max(0, Math.floor(totalSeconds))
 	const h = Math.floor(secs / 3600)
 	const m = Math.floor((secs % 3600) / 60)
@@ -43,7 +43,7 @@ function secondsToKeypadDigits(totalSeconds) {
  * Parse a clock string as Clockotron writes it to vMix ("HH:MM:SS", "MM:SS" or "SS").
  * Returns null if it isn't a clock value.
  */
-function parseClockText(text) {
+export function parseClockText(text) {
 	const str = String(text ?? '').trim()
 	const match = /^(-)?(\d+)(?::(\d+))?(?::(\d+))?$/.exec(str)
 	if (!match) return null
@@ -53,7 +53,7 @@ function parseClockText(text) {
 	return match[1] ? -total : total
 }
 
-function formatHMS(totalSeconds) {
+export function formatHMS(totalSeconds) {
 	const secs = Math.abs(Math.floor(totalSeconds))
 	const h = Math.floor(secs / 3600)
 	const m = Math.floor((secs % 3600) / 60)
@@ -61,8 +61,6 @@ function formatHMS(totalSeconds) {
 	return `${totalSeconds < 0 ? '-' : ''}${pad2(h)}:${pad2(m)}:${pad2(s)}`
 }
 
-function pad2(n) {
+export function pad2(n) {
 	return String(n).padStart(2, '0')
 }
-
-module.exports = { parseDuration, secondsToKeypadDigits, parseClockText, formatHMS, pad2 }

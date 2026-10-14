@@ -1,6 +1,6 @@
-const test = require('node:test')
-const assert = require('node:assert')
-const { parseDuration, secondsToKeypadDigits, parseClockText, formatHMS } = require('../src/time')
+import test from 'node:test'
+import assert from 'node:assert'
+import { parseDuration, secondsToKeypadDigits, parseClockText, formatHMS } from '../src/time.js'
 
 // Mirror of Clockotron's keypad conversion (src/renderer/components/clock.input.timer.jsx)
 const clockotronKeypadToSeconds = (input) =>

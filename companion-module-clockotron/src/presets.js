@@ -1,4 +1,4 @@
-const { combineRgb } = require('@companion-module/base')
+import { combineRgb } from '@companion-module/base'
 
 const WHITE = combineRgb(255, 255, 255)
 const BLACK = combineRgb(0, 0, 0)
@@ -20,7 +20,7 @@ function button(name, text, actions, { bgcolor = BLACK, size = '14', feedbacks =
 
 const act = (actionId, options = {}) => ({ actionId, options })
 
-module.exports = function (self) {
+export default function (self) {
 	const v = (name) => `$(${self.label}:${name})`
 	const presets = {}
 	const sections = []

@@ -4,7 +4,7 @@ A [Bitfocus Companion](https://bitfocus.io/companion) module for [Clockotron](ht
 
 ## Install on the show PC
 
-1. In Companion, open **Modules**, click **Import module package**, and pick `release/clockotron-1.0.0.tgz`.
+1. In Companion, open **Modules**, click **Import module package**, and pick `release/clockotron-1.0.1.tgz`.
 2. Under **Connections**, add **Clockotron** and fill in the settings. See [companion/HELP.md](companion/HELP.md).
 
 ## How it talks to Clockotron

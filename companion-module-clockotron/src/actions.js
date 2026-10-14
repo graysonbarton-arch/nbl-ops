@@ -1,8 +1,8 @@
-const { parseDuration } = require('./time')
+import { parseDuration } from './time.js'
 
 const DIGIT_CHOICES = [...'0123456789'].map((d) => ({ id: d, label: d }))
 
-module.exports = function (self) {
+export default function (self) {
 	self.setActionDefinitions({
 		start_pause: {
 			name: 'Start / Pause (toggle)',
